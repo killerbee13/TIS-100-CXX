@@ -21,6 +21,9 @@
 #include <cassert>
 #include <iostream>
 
+#include <kblib/stringops.h>
+
+using namespace std::literals;
 int main() {
 	auto f = parse(
 	    "2 3 CCSCCC I0 NUMERIC numbers.txt O0 NUMERIC - 10 O2 ASCII -", "", "");
@@ -32,5 +35,22 @@ I0 NUMERIC numbers.txt
 O0 NUMERIC - 10
 O2 ASCII -
 )");
+
+	auto code = assemble(R"(B:MOV 0,DOWN
+  MOV ACC,DOWN
+  SWP
+  SUB 15
+#COM M EN T:
+
+C:
+L: MOV LEFT,DOWN
+  MOV LEFT,DOWN
+  ADD 1#
+  JLZ L #
+N:A:MOV -1,DOWN
+  SWP
+  ADD 1
+  NEG)");
+
 	return 0;
 }

@@ -31,9 +31,9 @@ enum port : std::int8_t {
 	down,
 	D5, // 3D expansion
 	D6,
-	nil_,
+	nil,
 	acc,
-	any_,
+	any,
 	last,
 	immediate = -1
 };

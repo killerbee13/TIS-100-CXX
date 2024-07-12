@@ -18,6 +18,7 @@
 #ifndef PARSER_HPP
 #define PARSER_HPP
 
+#include "T21.hpp"
 #include "node.hpp"
 
 #include <memory>
@@ -106,7 +107,14 @@ class field {
 	std::size_t io_node_offset{};
 };
 
+constexpr inline int def_T21_size = 15;
+constexpr inline int def_T30_size = 15;
+
 field parse(std::string_view layout, std::string_view source,
-            std::string_view expected, int T21_size = 15, int T30_size = 15);
+            std::string_view expected, int T21_size = def_T21_size,
+            int T30_size = def_T30_size);
+
+std::vector<instr> assemble(std::string_view source,
+                            int T21_size = def_T21_size);
 
 #endif // PARSER_HPP

@@ -20,6 +20,7 @@
 
 #include "node.hpp"
 
+#include <string>
 #include <variant>
 #include <vector>
 
@@ -59,15 +60,17 @@ struct instr {
 		jro, // 1
 	};
 	// variant index corresponds to instruction op
-	std::variant<seq_instr, seq_instr, seq_instr, seq_instr, //
-	             mov_instr,                                  //
-	             arith_instr, arith_instr,                   //
-	             jmp_instr, jmp_instr, jmp_instr, jmp_instr, //
+	std::variant<seq_instr, seq_instr, seq_instr, seq_instr,            //
+	             mov_instr,                                             //
+	             arith_instr, arith_instr,                              //
+	             jmp_instr, jmp_instr, jmp_instr, jmp_instr, jmp_instr, //
 	             jro_instr>
 	    data;
 
 	op get_op() const { return static_cast<op>(data.index()); }
 };
+
+std::string to_string(instr i);
 
 struct T21 : node {
 	type_t type() const override { return type_t::T21; }
