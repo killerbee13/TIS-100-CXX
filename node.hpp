@@ -18,29 +18,51 @@
 #ifndef NODE_HPP
 #define NODE_HPP
 
-#include <memory>
-#include <vector>
+#include <array>
+#include <cstdint>
 
-struct node {
+using word_t = std::int16_t;
+using index_t = std::int8_t;
 
-	enum type_t { T21, Basic = T21, T30, Stack = T30, Damaged = -1 };
-	enum port { nil_, acc, left, right, up, down, any_, last };
-
-	type_t type{Damaged};
-	std::vector<node*> neighbors;
-
-	node() = default;
-	node(const node&) = delete;
-	node(node&&) = delete;
-	node& operator=(const node&) = delete;
-	node& operator=(node&&) = delete;
-	virtual ~node() = default;
+enum port : std::int8_t {
+	up,
+	left,
+	right,
+	down,
+	D5, // 3D expansion
+	D6,
+	nil_,
+	acc,
+	any_,
+	last,
+	immediate = -1
 };
 
-class field {
+struct node {
  public:
- private:
-	std::vector<std::unique_ptr<node>> nodes;
+	enum type_t { T21, T30, in, out, image, Damaged = -1 };
+
+	virtual type_t type() const = 0;
+	virtual void step() = 0;
+	virtual void read() = 0;
+	std::array<node*, 6> neighbors;
+	int x{};
+	int y{};
+
+	node() = default;
+	virtual ~node() = default;
+
+ protected: // prevents most slicing
+	node(const node&) = default;
+	node(node&&) = default;
+	node& operator=(const node&) = default;
+	node& operator=(node&&) = default;
+};
+
+struct damaged : node {
+	type_t type() const override { return Damaged; }
+	void step() override { return; }
+	void read() override { return; }
 };
 
 #endif // NODE_HPP
