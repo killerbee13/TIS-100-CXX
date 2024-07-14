@@ -77,12 +77,13 @@ field parse_layout(std::string_view layout) {
 	}
 	for (const auto y : kblib::range(ret.height())) {
 		for (const auto x : kblib::range(ret.width)) {
-			auto p = ret.node_by_location(x, y);
-			// safe because node_by_location returns nullptr on OOB
-			p->neighbors[up] = ret.node_by_location(x, y - 1);
-			p->neighbors[left] = ret.node_by_location(x - 1, y);
-			p->neighbors[right] = ret.node_by_location(x + 1, y);
-			p->neighbors[down] = ret.node_by_location(x, y + 1);
+			if (auto p = ret.node_by_location(x, y); valid(p)) {
+				// safe because node_by_location returns nullptr on OOB
+				p->neighbors[up] = ret.node_by_location(x, y - 1);
+				p->neighbors[left] = ret.node_by_location(x - 1, y);
+				p->neighbors[right] = ret.node_by_location(x + 1, y);
+				p->neighbors[down] = ret.node_by_location(x, y + 1);
+			}
 		}
 	}
 
@@ -95,7 +96,7 @@ field parse_layout(std::string_view layout) {
 			auto x = kblib::parse_integer<int>(std::string_view{id}.substr(1), 10);
 			auto p = do_insert<input_node>(ret.nodes, x);
 			auto n = ret.node_by_location(x, 0);
-			assert(n);
+			assert(valid(n));
 			p->neighbors[down] = n;
 			n->neighbors[up] = p;
 			std::string input_type;
@@ -118,14 +119,14 @@ field parse_layout(std::string_view layout) {
 			if (input_type == "IMAGE") {
 				auto p = do_insert<image_output>(ret.nodes, x);
 				auto n = ret.node_by_location(x, ret.height() - 1);
-				assert(n);
+				assert(valid(n));
 				p->neighbors[up] = n;
 				n->neighbors[down] = p;
 				ss >> p->width;
 			} else {
 				auto p = do_insert<output_node>(ret.nodes, x);
 				auto n = ret.node_by_location(x, ret.height() - 1);
-				assert(n);
+				assert(valid(n));
 				p->neighbors[up] = n;
 				n->neighbors[down] = p;
 				if (input_type == "NUMERIC") {
@@ -152,6 +153,8 @@ field parse_layout(std::string_view layout) {
 
 	return ret;
 }
+
+void parse_code(field& f, std::string_view source, int T21_size) {}
 
 field parse(std::string_view layout, std::string_view source,
             std::string_view expected, int T21_size, int T30_size) {
@@ -349,14 +352,13 @@ std::vector<instr> assemble(std::string_view source, int T21_size) {
 	{
 		int l{};
 		for (const auto& line : lines) {
-			auto tokens = kblib::split_tokens(
-			    line, [](char c) { return " \t,"sv.contains(c); });
+			auto tokens
+			    = kblib::split_tokens(line.substr(0, line.find_first_of('#')),
+			                          [](char c) { return " \t,"sv.contains(c); });
 			for (auto j : kblib::range(tokens.size())) {
 				const auto& tok = tokens[j];
 				if (tok.empty()) {
 					continue; // ?
-				} else if (tok.front() == '#') {
-					break;
 				} else if (tok.contains(':')) {
 					std::string tmp;
 					for (auto c : tok) {
@@ -494,7 +496,7 @@ std::vector<instr> assemble(std::string_view source, int T21_size) {
 std::size_t field::instructions() const {
 	std::size_t ret{};
 	for (auto& p : nodes) {
-		if (p and p->type() == node::T21) {
+		if (p and type(p.get()) == node::T21) {
 			ret += static_cast<T21*>(p.get())->code.size();
 		}
 	}
@@ -504,7 +506,7 @@ std::size_t field::instructions() const {
 std::size_t field::nodes_used() const {
 	std::size_t ret{};
 	for (auto& p : nodes) {
-		if (p and p->type() == node::T21) {
+		if (p and type(p.get()) == node::T21) {
 			ret += not static_cast<T21*>(p.get())->code.empty();
 		}
 	}
@@ -518,11 +520,11 @@ std::string field::layout() const {
 	for (const auto y : kblib::range(h)) {
 		for (const auto x : kblib::range(width)) {
 			auto p = node_by_location(x, y);
-			if (not p or p->type() == node::Damaged) {
+			if (not valid(p)) {
 				ret += 'D';
-			} else if (p->type() == node::T21) {
+			} else if (type(p) == node::T21) {
 				ret += 'C';
-			} else if (p->type() == node::T30) {
+			} else if (type(p) == node::T30) {
 				ret += 'S';
 			}
 		}
@@ -537,7 +539,7 @@ std::string field::layout() const {
 
 		if (not p) {
 			continue;
-		} else if (p->type() == node::in) {
+		} else if (type(p) == node::in) {
 			auto in = static_cast<input_node*>(p);
 			if (in->filename.empty()) {
 				kblib::append(ret, 'I', p->x, io_labels[in->io_type], "[");
@@ -549,7 +551,7 @@ std::string field::layout() const {
 				kblib::append(ret, 'I', p->x, io_labels[in->io_type], in->filename,
 				              '\n');
 			}
-		} else if (p->type() == node::out) {
+		} else if (type(p) == node::out) {
 			auto on = static_cast<output_node*>(p);
 			if (on->filename.empty()) {
 				kblib::append(ret, 'O', p->x, io_labels[on->io_type], "[");
@@ -564,7 +566,7 @@ std::string field::layout() const {
 				}
 				kblib::append(ret, '\n');
 			}
-		} else if (p->type() == node::image) {
+		} else if (type(p) == node::image) {
 			auto im = static_cast<image_output*>(p);
 			kblib::append(ret, 'O', p->x, " IMAGE ", im->width, im->height(),
 			              '\n');

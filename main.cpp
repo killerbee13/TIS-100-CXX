@@ -38,16 +38,16 @@ O2 ASCII -
 
 	auto code = assemble(R"(B:MOV 0,DOWN
   MOV ACC,DOWN
-  SWP
+  SWP#C
   SUB 15
 #COM M EN T:
 
-C:
+  C:
 L: MOV LEFT,DOWN
-  MOV LEFT,DOWN
+  MOV LEFT DOWN
   ADD 1#
-  JLZ L #
-N:A:MOV -1,DOWN
+  JLZ + #
+N:+:MOV -1,DOWN
   SWP
   ADD 1
   NEG)");

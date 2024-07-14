@@ -40,7 +40,7 @@ enum port : std::int8_t {
 
 struct node {
  public:
-	enum type_t { T21, T30, in, out, image, Damaged = -1 };
+	enum type_t { T21 = 1, T30, in, out, image, Damaged = -1 };
 
 	virtual type_t type() const = 0;
 	virtual void step() = 0;
@@ -51,6 +51,16 @@ struct node {
 
 	node() = default;
 	virtual ~node() = default;
+
+	friend node::type_t type(const node* n) {
+		if (n) {
+			return n->type();
+		} else {
+			return node::Damaged;
+		}
+	}
+
+	friend bool valid(const node* n) { return n and n->type() != node::Damaged; }
 
  protected: // prevents most slicing
 	node(const node&) = default;
