@@ -45,6 +45,7 @@ struct T21;
 
 struct instr {
 	enum op {
+		nop,
 		swp,
 		sav,
 		neg,
@@ -60,7 +61,7 @@ struct instr {
 		jro, // 1
 	};
 	// variant index corresponds to instruction op
-	std::variant<seq_instr, seq_instr, seq_instr, seq_instr,            //
+	std::variant<seq_instr, seq_instr, seq_instr, seq_instr, seq_instr, //
 	             mov_instr,                                             //
 	             arith_instr, arith_instr,                              //
 	             jmp_instr, jmp_instr, jmp_instr, jmp_instr, jmp_instr, //
@@ -73,14 +74,16 @@ struct instr {
 std::string to_string(instr i);
 
 struct T21 : node {
-	type_t type() const override { return type_t::T21; }
+	type_t type() const noexcept override { return type_t::T21; }
 	void step() override {}
 	void read() override {}
+	activity state() const noexcept override { return s; }
 
 	word_t acc{}, bak{}, write{};
 	index_t pc{};
 	port write_port{}, last;
 	std::vector<instr> code;
+	activity s{};
 };
 
 #endif // T21_HPP

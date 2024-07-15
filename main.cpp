@@ -26,14 +26,32 @@
 using namespace std::literals;
 int main() {
 	auto f = parse(
-	    "2 3 CCSCCC I0 NUMERIC numbers.txt O0 NUMERIC - 10 O2 ASCII -", "", "");
+	    "2 3 CCSCDC I0 NUMERIC numbers.txt O0 NUMERIC - 10 O2 ASCII -", "", "");
 	std::cout << f.layout();
 	assert(f.layout() == R"(2 3
 CCS
-CCC
+CDC
 I0 NUMERIC numbers.txt
 O0 NUMERIC - 10
 O2 ASCII -
+)");
+	// can parse the 'BSC' code used in my spreadsheet as well as the 'CSMD' code
+	// used by Phlarx/tis
+	// in fact S and M are always interchangeable
+	auto f2 = parse(
+	    "2 3 BBSBCB I0 NUMERIC numbers.txt O0 NUMERIC - 10 O2 ASCII -", "", "");
+	assert(f.layout() == f2.layout());
+
+	// not confused by Bs in IO specs
+	auto f3 = parse(
+	    "2 3 CCSCDC I0 NUMERIC numbers.txt O0 NUMERIC - 10 O2 ASCII B", "", "");
+
+	assert(f3.layout() == R"(2 3
+CCS
+CDC
+I0 NUMERIC numbers.txt
+O0 NUMERIC - 10
+O2 ASCII B
 )");
 
 	auto code = assemble(R"(B:MOV 0,DOWN

@@ -40,9 +40,12 @@ Node* do_insert(std::vector<std::unique_ptr<node>>& v, int x) {
 	return p;
 }
 
+template <bool use_nonstandard_rep = false>
 field parse_layout(std::string_view layout) {
 	auto ss
 	    = std::ispanstream{std::span<const char>{layout.begin(), layout.size()}};
+
+	constexpr static std::string_view cs = use_nonstandard_rep ? "BSMC" : "CSMD";
 
 	int h{};
 	int w{};
@@ -56,19 +59,21 @@ field parse_layout(std::string_view layout) {
 
 	for (const int i : kblib::range(w * h)) {
 		char c{};
-		ss >> c;
+		ss >> std::ws >> c;
 		switch (c) {
-		case 'C':
+		case cs[0]:
 			ret.nodes[i] = std::make_unique<T21>();
 			break;
-		case 'S':
-		case 'M':
+			// S (stack) and M (memory) are interchangeable
+		case cs[1]:
+		case cs[2]:
 			ret.nodes[i] = std::make_unique<T30>();
 			break;
 		default:
-			// warn
+			std::clog << "unknown node type " << kblib::quoted(c)
+			          << " in layout\n";
 			[[fallthrough]];
-		case 'D':
+		case cs[3]:
 			ret.nodes[i] = std::make_unique<damaged>();
 			break;
 		case std::char_traits<char>::eof():
@@ -147,18 +152,28 @@ field parse_layout(std::string_view layout) {
 				}
 			}
 		} else {
-			throw std::invalid_argument{""};
+			throw std::invalid_argument{kblib::concat("invalid layout")};
 		}
 	}
 
 	return ret;
 }
 
+field parse_layout_guess(std::string_view layout) {
+	std::clog << "layout detection: " << layout.find_first_of('B') << " < "
+	          << layout.find_first_of("IO") << '\n';
+	if (layout.find_first_of('B') < layout.find_first_of("IO")) {
+		return parse_layout<true>(layout);
+	} else {
+		return parse_layout<false>(layout);
+	}
+}
+
 void parse_code(field& f, std::string_view source, int T21_size) {}
 
 field parse(std::string_view layout, std::string_view source,
             std::string_view expected, int T21_size, int T30_size) {
-	field ret = parse_layout(layout);
+	field ret = parse_layout_guess(layout);
 
 	return ret;
 }
@@ -174,7 +189,7 @@ std::string to_string(port p) {
 	case down:
 		return "DOWN";
 	case D5:
-		return "D5";
+		return "D5"; // leaving space for a possible extension to 3d
 	case D6:
 		return "D6";
 	case nil:
@@ -186,7 +201,8 @@ std::string to_string(port p) {
 	case last:
 		return "LAST";
 	default:
-		throw std::invalid_argument{""};
+		throw std::invalid_argument{
+		    kblib::concat("invalid port number ", kblib::etoi(p))};
 	}
 }
 
@@ -217,42 +233,55 @@ std::string to_string(jro_instr i) {
 std::string to_string(instr i) {
 	return kblib::visit_indexed(
 	    i.data,
-	    [](kblib::constant<std::size_t, 0>, seq_instr) { return "SWP"s; },
-	    [](kblib::constant<std::size_t, 1>, seq_instr) { return "SAV"s; },
-	    [](kblib::constant<std::size_t, 2>, seq_instr) { return "NEG"s; },
-	    [](kblib::constant<std::size_t, 3>, seq_instr) { return "HCF"s; },
-	    [](kblib::constant<std::size_t, 4>, mov_instr i) {
+	    [](kblib::constant<std::size_t, instr::nop>, seq_instr) {
+		    return "NOP"s;
+	    },
+	    [](kblib::constant<std::size_t, instr::swp>, seq_instr) {
+		    return "SWP"s;
+	    },
+	    [](kblib::constant<std::size_t, instr::sav>, seq_instr) {
+		    return "SAV"s;
+	    },
+	    [](kblib::constant<std::size_t, instr::neg>, seq_instr) {
+		    return "NEG"s;
+	    },
+	    [](kblib::constant<std::size_t, instr::hcf>, seq_instr) {
+		    return "HCF"s;
+	    },
+	    [](kblib::constant<std::size_t, instr::mov>, mov_instr i) {
 		    return "MOV "s + to_string(i);
 	    },
-	    [](kblib::constant<std::size_t, 5>, arith_instr i) {
+	    [](kblib::constant<std::size_t, instr::add>, arith_instr i) {
 		    return "ADD "s + to_string(i);
 	    },
-	    [](kblib::constant<std::size_t, 6>, arith_instr i) {
+	    [](kblib::constant<std::size_t, instr::sub>, arith_instr i) {
 		    return "SUB "s + to_string(i);
 	    },
-	    [](kblib::constant<std::size_t, 7>, jmp_instr i) {
+	    [](kblib::constant<std::size_t, instr::jmp>, jmp_instr i) {
 		    return "JMP "s + to_string(i);
 	    },
-	    [](kblib::constant<std::size_t, 8>, jmp_instr i) {
+	    [](kblib::constant<std::size_t, instr::jez>, jmp_instr i) {
 		    return "JEZ "s + to_string(i);
 	    },
-	    [](kblib::constant<std::size_t, 9>, jmp_instr i) {
+	    [](kblib::constant<std::size_t, instr::jnz>, jmp_instr i) {
 		    return "JNZ "s + to_string(i);
 	    },
-	    [](kblib::constant<std::size_t, 10>, jmp_instr i) {
+	    [](kblib::constant<std::size_t, instr::jgz>, jmp_instr i) {
 		    return "JGZ "s + to_string(i);
 	    },
-	    [](kblib::constant<std::size_t, 11>, jmp_instr i) {
+	    [](kblib::constant<std::size_t, instr::jlz>, jmp_instr i) {
 		    return "JLZ "s + to_string(i);
 	    },
-	    [](kblib::constant<std::size_t, 12>, jro_instr i) {
+	    [](kblib::constant<std::size_t, instr::jro>, jro_instr i) {
 		    return "JRO "s + to_string(i);
 	    });
 }
 
 instr::op parse_op(std::string_view str) {
 	using enum instr::op;
-	if (str == "SWP") {
+	if (str == "NOP") {
+		return nop;
+	} else if (str == "SWP") {
 		return swp;
 	} else if (str == "SAV") {
 		return sav;
@@ -422,7 +451,10 @@ std::vector<instr> assemble(std::string_view source, int T21_size) {
 			auto& tok = tokens[j];
 			auto& i = tmp.emplace();
 			using enum instr::op;
-			if (tok == "SWP") {
+			if (tok == "NOP") {
+				i.data.emplace<static_cast<std::size_t>(nop)>();
+				assert(j + 1 == tokens.size() or tokens[j + 1].starts_with('#'));
+			} else if (tok == "SWP") {
 				i.data.emplace<static_cast<std::size_t>(swp)>();
 				assert(j + 1 == tokens.size() or tokens[j + 1].starts_with('#'));
 			} else if (tok == "SAV") {

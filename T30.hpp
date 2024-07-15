@@ -24,7 +24,7 @@
 
 struct T30 : node {
 	std::vector<word_t> data;
-	type_t type() const override { return type_t::T30; }
+	type_t type() const noexcept override { return type_t::T30; }
 	void step() override {}
 	void read() override {}
 };

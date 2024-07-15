@@ -25,7 +25,7 @@
 enum io_type_t { numeric, ascii, list };
 
 struct input_node : node {
-	type_t type() const override { return in; }
+	type_t type() const noexcept override { return in; }
 	void step() override { return; }
 	void read() override { return; }
 
@@ -34,7 +34,7 @@ struct input_node : node {
 	io_type_t io_type;
 };
 struct output_node : node {
-	type_t type() const override { return out; }
+	type_t type() const noexcept override { return out; }
 	void step() override { return; }
 	void read() override { return; }
 	std::vector<word_t> outputs_expected;
@@ -44,7 +44,7 @@ struct output_node : node {
 	char d{' '};
 };
 struct image_output : node {
-	type_t type() const override { return image; }
+	type_t type() const noexcept override { return image; }
 	void step() override { return; }
 	void read() override { return; }
 

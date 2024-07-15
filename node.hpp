@@ -41,10 +41,14 @@ enum port : std::int8_t {
 struct node {
  public:
 	enum type_t { T21 = 1, T30, in, out, image, Damaged = -1 };
+	enum class activity { idle, run, read, write };
 
-	virtual type_t type() const = 0;
+	virtual type_t type() const noexcept = 0;
 	virtual void step() = 0;
 	virtual void read() = 0;
+	// damaged and stack nodes are always idle, so this default simplifies them
+	virtual activity state() const noexcept { return activity::idle; };
+
 	std::array<node*, 6> neighbors;
 	int x{};
 	int y{};
@@ -70,7 +74,7 @@ struct node {
 };
 
 struct damaged : node {
-	type_t type() const override { return Damaged; }
+	type_t type() const noexcept override { return Damaged; }
 	void step() override { return; }
 	void read() override { return; }
 };

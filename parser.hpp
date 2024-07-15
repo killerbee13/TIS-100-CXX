@@ -92,6 +92,7 @@ class field {
 
 	friend field parse(std::string_view layout, std::string_view source,
 	                   std::string_view expected, int T21_size, int T30_size);
+	template <bool use_nonstandard_rep>
 	friend field parse_layout(std::string_view layout);
 
  private:
