@@ -22,11 +22,13 @@
 
 #include <array>
 #include <cstdint>
-#include <string>
 #include <vector>
 
 using word_t = std::int16_t;
 using index_t = std::int8_t;
+
+constexpr inline int def_T21_size = 15;
+constexpr inline int def_T30_size = 15;
 
 enum port : std::int8_t {
 	up,
@@ -42,14 +44,40 @@ enum port : std::int8_t {
 	immediate = -1
 };
 
+constexpr port invert(port p) {
+	switch (p) {
+	case up:
+		return down;
+	case left:
+		return right;
+	case right:
+		return left;
+	case down:
+		return up;
+	case D5:
+		return D6;
+	case D6:
+		return D5;
+	case nil:
+	case acc:
+	case any:
+	case last:
+	case immediate:
+		throw std::invalid_argument{""};
+	}
+}
+
 struct node {
  public:
 	enum type_t { T21 = 1, T30, in, out, image, Damaged = -1 };
 	enum class activity { idle, run, read, write };
 
 	virtual type_t type() const noexcept = 0;
-	virtual void step() = 0;
-	virtual void read() = 0;
+	virtual bool step() = 0;
+	virtual bool finalize() = 0;
+
+	virtual std::optional<word_t> read_(port p) = 0;
+
 	// damaged and stack nodes are always idle, so this default simplifies them
 	virtual activity state() const noexcept { return activity::idle; };
 
@@ -58,6 +86,9 @@ struct node {
 	int y{};
 
 	node() = default;
+	node(int x, int y) noexcept
+	    : x(x)
+	    , y(y) {}
 	virtual ~node() = default;
 
 	friend node::type_t type(const node* n) {
@@ -69,6 +100,14 @@ struct node {
 	}
 
 	friend bool valid(const node* n) { return n and n->type() != node::Damaged; }
+	friend std::optional<word_t> do_read(node* n, port p) {
+		assert(p >= port::up and p <= port::D6);
+		if (not valid(n)) {
+			return std::nullopt;
+		} else {
+			return n->read_(p);
+		}
+	}
 
  protected: // prevents most slicing
 	node(const node&) = default;
@@ -78,9 +117,11 @@ struct node {
 };
 
 struct damaged : node {
+	using node::node;
 	type_t type() const noexcept override { return Damaged; }
-	void step() override { return; }
-	void read() override { return; }
+	bool step() override { return false; }
+	bool finalize() override { return false; }
+	std::optional<word_t> read_(port) override { return std::nullopt; }
 };
 
 struct tis_pixel {
@@ -136,6 +177,8 @@ struct tis_pixel {
 		return os << px.as_rgb();
 	}
 	constexpr static bool is_binary_writable = false;
+	constexpr friend std::strong_ordering operator<=>(tis_pixel, tis_pixel)
+	    = default;
 };
 
 struct image_t : pnm::image<tis_pixel> {

@@ -33,15 +33,14 @@ using namespace std::literals;
 
 template <typename Node>
 Node* do_insert(std::vector<std::unique_ptr<node>>& v, int x) {
-	auto _ = std::make_unique<Node>();
+	auto _ = std::make_unique<Node>(x, -1);
 	auto p = _.get();
-	p->x = x;
 	v.emplace_back(std::move(_));
 	return p;
 }
 
 template <bool use_nonstandard_rep = false>
-field parse_layout(std::string_view layout) {
+field parse_layout(std::string_view layout, int T30_size) {
 	auto ss
 	    = std::ispanstream{std::span<const char>{layout.begin(), layout.size()}};
 
@@ -64,27 +63,37 @@ field parse_layout(std::string_view layout) {
 	ret.nodes.resize(ret.io_node_offset);
 	ret.width = static_cast<std::size_t>(w);
 
-	for (const auto i : kblib::range(ret.io_node_offset)) {
-		char c{};
-		ss >> std::ws >> c;
-		switch (c) {
-		case cs[0]:
-			ret.nodes[i] = std::make_unique<T21>();
-			break;
-			// S (stack) and M (memory) are interchangeable
-		case cs[1]:
-		case cs[2]:
-			ret.nodes[i] = std::make_unique<T30>();
-			break;
-		default:
-			std::clog << "unknown node type " << kblib::quoted(c)
-			          << " in layout\n";
-			[[fallthrough]];
-		case cs[3]:
-			ret.nodes[i] = std::make_unique<damaged>();
-			break;
-		case std::char_traits<char>::eof():
-			throw std::invalid_argument{""};
+	{
+		int x{};
+		int y{};
+		for (const auto i : kblib::range(ret.io_node_offset)) {
+			char c{};
+			ss >> std::ws >> c;
+			switch (c) {
+			case cs[0]:
+				ret.nodes[i] = std::make_unique<T21>(x, y);
+				break;
+				// S (stack) and M (memory) are interchangeable
+			case cs[1]:
+			case cs[2]: {
+				auto p = std::make_unique<T30>(x, y);
+				p->max_size = T30_size;
+				ret.nodes[i] = std::move(p);
+			} break;
+			default:
+				log_warn("unknown node type ", kblib::quoted(c), " in layout");
+				[[fallthrough]];
+			case cs[3]:
+				ret.nodes[i] = std::make_unique<damaged>(x, y);
+				break;
+			case std::char_traits<char>::eof():
+				throw std::invalid_argument{""};
+			}
+			++x;
+			if (x == w) {
+				x = 0;
+				++y;
+			}
 		}
 	}
 	for (const auto y : kblib::range(ret.height())) {
@@ -168,24 +177,81 @@ field parse_layout(std::string_view layout) {
 	return ret;
 }
 
-field parse_layout_guess(std::string_view layout) {
+field parse_layout_guess(std::string_view layout, int T30_size) {
 	/*std::clog << "layout detection: " << layout.find_first_of('B') << " < "
 	          << layout.find_first_of("IO") << ": " << std::boolalpha
 	          << (layout.find_first_of('B') < layout.find_first_of("IO"))
 	          << '\n';//*/
 	if (layout.find_first_of('B') < layout.find_first_of("IO")) {
-		return parse_layout<true>(layout);
+		return parse_layout<true>(layout, T30_size);
 	} else {
-		return parse_layout<false>(layout);
+		return parse_layout<false>(layout, T30_size);
 	}
 }
 
-void parse_code(field& f, std::string_view source, int T21_size);
+std::string_view pop(std::string_view& str, std::size_t n) {
+	n = std::min(n, str.size());
+	auto r = str.substr(0, n);
+	str.remove_prefix(n);
+	return r;
+}
+
+void parse_code(field& f, std::string_view source, int T21_size) {
+	source.remove_prefix(std::min(source.find_first_of('@'), source.size()));
+	while (not source.empty()) {
+		auto header = pop(source, source.find_first_of('\n'));
+		pop(source, source.find_first_not_of(" \t\r\n"));
+		header.remove_prefix(1);
+		auto i = kblib::parse_integer<int>(header);
+		auto section = pop(source, source.find_first_of('@'));
+		if (section.empty()) {
+			continue;
+		}
+		section.remove_suffix(
+		    section.size()
+		    - std::min(section.find_last_not_of(" \t\r\n"), section.size()) - 1);
+		log_debug("index ", i, " of ", f.nodes_avail());
+		auto p = f.node_by_index(static_cast<std::size_t>(i));
+		assert(p);
+		p->code = assemble(section, T21_size);
+	}
+}
 
 field parse(std::string_view layout, std::string_view source,
             std::string_view expected, int T21_size, int T30_size) {
-	field ret = parse_layout_guess(layout);
+	field ret = parse_layout_guess(layout, T30_size);
+	log_debug(ret.layout());
+	log_debug(ret.nodes_avail(), " programmable nodes");
+	parse_code(ret, source, T21_size);
 
+	// parse expected
+	return ret;
+}
+field parse(std::string_view layout, std::string_view source,
+            const inputs_outputs& expected, int test, int T21_size,
+            int T30_size) {
+	field ret = parse_layout_guess(layout, T30_size);
+	log_debug(ret.layout());
+	log_debug(ret.nodes_avail(), " programmable nodes");
+	parse_code(ret, source, T21_size);
+	auto it = ret.begin() + ret.nodes_total();
+	std::size_t in_idx{};
+	std::size_t out_idx{};
+	const auto& t = expected.data[test];
+	for (; it != ret.end(); ++it) {
+		if (auto p = it->get(); type(p) == node::in) {
+			assert(in_idx < t.inputs.size());
+			static_cast<input_node*>(p)->inputs = t.inputs[in_idx++];
+		} else if (type(p) == node::out) {
+			assert(out_idx < t.n_outputs.size());
+			static_cast<output_node*>(p)->outputs_expected
+			    = t.n_outputs[out_idx++];
+		} else if (type(p) == node::image) {
+			static_cast<image_output*>(p)->image_expected = t.i_output;
+		} else {
+			assert(false);
+		}
+	}
 	return ret;
 }
 
@@ -369,7 +435,7 @@ void push_label(std::string_view lab, int l,
 			throw std::invalid_argument{""};
 		}
 	}
-	std::cerr << "L: " << lab << " (" << l << ")\n";
+	log_debug("L: ", lab, " (", l, ")");
 	labels.emplace_back(lab, l);
 }
 
@@ -531,7 +597,7 @@ std::vector<instr> assemble(std::string_view source, int T21_size) {
 				throw std::invalid_argument{kblib::quoted(tok)
 				                            + " is not a valid instruction opcode"};
 			}
-			std::cerr << "parsed: " << to_string(i) << '\n';
+			log_debug("parsed: ", to_string(i));
 			ret.push_back(i);
 			tmp.reset();
 			break;
@@ -543,7 +609,7 @@ std::vector<instr> assemble(std::string_view source, int T21_size) {
 std::size_t field::instructions() const {
 	std::size_t ret{};
 	for (auto& p : nodes) {
-		if (p and type(p.get()) == node::T21) {
+		if (type(p.get()) == node::T21) {
 			ret += static_cast<T21*>(p.get())->code.size();
 		}
 	}
@@ -553,8 +619,17 @@ std::size_t field::instructions() const {
 std::size_t field::nodes_used() const {
 	std::size_t ret{};
 	for (auto& p : nodes) {
-		if (p and type(p.get()) == node::T21) {
+		if (type(p.get()) == node::T21) {
 			ret += not static_cast<T21*>(p.get())->code.empty();
+		}
+	}
+	return ret;
+}
+std::size_t field::nodes_avail() const {
+	std::size_t ret{};
+	for (auto& p : nodes) {
+		if (type(p.get()) == node::T21) {
+			ret += 1;
 		}
 	}
 	return ret;

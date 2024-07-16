@@ -18,6 +18,7 @@
 #ifndef IO_HPP
 #define IO_HPP
 
+#include "logger.hpp"
 #include "node.hpp"
 #include <string>
 #include <vector>
@@ -25,18 +26,42 @@
 enum io_type_t { numeric, ascii, list };
 
 struct input_node : node {
+	using node::node;
 	type_t type() const noexcept override { return in; }
-	void step() override { return; }
-	void read() override { return; }
+	bool step() override { return false; }
+	bool finalize() override {
+		if (not wrt and idx != inputs.size()) {
+			log_debug("I: ", not wrt, ',', idx != inputs.size());
+			wrt.emplace(inputs[idx++]);
+			return true;
+		} else {
+			return false;
+		}
+	}
+	std::optional<word_t> read_(port) override {
+		return std::exchange(wrt, std::nullopt);
+	}
 
 	std::vector<word_t> inputs;
-	std::string filename;
-	io_type_t io_type;
+	std::size_t idx{};
+	std::string filename{};
+	io_type_t io_type{};
+	std::optional<word_t> wrt;
 };
 struct output_node : node {
+	using node::node;
 	type_t type() const noexcept override { return out; }
-	void step() override { return; }
-	void read() override { return; }
+	bool step() override {
+		if (auto r = do_read(neighbors[port::up], port::down)) {
+			log_debug("O: read");
+			outputs_received.push_back(*r);
+			return true;
+		} else {
+			return false;
+		}
+	}
+	bool finalize() override { return false; }
+	std::optional<word_t> read_(port) override { return std::nullopt; }
 	std::vector<word_t> outputs_expected;
 	std::vector<word_t> outputs_received;
 	std::string filename;
@@ -44,9 +69,11 @@ struct output_node : node {
 	char d{' '};
 };
 struct image_output : node {
+	using node::node;
 	type_t type() const noexcept override { return image; }
-	void step() override { return; }
-	void read() override { return; }
+	bool step() override { return false; }
+	bool finalize() override { return false; }
+	std::optional<word_t> read_(port) override { return std::nullopt; }
 
 	image_t image_expected;
 	image_t image_received;

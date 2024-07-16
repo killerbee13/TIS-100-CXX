@@ -74,16 +74,22 @@ struct instr {
 std::string to_string(instr i);
 
 struct T21 : node {
+	using node::node;
 	type_t type() const noexcept override { return type_t::T21; }
-	void step() override;
-	void read() override;
+	bool step() override;
+	bool finalize() override;
+	std::optional<word_t> read_(port) override;
 	activity state() const noexcept override { return s; }
 
-	word_t acc{}, bak{}, write{};
+	word_t acc{}, bak{}, wrt{};
 	index_t pc{};
-	port write_port{}, last;
+	port write_port{port::nil}, last{port::nil};
 	std::vector<instr> code;
-	activity s{};
+	activity s{activity::idle};
+
+ private:
+	void next();
+	std::optional<word_t> read(port p, word_t imm = 0);
 };
 
 #endif // T21_HPP

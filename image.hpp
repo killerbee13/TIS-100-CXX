@@ -84,6 +84,9 @@ struct rgba_pixel {
 		return os.write(reinterpret_cast<const char*>(px.rgb), 4);
 	}
 	constexpr static bool is_binary_writable = true;
+
+	constexpr friend std::strong_ordering operator<=>(rgba_pixel, rgba_pixel)
+	    = default;
 };
 
 struct rgb_pixel {
@@ -126,6 +129,8 @@ struct rgb_pixel {
 	constexpr operator rgba_pixel() const noexcept {
 		return {red(), green(), blue(), 255};
 	}
+	constexpr friend std::strong_ordering operator<=>(rgb_pixel, rgb_pixel)
+	    = default;
 };
 
 struct greyscale_pixel {
@@ -162,6 +167,9 @@ struct greyscale_pixel {
 	constexpr operator rgba_pixel() const noexcept {
 		return {red(), green(), blue(), 255};
 	}
+	constexpr friend std::strong_ordering operator<=>(greyscale_pixel,
+	                                                  greyscale_pixel)
+	    = default;
 };
 // Reads 6-character hexadecimal string into color
 constexpr auto color_from_hex(std::string_view hex) -> rgb_pixel {
@@ -237,6 +245,8 @@ class image {
 		}
 		return os;
 	}
+
+	std::strong_ordering operator<=>(const image& other) const = default;
 
  private:
 	std::ptrdiff_t width_{};

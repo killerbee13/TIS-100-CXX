@@ -19,6 +19,8 @@
 #define PARSER_HPP
 
 #include "T21.hpp"
+#include "io.hpp"
+#include "logger.hpp"
 #include "node.hpp"
 
 #include <memory>
@@ -27,24 +29,69 @@
 
 class field {
  public:
-	void step() {
+	bool step() {
 		// set up next step's IO
 		// this is a separate step to ensure a consistent propagation delay
+		bool r{false};
 		for (auto& p : nodes) {
 			if (p) {
-				p->read();
+				r |= p->step();
 			}
 		}
+		log_debug("step() -> ", r);
 		// execute
+		bool f{false};
 		for (auto& p : nodes) {
 			if (p) {
-				p->step();
+				f |= p->finalize();
 			}
 		}
+		log_debug("finalize() -> ", f);
+		return r or f;
+	}
+
+	bool active() const {
+		bool r{};
+		bool all_outputs_satisfied{true};
+		for (auto& p : nodes) {
+			std::string log = kblib::concat("node(", p->x, ',', p->y, ") ");
+			if (type(p.get()) == node::T21) {
+				kblib::append(
+				    log, "s = ", kblib::etoi(static_cast<const T21*>(p.get())->s));
+				if (static_cast<const T21*>(p.get())->s == T21::activity::run) {
+					// r = true;
+				}
+			} else if (type(p.get()) == node::in) {
+				auto i = static_cast<const input_node*>(p.get());
+				kblib::append(log, "input ", i->idx, " of ", i->inputs.size());
+				if (i->idx != i->inputs.size()) {
+					// r = true;
+				}
+			} else if (type(p.get()) == node::out) {
+				auto i = static_cast<const output_node*>(p.get());
+				kblib::append(log, "output ", i->outputs_received.size(), " of ",
+				              i->outputs_expected.size(), "; ");
+				if (i->outputs_expected != i->outputs_received) {
+					r = true;
+					all_outputs_satisfied = false;
+					kblib::append(log, "unequal");
+				} else {
+					kblib::append(log, "equal");
+				}
+			} else {
+				kblib::append(log, "inactive");
+			}
+			log_debug(log);
+		}
+		if (all_outputs_satisfied) {
+			return false;
+		}
+		return r;
 	}
 
 	std::size_t instructions() const;
 	std::size_t nodes_used() const;
+	std::size_t nodes_avail() const;
 	std::size_t nodes_total() const { return io_node_offset; }
 
 	std::string layout() const;
@@ -75,7 +122,7 @@ class field {
 	// returns the ith programmable (T21) node
 	T21* node_by_index(std::size_t i) {
 		for (auto& p : nodes) {
-			if (p and p->type() == node::T21 and --i == 0) {
+			if (type(p.get()) == node::T21 and i-- == 0) {
 				return static_cast<T21*>(p.get());
 			}
 		}
@@ -83,7 +130,7 @@ class field {
 	}
 	const T21* node_by_index(std::size_t i) const {
 		for (auto& p : nodes) {
-			if (p and p->type() == node::T21 and --i == 0) {
+			if (type(p.get()) == node::T21 and i-- == 0) {
 				return static_cast<const T21*>(p.get());
 			}
 		}
@@ -93,7 +140,7 @@ class field {
 	friend field parse(std::string_view layout, std::string_view source,
 	                   std::string_view expected, int T21_size, int T30_size);
 	template <bool use_nonstandard_rep>
-	friend field parse_layout(std::string_view layout);
+	friend field parse_layout(std::string_view layout, int T30_size);
 
 	auto begin() const noexcept { return nodes.begin(); }
 	auto end() const noexcept { return nodes.end(); }
@@ -111,18 +158,22 @@ class field {
 	std::size_t io_node_offset{};
 };
 
-constexpr inline int def_T21_size = 15;
-constexpr inline int def_T30_size = 15;
-
 field parse(std::string_view layout, std::string_view source,
             std::string_view expected, int T21_size = def_T21_size,
             int T30_size = def_T30_size);
 
 field parse(std::string_view layout, std::string_view source,
-            const inputs_outputs& expected, int T21_size = def_T21_size,
-            int T30_size = def_T30_size);
+            const inputs_outputs& expected, int test,
+            int T21_size = def_T21_size, int T30_size = def_T30_size);
 
 std::vector<instr> assemble(std::string_view source,
                             int T21_size = def_T21_size);
+
+struct score {
+	int cycles{};
+	int nodes{};
+	int instructions{};
+	bool validated{};
+};
 
 #endif // PARSER_HPP

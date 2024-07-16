@@ -23,10 +23,39 @@
 #include <vector>
 
 struct T30 : node {
+	using node::node;
 	std::vector<word_t> data;
+	std::size_t max_size{def_T30_size};
+	bool read{};
+	bool wrote{};
 	type_t type() const noexcept override { return type_t::T30; }
-	void step() override {}
-	void read() override {}
+	bool step() override {
+		read = false;
+		if (not wrote and data.size() < max_size) {
+			for (auto p : {port::up, port::left, port::right, port::down, port::D5,
+			               port::D6}) {
+				if (auto r = do_read(neighbors[p], invert(p))) {
+					data.push_back(*r);
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+	bool finalize() override {
+		wrote = false;
+		return false;
+	}
+	std::optional<word_t> read_(port) override {
+		if (not read and not data.empty()) {
+			auto v = data.back();
+			data.pop_back();
+			wrote = true;
+			return v;
+		} else {
+			return std::nullopt;
+		}
+	}
 };
 
 #endif // T30_HPP
