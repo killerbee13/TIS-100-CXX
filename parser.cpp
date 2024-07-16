@@ -49,15 +49,22 @@ field parse_layout(std::string_view layout) {
 
 	int h{};
 	int w{};
-	if (not (ss >> h >> std::ws >> w)) {
+	// if no height and width set, assume "3 4"
+	if ("BCDMS"sv.contains(ss.peek())) {
+		h = 3;
+		w = 4;
+	} else if (not (ss >> h >> std::ws >> w)) {
+		throw std::invalid_argument{""};
+	}
+	if (h < 0 or w < 0) {
 		throw std::invalid_argument{""};
 	}
 	field ret;
-	ret.io_node_offset = w * h;
+	ret.io_node_offset = static_cast<std::size_t>(w * h);
 	ret.nodes.resize(ret.io_node_offset);
-	ret.width = w;
+	ret.width = static_cast<std::size_t>(w);
 
-	for (const int i : kblib::range(w * h)) {
+	for (const auto i : kblib::range(ret.io_node_offset)) {
 		char c{};
 		ss >> std::ws >> c;
 		switch (c) {
@@ -100,7 +107,7 @@ field parse_layout(std::string_view layout) {
 		if (id[0] == 'I') {
 			auto x = kblib::parse_integer<int>(std::string_view{id}.substr(1), 10);
 			auto p = do_insert<input_node>(ret.nodes, x);
-			auto n = ret.node_by_location(x, 0);
+			auto n = ret.node_by_location(static_cast<std::size_t>(x), 0);
 			assert(valid(n));
 			p->neighbors[down] = n;
 			n->neighbors[up] = p;
@@ -123,14 +130,16 @@ field parse_layout(std::string_view layout) {
 			ss >> input_type;
 			if (input_type == "IMAGE") {
 				auto p = do_insert<image_output>(ret.nodes, x);
-				auto n = ret.node_by_location(x, ret.height() - 1);
+				auto n = ret.node_by_location(static_cast<std::size_t>(x),
+				                              ret.height() - 1);
 				assert(valid(n));
 				p->neighbors[up] = n;
 				n->neighbors[down] = p;
 				ss >> p->width;
 			} else {
 				auto p = do_insert<output_node>(ret.nodes, x);
-				auto n = ret.node_by_location(x, ret.height() - 1);
+				auto n = ret.node_by_location(static_cast<std::size_t>(x),
+				                              ret.height() - 1);
 				assert(valid(n));
 				p->neighbors[up] = n;
 				n->neighbors[down] = p;
@@ -160,8 +169,10 @@ field parse_layout(std::string_view layout) {
 }
 
 field parse_layout_guess(std::string_view layout) {
-	std::clog << "layout detection: " << layout.find_first_of('B') << " < "
-	          << layout.find_first_of("IO") << '\n';
+	/*std::clog << "layout detection: " << layout.find_first_of('B') << " < "
+	          << layout.find_first_of("IO") << ": " << std::boolalpha
+	          << (layout.find_first_of('B') < layout.find_first_of("IO"))
+	          << '\n';//*/
 	if (layout.find_first_of('B') < layout.find_first_of("IO")) {
 		return parse_layout<true>(layout);
 	} else {
@@ -169,7 +180,7 @@ field parse_layout_guess(std::string_view layout) {
 	}
 }
 
-void parse_code(field& f, std::string_view source, int T21_size) {}
+void parse_code(field& f, std::string_view source, int T21_size);
 
 field parse(std::string_view layout, std::string_view source,
             std::string_view expected, int T21_size, int T30_size) {
@@ -342,6 +353,9 @@ std::pair<port, word_t> parse_port_or_immediate(
 	if ("-0123456789"sv.contains(tokens[j].front())) {
 		ret.first = port::immediate;
 		ret.second = kblib::parse_integer<word_t>(tokens[j]);
+		if (ret.second < -999 or ret.second > 999) {
+			throw std::invalid_argument{""};
+		}
 	} else {
 		ret.first = parse_port(tokens[j]);
 	}
@@ -349,7 +363,7 @@ std::pair<port, word_t> parse_port_or_immediate(
 }
 
 void push_label(std::string_view lab, int l,
-                std::vector<std::pair<std::string, int>>& labels) {
+                std::vector<std::pair<std::string, index_t>>& labels) {
 	for (const auto& o : labels) {
 		if (o.first == lab) {
 			throw std::invalid_argument{""};
@@ -359,8 +373,9 @@ void push_label(std::string_view lab, int l,
 	labels.emplace_back(lab, l);
 }
 
-int parse_label(const std::vector<std::string> tokens, std::size_t j,
-                const std::vector<std::pair<std::string, int>>& labels) {
+index_t parse_label(
+    const std::vector<std::string> tokens, std::size_t j,
+    const std::vector<std::pair<std::string, index_t>>& labels) {
 	assert(j < tokens.size());
 	for (const auto& lab : labels) {
 		if (lab.first == tokens[j]) {
@@ -372,11 +387,11 @@ int parse_label(const std::vector<std::string> tokens, std::size_t j,
 
 std::vector<instr> assemble(std::string_view source, int T21_size) {
 	auto lines = kblib::split_dsv(source, '\n');
-	if (lines.size() > T21_size) {
+	if (std::cmp_greater(lines.size(), T21_size)) {
 		throw std::invalid_argument{""};
 	}
 	std::vector<instr> ret;
-	std::vector<std::pair<std::string, int>> labels;
+	std::vector<std::pair<std::string, index_t>> labels;
 
 	{
 		int l{};
@@ -510,7 +525,7 @@ std::vector<instr> assemble(std::string_view source, int T21_size) {
 				auto& d = i.data.emplace<static_cast<std::size_t>(jro)>();
 				auto r = parse_port_or_immediate(tokens, j + 1);
 				d.src = r.first;
-				d.val = r.second;
+				d.val = kblib::saturating_cast<index_t>(r.second);
 				assert(j + 2 == tokens.size() or tokens[j + 2].starts_with('#'));
 			} else {
 				throw std::invalid_argument{kblib::quoted(tok)
@@ -573,26 +588,27 @@ std::string field::layout() const {
 			continue;
 		} else if (type(p) == node::in) {
 			auto in = static_cast<input_node*>(p);
+			kblib::append(ret, 'I', p->x, io_labels[in->io_type]);
 			if (in->filename.empty()) {
-				kblib::append(ret, 'I', p->x, io_labels[in->io_type], "[");
+				kblib::append(ret, "[");
 				for (auto v : in->inputs) {
 					kblib::append(ret, v, ", ");
 				}
 				kblib::append(ret, "]\n");
 			} else {
-				kblib::append(ret, 'I', p->x, io_labels[in->io_type], in->filename,
-				              '\n');
+				kblib::append(ret, in->filename, '\n');
 			}
 		} else if (type(p) == node::out) {
 			auto on = static_cast<output_node*>(p);
+			kblib::append(ret, 'O', p->x, io_labels[on->io_type]);
 			if (on->filename.empty()) {
-				kblib::append(ret, 'O', p->x, io_labels[on->io_type], "[");
+				kblib::append(ret, "[");
 				for (auto v : on->outputs_expected) {
 					kblib::append(ret, v, ", ");
 				}
 				kblib::append(ret, "]\n");
 			} else {
-				kblib::append(ret, 'O', p->x, io_labels[on->io_type], on->filename);
+				kblib::append(ret, on->filename);
 				if (on->d != ' ') {
 					kblib::append(ret, ' ', +on->d);
 				}
@@ -600,8 +616,9 @@ std::string field::layout() const {
 			}
 		} else if (type(p) == node::image) {
 			auto im = static_cast<image_output*>(p);
-			kblib::append(ret, 'O', p->x, " IMAGE ", im->width, im->height(),
-			              '\n');
+			kblib::append(ret, 'O', p->x, " IMAGE ", im->width, im->height);
+			if (not im->image_expected.empty()) {
+			}
 		}
 	}
 

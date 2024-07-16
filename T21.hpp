@@ -75,8 +75,8 @@ std::string to_string(instr i);
 
 struct T21 : node {
 	type_t type() const noexcept override { return type_t::T21; }
-	void step() override {}
-	void read() override {}
+	void step() override;
+	void read() override;
 	activity state() const noexcept override { return s; }
 
 	word_t acc{}, bak{}, write{};

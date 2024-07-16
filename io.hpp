@@ -48,11 +48,11 @@ struct image_output : node {
 	void step() override { return; }
 	void read() override { return; }
 
-	enum pixel { black, dark_grey, light_grey, white, red };
-	std::vector<pixel> image_expected;
-	std::vector<pixel> data;
+	image_t image_expected;
+	image_t image_received;
+	std::string filename;
 	std::size_t width;
-	std::size_t height() const noexcept { return data.size() / width; }
+	std::size_t height;
 };
 
 #endif // IO_HPP

@@ -73,18 +73,18 @@ class field {
 		}
 	}
 	// returns the ith programmable (T21) node
-	node* node_by_index(std::size_t i) {
+	T21* node_by_index(std::size_t i) {
 		for (auto& p : nodes) {
 			if (p and p->type() == node::T21 and --i == 0) {
-				return p.get();
+				return static_cast<T21*>(p.get());
 			}
 		}
 		return nullptr;
 	}
-	const node* node_by_index(std::size_t i) const {
+	const T21* node_by_index(std::size_t i) const {
 		for (auto& p : nodes) {
 			if (p and p->type() == node::T21 and --i == 0) {
-				return p.get();
+				return static_cast<const T21*>(p.get());
 			}
 		}
 		return nullptr;
@@ -94,6 +94,9 @@ class field {
 	                   std::string_view expected, int T21_size, int T30_size);
 	template <bool use_nonstandard_rep>
 	friend field parse_layout(std::string_view layout);
+
+	auto begin() const noexcept { return nodes.begin(); }
+	auto end() const noexcept { return nodes.end(); }
 
  private:
 	std::vector<std::unique_ptr<node>> nodes;
@@ -113,6 +116,10 @@ constexpr inline int def_T30_size = 15;
 
 field parse(std::string_view layout, std::string_view source,
             std::string_view expected, int T21_size = def_T21_size,
+            int T30_size = def_T30_size);
+
+field parse(std::string_view layout, std::string_view source,
+            const inputs_outputs& expected, int T21_size = def_T21_size,
             int T30_size = def_T30_size);
 
 std::vector<instr> assemble(std::string_view source,

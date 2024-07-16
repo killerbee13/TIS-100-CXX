@@ -16,6 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * ****************************************************************************/
 
+#include "builtin_levels.hpp"
 #include "node.hpp"
 #include "parser.hpp"
 #include <cassert>
@@ -27,7 +28,7 @@ using namespace std::literals;
 int main() {
 	auto f = parse(
 	    "2 3 CCSCDC I0 NUMERIC numbers.txt O0 NUMERIC - 10 O2 ASCII -", "", "");
-	std::cout << f.layout();
+	std::clog << f.layout();
 	assert(f.layout() == R"(2 3
 CCS
 CDC
@@ -66,9 +67,29 @@ L: MOV LEFT,DOWN
   ADD 1#
   JLZ + #
 N:+:MOV -1,DOWN
-  SWP
-  ADD 1
+  JRO -999
+  JMP C
   NEG)");
+
+	for (const auto& l : layouts) {
+		parse(l[1], "", "");
+	}
+
+	image_t im{30, 18};
+	im.write_line(20, 10,
+	              {3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3});
+	std::ofstream ftest("test.pnm");
+	ftest << im;
+	pnm::finalize_to_png(im, "test0.png", "", "");
+	tis_pixel::color c{tis_pixel::C_dark_grey};
+	for (auto& p : im) {
+		p = c;
+		c = static_cast<tis_pixel::color>(kblib::etoi(c) + 1);
+		if (c > tis_pixel::C_red) {
+			c = {tis_pixel::C_dark_grey};
+		}
+	}
+	pnm::finalize_to_png(im, "test1.png", "", "");
 
 	return 0;
 }
