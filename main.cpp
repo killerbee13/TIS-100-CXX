@@ -40,7 +40,7 @@ score run(field& l) {
 
 	sc.validated = true;
 
-	std::clog << std::flush;
+	log_flush();
 
 	for (auto it = l.begin() + l.nodes_total(); it != l.end(); ++it) {
 		auto n = it->get();
@@ -165,19 +165,18 @@ N:+:MOV -1,DOWN
 	} else if (argc == 2 and argv[1] == "generate"sv) {
 		auto copy = [](auto x) { return x; };
 		for (auto [lvl, i] : kblib::enumerate(layouts)) {
-			std::clog << std::flush;
-
 			auto base_path = std::filesystem::path(std::filesystem::current_path()
 			                                       / lvl.segment);
 			log_info("writing cfg: ", copy(base_path).concat(".tiscfg").native());
-			std::ofstream layout_f(copy(base_path).concat(".tiscfg"));
+			log_flush();
+			std::ofstream layout_f(copy(base_path).concat(".tiscfg"),
+			                       std::ios_base::trunc);
 			auto l = parse(lvl.layout, "", "");
 			std::string layout;
 			kblib::search_replace_copy(l.layout(), "@"s,
 			                           std::string(lvl.segment) + "@",
 			                           std::back_inserter(layout));
 			layout_f << layout;
-			std::clog << std::flush;
 
 			auto r = random_test(i);
 			std::size_t i_idx = 0;
@@ -188,7 +187,7 @@ N:+:MOV -1,DOWN
 					auto p = static_cast<input_node*>(n);
 					auto o_path = copy(base_path).concat(p->filename);
 					log_info("writing in ", i_idx, ": ", o_path.native());
-					std::ofstream o_f(o_path);
+					std::ofstream o_f(o_path, std::ios_base::trunc);
 					for (auto w : r.inputs[i_idx]) {
 						o_f << w << '\n';
 					}
@@ -197,11 +196,23 @@ N:+:MOV -1,DOWN
 					auto p = static_cast<output_node*>(n);
 					auto o_path = copy(base_path).concat(p->filename);
 					log_info("writing out ", o_idx, ": ", o_path.native());
-					std::ofstream o_f(o_path);
+					std::ofstream o_f(o_path, std::ios_base::trunc);
 					for (auto w : r.n_outputs[o_idx]) {
 						o_f << w << '\n';
 					}
 					++o_idx;
+				} else if (type(n) == node::image) {
+					auto p = static_cast<image_output*>(n);
+					auto o_path = copy(base_path).concat(p->filename);
+					log_info("writing image: ", o_path.native());
+					std::ofstream o_f(o_path, std::ios_base::trunc);
+					o_f << r.i_output;
+					o_f.close();
+
+					o_path += ".pnm";
+					log_info("writing scaled image: ", o_path.native());
+					o_f.open(o_path, std::ios_base::trunc);
+					r.i_output.write(o_f, 11, 17);
 				}
 			}
 		}

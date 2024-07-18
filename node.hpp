@@ -141,7 +141,7 @@ struct tis_pixel {
 	tis_pixel() = default;
 	constexpr tis_pixel(color c) noexcept
 	    : val(c) {}
-	constexpr tis_pixel(std::integral auto c) noexcept
+	explicit(false) constexpr tis_pixel(std::integral auto c) noexcept
 	    : val(static_cast<color>(c)) {}
 
 	pnm::rgb_pixel as_rgb() const { return colors[val]; }
@@ -183,6 +183,7 @@ struct tis_pixel {
 
 struct image_t : pnm::image<tis_pixel> {
 	using image::image;
+	using enum tis_pixel::color;
 	constexpr image_t() = default;
 	image_t(std::ptrdiff_t width, std::ptrdiff_t height,
 	        std::initializer_list<tis_pixel> contents)
@@ -194,11 +195,61 @@ struct image_t : pnm::image<tis_pixel> {
 		std::copy(contents.begin(), contents.end(), begin());
 	}
 
+	constexpr static std::u16string_view key = u" ░▒█#";
+
 	void write_line(word_t x, word_t y, const std::vector<word_t>& vals) {
 		x = std::max(x, word_t{});
 		y = std::max(y, word_t{});
 		auto l = std::min(static_cast<std::ptrdiff_t>(vals.size()), width() - x);
 		std::copy_n(vals.begin(), l, begin() + y * width() + x);
+	}
+
+	using image::assign;
+	constexpr void assign(std::u16string image,
+	                      std::u16string_view key = image_t::key) {
+		assert(image.size() == size());
+		auto it = begin();
+		for (auto px : image) {
+			if (px == key[0]) {
+				*it++ = {C_black};
+			} else if (px == key[1]) {
+				*it++ = {C_dark_grey};
+			} else if (px == key[2]) {
+				*it++ = {C_light_grey};
+			} else if (px == key[3]) {
+				*it++ = {C_white};
+			} else if (px == key[4]) {
+				*it++ = {C_red};
+			}
+		}
+	}
+
+	constexpr void assign(std::initializer_list<std::u16string> image,
+	                      std::u16string_view key = image_t::key) {
+		if (image.size() == 0) {
+			reshape(0, 0);
+		}
+		std::size_t w{image.begin()[0].size()};
+		for (auto line : image) {
+			assert(line.size() == w);
+		}
+		reshape(w, image.size());
+		auto it = begin();
+		for (auto line : image) {
+			for (auto px : line) {
+				if (px == key[0]) {
+					*it++ = {C_black};
+				} else if (px == key[1]) {
+					*it++ = {C_dark_grey};
+				} else if (px == key[2]) {
+					*it++ = {C_light_grey};
+				} else if (px == key[3]) {
+					*it++ = {C_white};
+				} else if (px == key[4]) {
+					*it++ = {C_red};
+				}
+			}
+		}
 	}
 };
 

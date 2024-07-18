@@ -135,16 +135,20 @@ field parse_layout(std::string_view layout, int T30_size) {
 			}
 		} else if (id[0] == 'O') {
 			auto x = kblib::parse_integer<int>(std::string_view{id}.substr(1), 10);
-			std::string input_type;
-			ss >> input_type;
-			if (input_type == "IMAGE") {
+			std::string output_type;
+			ss >> output_type;
+			if (output_type == "IMAGE") {
 				auto p = do_insert<image_output>(ret.nodes, x);
 				auto n = ret.node_by_location(static_cast<std::size_t>(x),
 				                              ret.height() - 1);
 				assert(valid(n));
 				p->neighbors[up] = n;
 				n->neighbors[down] = p;
-				ss >> p->width;
+				int w{};
+				int h{};
+				ss >> p->filename >> w >> h;
+				p->image_expected.reshape(w, h);
+				p->image_received.reshape(w, h);
 			} else {
 				auto p = do_insert<output_node>(ret.nodes, x);
 				auto n = ret.node_by_location(static_cast<std::size_t>(x),
@@ -152,7 +156,7 @@ field parse_layout(std::string_view layout, int T30_size) {
 				assert(valid(n));
 				p->neighbors[up] = n;
 				n->neighbors[down] = p;
-				if (input_type == "NUMERIC") {
+				if (output_type == "NUMERIC") {
 					ss >> p->filename;
 					p->io_type = numeric;
 					ss >> std::ws;
@@ -162,15 +166,16 @@ field parse_layout(std::string_view layout, int T30_size) {
 						ss >> d;
 						p->d = static_cast<char>(d);
 					}
-				} else if (input_type == "ASCII") {
+				} else if (output_type == "ASCII") {
 					ss >> p->filename;
 					p->io_type = ascii;
-				} else if (input_type == "LIST") {
+				} else if (output_type == "LIST") {
 					p->io_type = list;
 				}
 			}
 		} else {
-			throw std::invalid_argument{kblib::concat("invalid layout")};
+			throw std::invalid_argument{
+			    kblib::concat("invalid layout id=", kblib::quoted(id))};
 		}
 	}
 

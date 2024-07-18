@@ -39,6 +39,9 @@ auto get_log_level() -> log_level;
 auto set_log_output(std::ostream&) -> void;
 auto set_log_output(const std::ostream&&) -> void = delete;
 
+auto log_flush() -> void;
+auto log_flush(bool do_flush) -> void;
+
 template <typename... Strings>
 auto log_debug(Strings&&... strings) -> void {
 	if (get_log_level() >= log_level::debug) {

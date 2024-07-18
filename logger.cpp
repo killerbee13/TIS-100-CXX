@@ -21,6 +21,7 @@
 
 static log_level current = log_level::notice;
 static std::ostream* output = &std::clog;
+static bool flush;
 
 auto set_log_level(log_level new_level) -> void { current = new_level; }
 
@@ -28,8 +29,17 @@ auto get_log_level() -> log_level { return current; }
 
 auto set_log_output(std::ostream& os) -> void { output = &os; }
 
+auto log_flush() -> void { output->flush(); }
+
+auto log_flush(bool do_flush) -> void { flush = do_flush; }
+
 namespace detail {
 
-auto log(std::string_view str) -> void { (*output) << str << '\n'; }
+auto log(std::string_view str) -> void {
+	(*output) << str << '\n';
+	if (flush) {
+		output->flush();
+	}
+}
 
 } // namespace detail

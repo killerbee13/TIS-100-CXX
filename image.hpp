@@ -211,6 +211,15 @@ class image {
 		assert(std::cmp_equal(contents.size(), width * height));
 	}
 
+	constexpr void reshape(std::ptrdiff_t w, std::ptrdiff_t h) {
+		if (w < 0 or h < 0) {
+			throw std::invalid_argument{
+			    "negative dimension specified for pnm::image::reshape"};
+		}
+		width_ = w;
+		data.resize(w * h);
+	}
+
 	constexpr auto operator[](std::ptrdiff_t i) {
 		return gsl::span<pixel>(data.data() + width_ * i, width_);
 	}
@@ -218,8 +227,35 @@ class image {
 		return gsl::span<const pixel>(data.data() + width_ * i, width_);
 	}
 
+#if __cpp_multidimensional_subscript >= 202211L
+	constexpr pixel& operator[](std::ptrdiff_t x, std::ptrdiff_t y) noexcept {
+		return data[index_linear<false>(x, y)];
+	}
+	constexpr const pixel& operator[](std::ptrdiff_t x,
+	                                  std::ptrdiff_t y) const noexcept {
+		return data[index_linear<false>(x, y)];
+	}
+#endif
+	constexpr pixel& at(std::ptrdiff_t x, std::ptrdiff_t y) {
+		return data[index_linear<true>(x, y)];
+	}
+	constexpr const pixel& at(std::ptrdiff_t x, std::ptrdiff_t y) const {
+		return data[index_linear<true>(x, y)];
+	}
+	constexpr pixel& at(std::ptrdiff_t i) { return data.at(i); }
+	constexpr const pixel& at(std::ptrdiff_t i) const { return data.at(i); }
+
+	constexpr void assign(std::initializer_list<pixel> il) {
+		assert(il.size() == data.size());
+		data = il;
+	}
+
 	constexpr std::ptrdiff_t height() const noexcept {
-		return kblib::to_signed(data.size()) / width_;
+		if (data.size() == 0) {
+			return 0;
+		} else {
+			return kblib::to_signed(data.size()) / width_;
+		}
 	}
 	constexpr std::ptrdiff_t width() const noexcept { return width_; }
 	constexpr std::size_t size() const noexcept { return data.size(); }
@@ -233,20 +269,51 @@ class image {
 	constexpr const_iterator end() const { return data.end(); }
 	constexpr const_iterator cend() const { return data.end(); }
 
-	friend std::ostream& operator<<(std::ostream& os, const image& img) {
-		pixel::header(os, img.width(), img.height());
+	void write(std::ostream& os) const {
+		pixel::header(os, width_, height());
 		if constexpr (pixel::is_binary_writable) {
-			os.write(reinterpret_cast<const char*>(img.data.data()),
-			         img.data.size() * sizeof(pixel));
+			os.write(reinterpret_cast<const char*>(data.data()),
+			         data.size() * sizeof(pixel));
 		} else {
-			for (const auto& px : img.data) {
+			for (const auto& px : data) {
 				os << px;
 			}
 		}
+	}
+	void write(std::ostream& os, std::ptrdiff_t scale_w,
+	           std::ptrdiff_t scale_h) const {
+		pixel::header(os, width_ * scale_w, height() * scale_h);
+		for (const auto y : kblib::range(height())) {
+			for (const auto _ : kblib::range(scale_h)) {
+				for (const auto x : kblib::range(width_)) {
+					for (const auto _ : kblib::range(scale_w)) {
+						os << at(x, y);
+					}
+				}
+			}
+		}
+	}
+
+	friend std::ostream& operator<<(std::ostream& os, const image& img) {
+		img.write(os);
 		return os;
 	}
 
 	std::strong_ordering operator<=>(const image& other) const = default;
+
+	template <bool safe>
+	std::size_t index_linear(std::ptrdiff_t x, std::ptrdiff_t y) const
+	    noexcept(not safe) {
+		std::size_t r = static_cast<std::size_t>(y * width_ + x);
+		if constexpr (safe) {
+			if (x < 0 or y < 0 or x > width_ or r > data.size()) {
+				throw std::out_of_range{kblib::concat("position (", x, ',', y,
+				                                      ") out of range (", width_,
+				                                      ',', height(), ")")};
+			}
+		}
+		return r;
+	}
 
  private:
 	std::ptrdiff_t width_{};
