@@ -163,8 +163,8 @@ field parse(std::string_view layout, std::string_view source,
             int T30_size = def_T30_size);
 
 field parse(std::string_view layout, std::string_view source,
-            const inputs_outputs& expected, int test,
-            int T21_size = def_T21_size, int T30_size = def_T30_size);
+            const single_test& expected, int T21_size = def_T21_size,
+            int T30_size = def_T30_size);
 
 std::vector<instr> assemble(std::string_view source,
                             int T21_size = def_T21_size);

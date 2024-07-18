@@ -202,14 +202,14 @@ struct image_t : pnm::image<tis_pixel> {
 	}
 };
 
+struct single_test {
+	std::vector<std::vector<word_t>> inputs{};
+	std::vector<std::vector<word_t>> n_outputs{};
+	image_t i_output{};
+};
 struct inputs_outputs {
 	using list = std::array<word_t, 39>;
-	struct single {
-		std::vector<std::vector<word_t>> inputs{};
-		std::vector<std::vector<word_t>> n_outputs{};
-		image_t i_output{};
-	};
-	std::array<single, 3> data;
+	std::array<single_test, 3> data;
 };
 
 #endif // NODE_HPP

@@ -228,8 +228,7 @@ field parse(std::string_view layout, std::string_view source,
 	return ret;
 }
 field parse(std::string_view layout, std::string_view source,
-            const inputs_outputs& expected, int test, int T21_size,
-            int T30_size) {
+            const single_test& expected, int T21_size, int T30_size) {
 	field ret = parse_layout_guess(layout, T30_size);
 	log_debug(ret.layout());
 	log_debug(ret.nodes_avail(), " programmable nodes");
@@ -237,17 +236,16 @@ field parse(std::string_view layout, std::string_view source,
 	auto it = ret.begin() + ret.nodes_total();
 	std::size_t in_idx{};
 	std::size_t out_idx{};
-	const auto& t = expected.data[test];
 	for (; it != ret.end(); ++it) {
 		if (auto p = it->get(); type(p) == node::in) {
-			assert(in_idx < t.inputs.size());
-			static_cast<input_node*>(p)->inputs = t.inputs[in_idx++];
+			assert(in_idx < expected.inputs.size());
+			static_cast<input_node*>(p)->inputs = expected.inputs[in_idx++];
 		} else if (type(p) == node::out) {
-			assert(out_idx < t.n_outputs.size());
+			assert(out_idx < expected.n_outputs.size());
 			static_cast<output_node*>(p)->outputs_expected
-			    = t.n_outputs[out_idx++];
+			    = expected.n_outputs[out_idx++];
 		} else if (type(p) == node::image) {
-			static_cast<image_output*>(p)->image_expected = t.i_output;
+			static_cast<image_output*>(p)->image_expected = expected.i_output;
 		} else {
 			assert(false);
 		}
