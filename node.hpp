@@ -185,6 +185,10 @@ struct image_t : pnm::image<tis_pixel> {
 	using image::image;
 	using enum tis_pixel::color;
 	constexpr image_t() = default;
+	image_t(std::ptrdiff_t width, std::ptrdiff_t height, tis_pixel value)
+	    : image(width, height, value) {}
+	image_t(std::ptrdiff_t width, std::ptrdiff_t height, int value)
+	    : image(width, height, value) {}
 	image_t(std::ptrdiff_t width, std::ptrdiff_t height,
 	        std::initializer_list<tis_pixel> contents)
 	    : image(width, height, contents) {}
@@ -194,6 +198,7 @@ struct image_t : pnm::image<tis_pixel> {
 		assert(contents.size() == size());
 		std::copy(contents.begin(), contents.end(), begin());
 	}
+	image_t(std::initializer_list<std::u16string_view> image) { assign(image); }
 
 	constexpr static std::u16string_view key = u" ░▒█#";
 
@@ -205,7 +210,7 @@ struct image_t : pnm::image<tis_pixel> {
 	}
 
 	using image::assign;
-	constexpr void assign(std::u16string image,
+	constexpr void assign(std::u16string_view image,
 	                      std::u16string_view key = image_t::key) {
 		assert(image.size() == size());
 		auto it = begin();
@@ -224,7 +229,7 @@ struct image_t : pnm::image<tis_pixel> {
 		}
 	}
 
-	constexpr void assign(std::initializer_list<std::u16string> image,
+	constexpr void assign(std::initializer_list<std::u16string_view> image,
 	                      std::u16string_view key = image_t::key) {
 		if (image.size() == 0) {
 			reshape(0, 0);

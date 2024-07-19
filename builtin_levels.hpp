@@ -144,6 +144,17 @@ consteval int operator""_lvl(const char* s, std::size_t size) {
 	return level_id(std::string_view(s, size));
 }
 
+image_t checkerboard(std::ptrdiff_t w, std::ptrdiff_t h) {
+	image_t ret(w, h);
+	for (const auto y : kblib::range(h)) {
+		for (const auto x : kblib::range(w)) {
+			ret.at(x, y)
+			    = ((x + y % 2) % 2) ? tis_pixel::C_black : tis_pixel::C_white;
+		}
+	}
+	return ret;
+}
+
 inline const std::array<inputs_outputs, layouts.size()> tests{{
     {.data = {{
          {.inputs = {{51, 62, 16, 83, 61, 14, 35, 17, 63, 48, 22, 40, 29,
@@ -188,6 +199,28 @@ inline const std::array<inputs_outputs, layouts.size()> tests{{
               83, 86, 0, 15, 15, 0, 47, 53, 0, 19, 77, 0, //
               15, 21, 0, 15, 67, 0, 66, 83, 0, 43, 69, 0, 33, 82, 0}},
           .i_output = {}}}}},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {.data = {{{.inputs = {},
+                .n_outputs = {},
+                .i_output = {30, 18, tis_pixel::C_white}},
+               {.inputs = {},
+                .n_outputs = {},
+                .i_output = {30, 18, tis_pixel::C_white}},
+               {.inputs = {},
+                .n_outputs = {},
+                .i_output = {30, 18, tis_pixel::C_white}}}}},
+    {.data
+     = {{{.inputs = {}, .n_outputs = {}, .i_output = checkerboard(30, 18)},
+         {.inputs = {}, .n_outputs = {}, .i_output = checkerboard(30, 18)},
+         {.inputs = {}, .n_outputs = {}, .i_output = checkerboard(30, 18)}}}},
 }};
 
 inline bool check_achievement(int id, const field& solve, score sc) {

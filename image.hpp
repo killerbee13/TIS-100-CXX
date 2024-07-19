@@ -198,6 +198,11 @@ class image {
 	using const_iterator = typename std::vector<pixel>::const_iterator;
 
 	constexpr image() = default;
+	image(std::ptrdiff_t width, std::ptrdiff_t height, pixel value)
+	    : width_{width}
+	    , data(kblib::to_unsigned(width * height), value) {
+		assert(width >= 0 and height >= 0);
+	}
 	image(std::ptrdiff_t width, std::ptrdiff_t height)
 	    : width_{width}
 	    , data(kblib::to_unsigned(width * height)) {

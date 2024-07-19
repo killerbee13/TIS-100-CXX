@@ -171,13 +171,7 @@ single_test random_test(int id) {
 		}
 	} break;
 	case "IMAGE TEST PATTERN 2"_lvl: {
-		ret.i_output.reshape(30, 18);
-		for (const auto x : kblib::range(ret.i_output.width())) {
-			for (const auto y : kblib::range(ret.i_output.height())) {
-				ret.i_output.at(x, y)
-				    = ((x + y % 2) % 2) ? tis_pixel::C_black : tis_pixel::C_white;
-			}
-		}
+		ret.i_output = checkerboard(30, 18);
 	} break;
 	case "EXPOSURE MASK VIEWER"_lvl: {
 		ret.inputs.resize(1);
