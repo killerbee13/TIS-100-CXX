@@ -38,7 +38,7 @@ endif()
 
 add_executable(TIS-100-CXX main.cpp parser.hpp node.hpp T21.hpp T30.hpp io.hpp
 	parser.cpp builtin_levels.hpp image.cpp image.hpp T21.cpp logger.hpp
-	logger.cpp random_levels.hpp random_levels.cpp)
+	logger.cpp random_levels.hpp random_levels.cpp README.md LICENSE)
 
 # used to add non-installed libraries
 target_include_directories(TIS-100-CXX

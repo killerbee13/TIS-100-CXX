@@ -21,7 +21,6 @@
 #include "parser.hpp"
 
 #include <array>
-#include <kblib/simple.h>
 #include <string_view>
 
 struct level_layout {
