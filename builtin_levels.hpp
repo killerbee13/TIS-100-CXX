@@ -144,7 +144,7 @@ consteval int operator""_lvl(const char* s, std::size_t size) {
 	return level_id(std::string_view(s, size));
 }
 
-image_t checkerboard(std::ptrdiff_t w, std::ptrdiff_t h) {
+inline image_t checkerboard(std::ptrdiff_t w, std::ptrdiff_t h) {
 	image_t ret(w, h);
 	for (const auto y : kblib::range(h)) {
 		for (const auto x : kblib::range(w)) {

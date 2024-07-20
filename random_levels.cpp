@@ -25,7 +25,7 @@ inline auto rng = kblib::seeded<kblib::common_lcgs::rand48>();
 std::vector<word_t> random_inputs(word_t low, word_t high,
                                   std::size_t length = 39) {
 	std::vector<word_t> ret;
-	std::uniform_int_distribution<word_t> i(0, 99);
+	std::uniform_int_distribution<word_t> i(low, high);
 	auto r = [&] -> word_t { return i(rng); };
 	ret.resize(length);
 	std::ranges::generate(ret, r);
@@ -70,9 +70,9 @@ single_test random_test(int id) {
 	case "SIGNAL MULTIPLEXER"_lvl: {
 		ret.inputs.resize(3);
 		ret.n_outputs.resize(1, std::vector<word_t>(39));
-		ret.inputs[0] = random_inputs(-99, 0);
+		ret.inputs[0] = random_inputs(-30, 0);
 		ret.inputs[1] = random_inputs(-1, 1);
-		ret.inputs[2] = random_inputs(0, 99);
+		ret.inputs[2] = random_inputs(0, 30);
 		for (auto [x, i] : kblib::enumerate(ret.inputs[1])) {
 			if (x <= 0) {
 				x += ret.inputs[0][i];

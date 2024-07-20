@@ -17,7 +17,6 @@
  * ****************************************************************************/
 #ifndef IMAGE_HPP
 #define IMAGE_HPP
-#include <gsl/gsl>
 #include <kblib/convert.h>
 #include <kblib/fakestd.h>
 #include <kblib/io.h>
@@ -223,13 +222,6 @@ class image {
 		}
 		width_ = w;
 		data.resize(w * h);
-	}
-
-	constexpr auto operator[](std::ptrdiff_t i) {
-		return gsl::span<pixel>(data.data() + width_ * i, width_);
-	}
-	constexpr auto operator[](std::ptrdiff_t i) const {
-		return gsl::span<const pixel>(data.data() + width_ * i, width_);
 	}
 
 #if __cpp_multidimensional_subscript >= 202211L
