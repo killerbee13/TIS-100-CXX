@@ -14,7 +14,10 @@ Build instructions:
 3. run `cmake --build .`
 
 Note that kblib contains a subfolder also called kblib. The path above refers to
-the outer folder, not the inner one.
+the outer folder, not the inner one. Alternatively, you can install the inner
+kblib folder to anywhere that the compiler will search for included files. Note
+that kblib is a header-only library, which does not need to be built unless you
+want to run the tests.
 
 Run instructions:
 
@@ -29,7 +32,7 @@ main and second campaign's levels.
 
 Otherwise, the first argument
 identifies a level by either name or id (for example, `00150` or
-`SELF-TEST DIAGNOSTIC` both refer to the first level of the main campaign)
+`"SELF-TEST DIAGNOSTIC"` both refer to the first level of the main campaign)
 followed by a path to a TIS-100 source file, followed optionally by the word
 `random`, which will cause TIS-100-CXX to use a randomly generated test case.
 Otherwise, it will use a hardcoded test case copied from the game. In any case,
