@@ -42,7 +42,7 @@ add_executable(TIS-100-CXX main.cpp parser.hpp node.hpp T21.hpp T30.hpp io.hpp
 
 # used to add non-installed libraries
 target_include_directories(TIS-100-CXX
-	SYSTEM PUBLIC "${EXTRA_INCLUDES}"
+	SYSTEM PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/kblib" "${EXTRA_INCLUDES}"
 	INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
 	PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 
