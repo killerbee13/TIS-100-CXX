@@ -28,6 +28,17 @@
 
 using namespace std::literals;
 
+constexpr int cycles_limit = 1'000;
+
+std::ostream& write_list(std::ostream& os, const std::vector<word_t>& v) {
+	os << '(' << v.size() << ") [\n\t";
+	for (auto i : v) {
+		os << i << ' ';
+	}
+	os << "\n]";
+	return os;
+}
+
 score run(field& l) {
 	score sc{};
 	sc.instructions = l.instructions();
@@ -36,25 +47,47 @@ score run(field& l) {
 		++sc.cycles;
 		log_debug("step ", sc.cycles);
 		l.step();
-	} while ((l.active()) and sc.cycles < 1'000'000);
-
+	} while ((l.active()) and sc.cycles < cycles_limit);
 	sc.validated = true;
 
 	log_flush();
-
 	for (auto it = l.begin() + l.nodes_total(); it != l.end(); ++it) {
 		auto n = it->get();
 		if (type(n) == node::out) {
 			auto p = static_cast<output_node*>(n);
 			if (p->outputs_expected != p->outputs_received) {
-				std::cout << "validation failure for output " << p->x << '\n';
 				sc.validated = false;
 			}
 		} else if (type(n) == node::image) {
 			auto p = static_cast<image_output*>(n);
 			if (p->image_expected != p->image_received) {
-				std::cout << "validation failure for output " << p->x << '\n';
 				sc.validated = false;
+			}
+		}
+	}
+
+	if (not sc.validated) {
+		for (auto it = l.begin() + l.nodes_total(); it != l.end(); ++it) {
+			auto n = it->get();
+			if (type(n) == node::in) {
+				auto p = static_cast<input_node*>(n);
+				std::cout << "input " << p->x << ": ";
+				write_list(std::cout, p->inputs) << '\n';
+			} else if (type(n) == node::out) {
+				auto p = static_cast<output_node*>(n);
+				if (p->outputs_expected != p->outputs_received) {
+					std::cout << "validation failure for output " << p->x << '\n';
+					std::cout << "output: ";
+					write_list(std::cout, p->outputs_received);
+					std::cout << "\nexpected: ";
+					write_list(std::cout, p->outputs_expected);
+					std::cout << "\n";
+				}
+			} else if (type(n) == node::image) {
+				auto p = static_cast<image_output*>(n);
+				if (p->image_expected != p->image_received) {
+					std::cout << "validation failure for output " << p->x << '\n';
+				}
 			}
 		}
 	}
@@ -65,9 +98,11 @@ score run(field& l) {
 int main(int argc, char** argv) {
 	std::ios_base::sync_with_stdio(false);
 	set_log_level(log_level::info);
-
+	log_flush(true);
+#if 0
 	auto f = parse(
-	    "2 3 CCSCDC I0 NUMERIC numbers.txt O0 NUMERIC - 10 O2 ASCII -", "", "");
+		 "2 3 CCSCDC I0 NUMERIC numbers.txt O0 NUMERIC - 10 O2 ASCII -", "",
+"");
 	// std::clog << f.layout();
 	assert(f.layout() == R"(2 3
 CCS
@@ -76,16 +111,18 @@ I0 NUMERIC numbers.txt
 O0 NUMERIC - 10
 O2 ASCII -
 )");
-	// can parse the 'BSC' code used in my spreadsheet as well as the 'CSMD' code
+	// can parse the 'BSC' code used in my spreadsheet as well as the 'CSMD'
+code
 	// used by Phlarx/tis
 	// in fact S and M are always interchangeable
 	auto f2 = parse(
-	    "2 3 BBSBCB I0 NUMERIC numbers.txt O0 NUMERIC - 10 O2 ASCII -", "", "");
-	assert(f.layout() == f2.layout());
+		 "2 3 BBSBCB I0 NUMERIC numbers.txt O0 NUMERIC - 10 O2 ASCII -", "",
+""); assert(f.layout() == f2.layout());
 
 	// not confused by Bs in IO specs
 	auto f3 = parse(
-	    "2 3 CCSCDC I0 NUMERIC numbers.txt O0 NUMERIC - 10 O2 ASCII B", "", "");
+		 "2 3 CCSCDC I0 NUMERIC numbers.txt O0 NUMERIC - 10 O2 ASCII B", "",
+"");
 
 	assert(f3.layout() == R"(2 3
 CCS
@@ -114,8 +151,9 @@ N:+:MOV -1,DOWN
 	for (const auto& l : layouts) {
 		// parse(l[1], "", "");
 	}
-
-	if (0) {
+#endif
+#if 0
+	{
 		image_t im{30, 18};
 		im.write_line(
 		    20, 10, {3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3});
@@ -132,12 +170,13 @@ N:+:MOV -1,DOWN
 		}
 		// pnm::finalize_to_png(im, "test1.png", "", "");
 	}
+#endif
 
 	if (argc > 2) {
 		auto filename = std::string(argv[2]);
 		auto s = kblib::get_file_contents(filename);
 		if (not s) {
-			std::cerr << "no such file: " << kblib::quoted(filename);
+			std::cerr << "no such file: " << kblib::quoted(filename) << '\n';
 			return -1;
 		} else {
 			log_debug("source: ", kblib::quoted(*s), "\n");
@@ -160,7 +199,11 @@ N:+:MOV -1,DOWN
 			std::cout << "score: " << sc.cycles << '/' << sc.nodes << '/'
 			          << sc.instructions << '\n';
 		} else {
-			std::cout << "validation failed after " << sc.cycles << " cycles\n";
+			std::cout << "validation failed after " << sc.cycles << " cycles ";
+			if (sc.cycles == cycles_limit) {
+				std::cout << "[timeout]";
+			}
+			std::cout << '\n';
 		}
 	} else if (argc == 2 and argv[1] == "generate"sv) {
 		auto copy = [](auto x) { return x; };
@@ -219,16 +262,17 @@ N:+:MOV -1,DOWN
 	} else {
 		// tiny self-test
 		auto l = parse(
-		    "1 1 B I0 NUMERIC @0 O0 NUMERIC @5", "@0\nMOV UP,DOWN",
-		    single_test{.inputs
-		                = {{51, 62, 16, 83, 61, 14, 35, 17, 63, 48, 22, 40, 29,
+		    "1 1 B I0 NUMERIC @0 O0 NUMERIC @5",
+		    "@0\nMOV UP,ACC\nADD ACC\nMOV ACC,DOWN",
+		    single_test{
+		        .inputs = {{51, 62, 16, 83, 61, 14, 35, 17, 63, 48, 22, 40, 29,
 		                    50, 77, 32, 31, 49, 89, 89, 12, 59, 53, 75, 37, 78,
 		                    57, 38, 44, 98, 85, 25, 80, 39, 20, 16, 91, 81, 84}},
-		                .n_outputs
-		                = {{51, 62, 16, 83, 61, 14, 35, 17, 63, 48, 22, 40, 29,
-		                    50, 77, 32, 31, 49, 89, 89, 12, 59, 53, 75, 37, 78,
-		                    57, 38, 44, 98, 85, 25, 80, 39, 20, 16, 91, 81, 84}},
-		                .i_output = {}});
+		        .n_outputs = {{102, 124, 32,  166, 122, 28,  70,  34,  126, 96,
+		                       44,  80,  58,  100, 154, 64,  62,  98,  178, 178,
+		                       24,  118, 106, 150, 74,  156, 114, 76,  88,  196,
+		                       170, 50,  160, 78,  40,  32,  182, 162, 168}},
+		        .i_output = {}});
 		auto sc = run(l);
 
 		if (sc.validated) {
@@ -236,7 +280,11 @@ N:+:MOV -1,DOWN
 			std::cout << "score: " << sc.cycles << '/' << sc.nodes << '/'
 			          << sc.instructions << '\n';
 		} else {
-			std::cout << "validation failed after " << sc.cycles << " cycles\n";
+			std::cout << "validation failed after " << sc.cycles << " cycles ";
+			if (sc.cycles == cycles_limit) {
+				std::cout << "[timeout]";
+			}
+			std::cout << '\n';
 		}
 	}
 

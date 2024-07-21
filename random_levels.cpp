@@ -55,7 +55,7 @@ single_test random_test(int id) {
 		                       std::back_inserter(ret.n_outputs[0]),
 		                       [](word_t x, word_t y) { return x - y; });
 		std::ranges::transform(ret.inputs[0], ret.inputs[1],
-		                       std::back_inserter(ret.n_outputs[0]),
+		                       std::back_inserter(ret.n_outputs[1]),
 		                       [](word_t x, word_t y) { return y - x; });
 	} break;
 	case "SIGNAL COMPARATOR"_lvl: {
@@ -75,10 +75,10 @@ single_test random_test(int id) {
 		ret.inputs[2] = random_inputs(0, 30);
 		for (auto [x, i] : kblib::enumerate(ret.inputs[1])) {
 			if (x <= 0) {
-				x += ret.inputs[0][i];
+				ret.n_outputs[0][i] += ret.inputs[0][i];
 			}
 			if (x >= 0) {
-				x += ret.inputs[0][i];
+				ret.n_outputs[0][i] += ret.inputs[2][i];
 			}
 		}
 	} break;
@@ -99,7 +99,7 @@ single_test random_test(int id) {
 		auto c = dst(rng);
 		dst.param(std::uniform_int_distribution<word_t>::param_type{0, 38});
 		for (const auto n : kblib::range(c)) {
-			ret.inputs[0][n] = 0;
+			ret.inputs[0][dst(rng)] = 0;
 		}
 
 		word_t sum{};
@@ -107,11 +107,11 @@ single_test random_test(int id) {
 		ret.n_outputs.resize(2);
 		for (auto w : ret.inputs[0]) {
 			if (w == 0) {
-				ret.n_outputs[0].push_back(sum);
-				ret.n_outputs[1].push_back(count);
+				ret.n_outputs[0].push_back(std::exchange(sum, 0));
+				ret.n_outputs[1].push_back(std::exchange(count, 0));
 			} else {
 				++count;
-				sum += w;
+				sum = sat_add(sum, w);
 			}
 		}
 	} break;

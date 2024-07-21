@@ -23,34 +23,19 @@
 
 using namespace std::literals;
 
-template <typename T, typename U>
-constexpr auto sat_add(T a, T b, U l, U h) {
-	using I = std::common_type_t<T, U>;
-	return static_cast<U>(std::min(
-	    std::max(static_cast<I>(a + b), static_cast<I>(l)), static_cast<I>(h)));
-}
-
-template <auto l = word_t{-999}, auto h = word_t{999}, typename T>
-constexpr auto sat_add(T a, T b) {
-	return sat_add<T, std::common_type_t<decltype(l), decltype(h)>>(a, b, l, h);
-}
-template <auto l = word_t{-999}, auto h = word_t{999}, typename T>
-constexpr auto sat_sub(T a, T b) {
-	return sat_add<T, std::common_type_t<decltype(l), decltype(h)>>(a, -b, l, h);
-}
 static_assert(sat_add(999, 999) == 999);
 static_assert(sat_add(-999, 999) == 0);
 static_assert(sat_add(-999, -999) == -999);
 
 constexpr auto wrap_add(auto a, auto b, auto l, auto h) {
-	return (a + b - l) % (h - l + 1) + l;
+	return (a + b - l) % (h - l) + l;
 }
 
 static_assert(15 % 15 == 0);
-static_assert(wrap_add(15, 1, 0, 15) == 0);
+static_assert(wrap_add(15, 1, 0, 16) == 0);
 
 void T21::next() {
-	wrap_add(pc, 1, 0, code.size());
+	pc = wrap_add(pc, 1, 0, code.size());
 	return;
 }
 
@@ -85,14 +70,15 @@ std::optional<word_t> T21::read(port p, word_t imm) {
 
 bool T21::step() {
 	std::stringstream log;
-	log << "step(" << x << ',' << y << "): ";
+	log << "step(" << x << ',' << y << ',' << +pc << "): ";
 	if (code.empty()) {
 		return false;
 	}
 	auto& i = code[pc];
 	auto old_state = s;
+	log << kblib::concat("instruction type: ", i.data.index(), '\n');
 	bool r = kblib::visit_indexed(
-	    i.data,
+	    std::as_const(i.data),
 	    [&, this](kblib::constant<std::size_t, instr::nop>, seq_instr) {
 		    log << "nop";
 		    next();
@@ -192,7 +178,7 @@ bool T21::step() {
 		    log << "sub ";
 		    if (auto r = read(i.src, i.val)) {
 			    log << *r;
-			    acc = sat_add(acc, *r);
+			    acc = sat_sub(acc, *r);
 			    s = activity::run;
 			    next();
 			    return true;
@@ -274,11 +260,11 @@ bool T21::finalize() {
 	return kblib::visit2(
 	    i.data,
 	    [this](auto) {
-		    log_debug("finalize(", x, ',', y, "): skipped");
+		    log_debug("finalize(", x, ',', y, ',', +pc, "): skipped");
 		    return false;
 	    },
 	    [this](mov_instr i) {
-		    auto log = kblib::concat("finalize(", x, ',', y, "): mov ");
+		    auto log = kblib::concat("finalize(", x, ',', y, ',', +pc, "): mov ");
 		    bool r{};
 		    if (s == activity::write) {
 			    // if write just started

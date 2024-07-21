@@ -268,4 +268,20 @@ struct inputs_outputs {
 	std::array<single_test, 3> data;
 };
 
+template <typename T, typename U>
+constexpr auto sat_add(T a, T b, U l, U h) {
+	using I = std::common_type_t<T, U>;
+	return static_cast<U>(std::min(
+	    std::max(static_cast<I>(a + b), static_cast<I>(l)), static_cast<I>(h)));
+}
+
+template <auto l = word_t{-999}, auto h = word_t{999}, typename T>
+constexpr auto sat_add(T a, T b) {
+	return sat_add<T, std::common_type_t<decltype(l), decltype(h)>>(a, b, l, h);
+}
+template <auto l = word_t{-999}, auto h = word_t{999}, typename T>
+constexpr auto sat_sub(T a, T b) {
+	return sat_add<T, std::common_type_t<decltype(l), decltype(h)>>(a, -b, l, h);
+}
+
 #endif // NODE_HPP
