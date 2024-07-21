@@ -1,0 +1,3 @@
+[submodule "kblib"]
+	path = kblib
+	url = https://github.com/killerbee13/kblib.git

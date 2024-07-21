@@ -7,19 +7,16 @@ community-run leaderboard. Unlike other simulators, TIS-100-CXX includes
 definitions for the base game's levels and can generate suitable random tests
 for them.
 
-Build instructions:
+## Build instructions:
 
-1. Download [kblib](https://github.com/killerbee13/kblib)
-2. run `cmake -S . -DEXTRA_INCLUDES="path/to/kblib"`
-3. run `cmake --build .`
+Ensure you have a C++23 compliant compiler (clang 16+, gcc 14+).
 
-Note that kblib contains a subfolder also called kblib. The path above refers to
-the outer folder, not the inner one. Alternatively, you can install the inner
-kblib folder to anywhere that the compiler will search for included files. Note
-that kblib is a header-only library, which does not need to be built unless you
-want to run the tests.
+1. clone repository
+2. update `kblib` submodule: `git submodule update --init --recursive`
+2. run `cmake -B "path/to/some/build/dir" -S .`
+3. run `cmake --build "path/to/some/build/dir"`
 
-Run instructions:
+## Run instructions:
 
 The command-line API documented here is currently extremely basic and ad-hoc,
 and will be replaced soon.
@@ -34,9 +31,8 @@ Otherwise, the first argument
 identifies a level by either name or id (for example, `00150` or
 `"SELF-TEST DIAGNOSTIC"` both refer to the first level of the main campaign)
 followed by a path to a TIS-100 source file, followed optionally by the word
-`random`, which will cause TIS-100-CXX to use a randomly generated test case.
+`random`, which will cause TIS-100-CXX to use a randomly generated test case.  
 Otherwise, it will use a hardcoded test case copied from the game. In any case,
 it will print whether the validation was successful or not, followed by either
 the score, or the reason it was not validated and how many cycles it took to
 fail.
-
