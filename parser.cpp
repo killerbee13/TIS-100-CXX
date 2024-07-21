@@ -39,7 +39,7 @@ Node* do_insert(std::vector<std::unique_ptr<node>>& v, int x) {
 	return p;
 }
 
-template <bool use_nonstandard_rep = false>
+template <bool use_nonstandard_rep>
 field parse_layout(std::string_view layout, int T30_size) {
 	auto ss
 	    = std::ispanstream{std::span<const char>{layout.begin(), layout.size()}};
