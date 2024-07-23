@@ -21,6 +21,7 @@
 #include "node.hpp"
 #include "parser.hpp"
 #include "random_levels.hpp"
+#include "tis_random.hpp"
 #include <cassert>
 #include <iostream>
 
@@ -94,6 +95,8 @@ score run(field& l) {
 
 	return sc;
 }
+
+static_assert(xorshift128_engine(400).next_int(-2, 2) >= -2);
 
 int main(int argc, char** argv) {
 	std::ios_base::sync_with_stdio(false);
@@ -172,6 +175,47 @@ N:+:MOV -1,DOWN
 	}
 #endif
 
+	if (argc > 3 and argv[1] == "fixed"sv) {
+		auto filename = std::string(argv[3]);
+		auto s = kblib::get_file_contents(filename);
+		if (not s) {
+			std::cerr << "no such file: " << kblib::quoted(filename) << '\n';
+			return -1;
+		} else {
+			log_debug("source: ", kblib::quoted(*s), "\n");
+		}
+		auto id = level_id(argv[2]);
+		score worst{.validated = true};
+		score last{};
+		int succeeded{1};
+		for (auto test : static_suite(id)) {
+			auto l = parse(layouts[id].layout, *s, test);
+			last = run(l);
+			worst.cycles = std::max(worst.cycles, last.cycles);
+			worst.instructions = last.instructions;
+			worst.nodes = last.nodes;
+			worst.validated = worst.validated and last.validated;
+			if (not last.validated) {
+				break;
+			}
+			++succeeded;
+		}
+
+		if (worst.validated) {
+			std::cout << "validation successful\n";
+			std::cout << "score: " << worst.cycles << '/' << worst.nodes << '/'
+			          << worst.instructions << '\n';
+		} else {
+			std::cout << "validation failed for test " << succeeded << " after "
+			          << worst.cycles << " cycles ";
+			if (worst.cycles == cycles_limit) {
+				std::cout << "[timeout]";
+			}
+			std::cout << '\n';
+		}
+		return worst.validated ? 0 : 1;
+	}
+
 	if (argc > 2) {
 		auto filename = std::string(argv[2]);
 		auto s = kblib::get_file_contents(filename);
@@ -184,9 +228,9 @@ N:+:MOV -1,DOWN
 		auto id = level_id(argv[1]);
 		auto test = [&] {
 			if (argc > 3 and argv[3] == "random"sv) {
-				return random_test(id);
+				return o_random_test(id);
 			} else if (argc > 3) {
-				return random_test(std::stoi(argv[3]));
+				return o_random_test(std::stoi(argv[3]));
 			} else {
 				return tests[id].data[0];
 			}
@@ -221,7 +265,7 @@ N:+:MOV -1,DOWN
 			                           std::back_inserter(layout));
 			layout_f << layout;
 
-			auto r = random_test(i);
+			auto r = o_random_test(i);
 			std::size_t i_idx = 0;
 			std::size_t o_idx = 0;
 			for (auto it = l.begin() + l.nodes_total(); it != l.end(); ++it) {

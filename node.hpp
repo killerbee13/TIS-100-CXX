@@ -201,6 +201,8 @@ struct image_t : pnm::image<tis_pixel> {
 	image_t(std::initializer_list<std::u16string_view> image) { assign(image); }
 
 	constexpr static std::u16string_view key = u" ░▒█#";
+	constexpr static std::array<std::string_view, 5> rkey
+	    = {" ", "░", "▒", "█", "#"};
 
 	void write_line(word_t x, word_t y, const std::vector<word_t>& vals) {
 		x = std::max(x, word_t{});
@@ -255,6 +257,18 @@ struct image_t : pnm::image<tis_pixel> {
 				}
 			}
 		}
+	}
+
+	constexpr std::ostream& write_text(
+	    std::ostream& os,
+	    const std::array<std::string_view, 5>& rkey = image_t::rkey) {
+		for (const auto y : kblib::range(height())) {
+			for (const auto x : kblib::range(width())) {
+				os << rkey[kblib::etoi(at(x, y).val)];
+			}
+			os << '\n';
+		}
+		return os;
 	}
 };
 

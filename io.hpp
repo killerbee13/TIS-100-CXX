@@ -73,16 +73,19 @@ struct image_output : node {
 	type_t type() const noexcept override { return image; }
 	bool step() override {
 		if (auto r = do_read(neighbors[port::up], port::down)) {
-			if (not c_x) {
+			if (r < 0) {
+				c_x.reset();
+				c_y.reset();
+			} else if (not c_x) {
 				c_x = r;
 			} else if (not c_y) {
 				c_y = r;
-			} else if (r > 0) {
+			} else {
+				if (r > 4) {
+					r = 0;
+				}
 				poke(*r);
 				++*c_x;
-			} else {
-				c_x.reset();
-				c_y.reset();
 			}
 			return true;
 		}

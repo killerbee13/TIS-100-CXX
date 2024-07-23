@@ -214,6 +214,13 @@ class image {
 		assert(width >= 0 and height >= 0);
 		assert(std::cmp_equal(contents.size(), width * height));
 	}
+	image(std::ptrdiff_t width, std::ptrdiff_t height,
+	      std::vector<pixel> contents)
+	    : width_(width)
+	    , data(std::move(contents)) {
+		assert(width >= 0 and height >= 0);
+		assert(std::cmp_equal(contents.size(), width * height));
+	}
 
 	constexpr void reshape(std::ptrdiff_t w, std::ptrdiff_t h) {
 		if (w < 0 or h < 0) {
@@ -222,6 +229,14 @@ class image {
 		}
 		width_ = w;
 		data.resize(w * h);
+	}
+	constexpr void reshape(std::ptrdiff_t w, std::ptrdiff_t h, pixel p) {
+		if (w < 0 or h < 0) {
+			throw std::invalid_argument{
+			    "negative dimension specified for pnm::image::reshape"};
+		}
+		width_ = w;
+		data.resize(w * h, p);
 	}
 
 #if __cpp_multidimensional_subscript >= 202211L
@@ -245,6 +260,10 @@ class image {
 	constexpr void assign(std::initializer_list<pixel> il) {
 		assert(il.size() == data.size());
 		data = il;
+	}
+	constexpr void assign(std::vector<pixel> il) {
+		assert(il.size() == data.size());
+		data = std::move(il);
 	}
 
 	constexpr std::ptrdiff_t height() const noexcept {

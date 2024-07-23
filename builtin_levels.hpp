@@ -19,6 +19,7 @@
 #define BUILTIN_LEVELS_HPP
 
 #include "parser.hpp"
+#include "random_levels.hpp"
 
 #include <array>
 #include <string_view>
@@ -74,6 +75,8 @@ inline constexpr std::array<level_layout, 51> layouts{{
     {"63534", "SEQUENCE SORTER", "CBSBBBBBBSBB I1 NUMERIC @0 O2 NUMERIC @5"},
     {"70601", "STORED IMAGE DECODER",
      "BBBBBBBBBBBB I1 NUMERIC @0 O2 IMAGE @5 30 18"},
+    {"UNKNOWN", "UNKNOWN",
+     "BBBCBBBCCBBB I1 NUMERIC @0 O1 NUMERIC @5 O2 NUMERIC @6"},
     {"NEXUS.00.526.6", "SEQUENCE MERGER",
      "BBCBSBBBBBBS I1 NUMERIC @0 I3 NUMERIC @1 O2 NUMERIC @5"},
     {"NEXUS.01.874.8", "INTEGER SERIES CALCULATOR",
@@ -126,8 +129,6 @@ inline constexpr std::array<level_layout, 51> layouts{{
     {"NEXUS.24.511.7", "WAVE COLLAPSE SUPERVISOR",
      "BBBBBBBBBBBB I0 NUMERIC @0 I1 NUMERIC @1 I2 NUMERIC @2 I3 "
      "NUMERIC @3 O1 NUMERIC @5"},
-    {"UNKNOWN", "UNKNOWN",
-     "BBBCBBBCCBBB I1 NUMERIC @0 O1 NUMERIC @5 O2 NUMERIC @6"},
 }};
 
 constexpr int level_id(std::string_view s) {
@@ -154,187 +155,197 @@ inline image_t checkerboard(std::ptrdiff_t w, std::ptrdiff_t h) {
 	return ret;
 }
 
-inline const std::array<inputs_outputs, layouts.size()> tests{{
-    // SELF-TEST DIAGNOSTIC
-    {.data = {{
-         {.inputs = {{51, 62, 16, 83, 61, 14, 35, 17, 63, 48, 22, 40, 29,
-                      50, 77, 32, 31, 49, 89, 89, 12, 59, 53, 75, 37, 78,
-                      57, 38, 44, 98, 85, 25, 80, 39, 20, 16, 91, 81, 84},
-                     {68, 59, 59, 49, 82, 16, 45, 88, 31, 74, 77, 71, 18,
-                      70, 48, 35, 73, 85, 91, 53, 30, 41, 19, 61, 62, 18,
-                      26, 13, 59, 83, 95, 55, 73, 84, 40, 22, 14, 28, 90}},
-          .n_outputs = {{51, 62, 16, 83, 61, 14, 35, 17, 63, 48, 22, 40, 29,
-                         50, 77, 32, 31, 49, 89, 89, 12, 59, 53, 75, 37, 78,
-                         57, 38, 44, 98, 85, 25, 80, 39, 20, 16, 91, 81, 84},
-                        {68, 59, 59, 49, 82, 16, 45, 88, 31, 74, 77, 71, 18,
-                         70, 48, 35, 73, 85, 91, 53, 30, 41, 19, 61, 62, 18,
-                         26, 13, 59, 83, 95, 55, 73, 84, 40, 22, 14, 28, 90}},
-          .i_output = {}},
-         {.inputs = {{}}, .n_outputs = {{}}, .i_output = {}},
-         {.inputs = {{}}, .n_outputs = {{}}, .i_output = {}},
-     }}},
-    // SIGNAL AMPLIFIER
-    {},
-    // DIFFERENTIAL CONVERTER
-    {.data
-     = {{{.inputs = {{44, 78, 88, 95, 65, 63, 41, 26, 87, 75, 21, 21, 62,
-                      43, 26, 45, 13, 26, 30, 33, 34, 24, 39, 55, 54, 52,
-                      67, 18, 77, 41, 31, 68, 28, 19, 97, 76, 27, 55, 89},
-                     {93, 60, 92, 68, 56, 30, 90, 65, 94, 92, 62, 35, 63,
-                      57, 45, 40, 81, 11, 35, 20, 85, 29, 86, 84, 36, 18,
-                      33, 87, 87, 54, 82, 69, 31, 18, 79, 24, 34, 67, 74}},
-          .n_outputs
-          = {{-49, 18,  -4,  27,  9,   33, -49, -39, -7, -17, -41, -14, -1,
-              -14, -19, 5,   -68, 15,  -5, 13,  -51, -5, -47, -29, 18,  34,
-              34,  -69, -10, -13, -51, -1, -3,  1,   18, 52,  -7,  -12, 15},
-             {49,  -18, 4,  -27, -9,  -33, 49,  39, 7,   17,  41, 14,  1,
-              14,  19,  -5, 68,  -15, 5,   -13, 51, 5,   47,  29, -18, -34,
-              -34, 69,  10, 13,  51,  1,   3,   -1, -18, -52, 7,  12,  -15}},
-          .i_output = {}}}}},
-    // SIGNAL COMPARATOR
-    {},
-    // SIGNAL MULTIPLEXER
-    {.data
-     = {{{.inputs
-          = {{-13, -27, -29, -17, -19, -17, 0,   -28, -17, -28, -1,  -3,  -3,
-              -26, -24, -17, -6,  -5,  -6,  -27, -19, -27, -14, -13, -29, -16,
-              -9,  -24, -2,  -2,  -20, -19, -3,  -15, -50, -55, -22, -46, -27},
-             {-1, 1,  1, -1, -1, 0, 1, 1,  1, 0, 0, 1, 0,
-              -1, -1, 0, 1,  -1, 0, 0, 1,  1, 0, 0, 1, -1,
-              0,  -1, 1, 0,  0,  0, 0, -1, 1, 1, 0, 1, -1},
-             {7,  7,  6,  17, 11, 29, 25, 29, 3,  7,  11, 14, 27,
-              5,  21, 26, 8,  25, 25, 15, 25, 3,  17, 20, 6,  11,
-              18, 4,  4,  17, 4,  24, 11, 29, 19, 27, 12, 12, 11}},
-          .n_outputs
-          = {{-13, 7,   6, -17, -19, 12, 25,  29,  3,  -21, 10,  14, 24,
-              -26, -24, 9, 8,   -5,  19, -12, 25,  3,  3,   7,   6,  -16,
-              9,   -24, 4, 15,  -16, 5,  8,   -15, 19, 27,  -10, 12, -27}},
-          .i_output = {}}}}},
-    // SEQUENCE GENERATOR
-    {.data
-     = {{{.inputs = {{46, 71, 66, 21, 79, 23, 62, 23, 36, 96, 12, 97, 47},
-                     {71, 29, 90, 67, 79, 84, 78, 27, 60, 45, 67, 42, 64}},
-          .n_outputs
-          = {{46, 71, 0, 29, 71, 0, 66, 90, 0, 21, 67, 0, //
-              79, 79, 0, 23, 84, 0, 62, 78, 0, 23, 27, 0, //
-              36, 60, 0, 45, 96, 0, 12, 67, 0, 42, 97, 0, 47, 64, 0}},
-          .i_output = {}},
-         {.inputs = {{71, 29, 90, 67, 98, 84, 78, 27, 60, 45, 67, 37, 64},
-                     {39, 72, 55, 40, 83, 22, 53, 19, 15, 67, 66, 37, 82}},
-          .n_outputs
-          = {{39, 71, 0, 29, 72, 0, 55, 90, 0, 40, 67, 0, //
-              83, 98, 0, 22, 84, 0, 53, 78, 0, 19, 27, 0, //
-              15, 60, 0, 45, 67, 0, 66, 67, 0, 37, 37, 0, 64, 82, 0}},
-          .i_output = {}},
-         {.inputs = {{39, 72, 55, 40, 83, 15, 53, 19, 15, 67, 66, 43, 82},
-                     {34, 34, 94, 13, 86, 15, 47, 77, 21, 15, 83, 69, 33}},
-          .n_outputs
-          = {{34, 39, 0, 34, 72, 0, 55, 94, 0, 13, 40, 0, //
-              83, 86, 0, 15, 15, 0, 47, 53, 0, 19, 77, 0, //
-              15, 21, 0, 15, 67, 0, 66, 83, 0, 43, 69, 0, 33, 82, 0}},
-          .i_output = {}}}}},
-    // SEQUENCE COUNTER
-    {},
-    // SIGNAL EDGE DETECTOR
-    {},
-    // INTERRUPT HANDLER
-    {},
-    // SIMPLE SANDBOX
-    {},
-    // SIGNAL PATTERN DETECTOR
-    {},
-    // SEQUENCE PEAK DETECTOR
-    {},
-    // SEQUENCE REVERSER
-    {},
-    // SIGNAL MULTIPLIER
-    {},
-    // STACK MEMORY SANDBOX
-    {},
-    // IMAGE TEST PATTERN 1
-    {.data = {{{.inputs = {},
-                .n_outputs = {},
-                .i_output = {30, 18, tis_pixel::C_white}},
-               {.inputs = {},
-                .n_outputs = {},
-                .i_output = {30, 18, tis_pixel::C_white}},
-               {.inputs = {},
-                .n_outputs = {},
-                .i_output = {30, 18, tis_pixel::C_white}}}}},
-    // IMAGE TEST PATTERN 2
-    {.data
-     = {{{.inputs = {}, .n_outputs = {}, .i_output = checkerboard(30, 18)},
-         {.inputs = {}, .n_outputs = {}, .i_output = checkerboard(30, 18)},
-         {.inputs = {}, .n_outputs = {}, .i_output = checkerboard(30, 18)}}}},
-    // EXPOSURE MASK VIEWER
-    {},
-    // HISTOGRAM VIEWER
-    {},
-    // IMAGE CONSOLE SANDBOX
-    {},
-    // SIGNAL WINDOW FILTER
-    {},
-    // SIGNAL DIVIDER
-    {},
-    // SEQUENCE INDEXER
-    {},
-    // SEQUENCE SORTER
-    {},
-    // STORED IMAGE DECODER
-    {},
-    // SEQUENCE MERGER
-    {},
-    // INTEGER SERIES CALCULATOR
-    {},
-    // SEQUENCE RANGE LIMITER
-    {},
-    // SIGNAL ERROR CORRECTOR
-    {},
-    // SUBSEQUENCE EXTRACTOR
-    {},
-    // SIGNAL PRESCALER
-    {},
-    // SIGNAL AVERAGER
-    {},
-    // SUBMAXIMUM SELECTOR
-    {},
-    // DECIMAL DECOMPOSER
-    {},
-    // SEQUENCE MODE CALCULATOR
-    {},
-    // SEQUENCE NORMALIZER
-    {},
-    // IMAGE TEST PATTERN 3
-    {},
-    // IMAGE TEST PATTERN 4
-    {},
-    // SPATIAL PATH VIEWER
-    {},
-    // CHARACTER TERMINAL
-    {},
-    // BACK-REFERENCE REIFIER
-    {},
-    // DYNAMIC PATTERN DETECTOR
-    {},
-    // SEQUENCE GAP INTERPOLATOR
-    {},
-    // DECIMAL TO OCTAL CONVERTER
-    {},
-    // PROLONGED SEQUENCE SORTER
-    {},
-    // PRIME FACTOR CALCULATOR
-    {},
-    // SIGNAL EXPONENTIATOR
-    {},
-    // T20 NODE EMULATOR
-    {},
-    // T31 NODE EMULATOR
-    {},
-    // WAVE COLLAPSE SUPERVISOR
-    {},
-    // UNKNOWN
-    {},
-}};
+using tests_t = std::array<inputs_outputs, layouts.size()>;
+
+inline tests_t populate_builtins() {
+	auto r = tests_t{{
+	    // SELF-TEST DIAGNOSTIC
+	    {.data = {{
+	         {.inputs = {{51, 62, 16, 83, 61, 14, 35, 17, 63, 48, 22, 40, 29,
+	                      50, 77, 32, 31, 49, 89, 89, 12, 59, 53, 75, 37, 78,
+	                      57, 38, 44, 98, 85, 25, 80, 39, 20, 16, 91, 81, 84},
+	                     {68, 59, 59, 49, 82, 16, 45, 88, 31, 74, 77, 71, 18,
+	                      70, 48, 35, 73, 85, 91, 53, 30, 41, 19, 61, 62, 18,
+	                      26, 13, 59, 83, 95, 55, 73, 84, 40, 22, 14, 28, 90}},
+	          .n_outputs
+	          = {{51, 62, 16, 83, 61, 14, 35, 17, 63, 48, 22, 40, 29,
+	              50, 77, 32, 31, 49, 89, 89, 12, 59, 53, 75, 37, 78,
+	              57, 38, 44, 98, 85, 25, 80, 39, 20, 16, 91, 81, 84},
+	             {68, 59, 59, 49, 82, 16, 45, 88, 31, 74, 77, 71, 18,
+	              70, 48, 35, 73, 85, 91, 53, 30, 41, 19, 61, 62, 18,
+	              26, 13, 59, 83, 95, 55, 73, 84, 40, 22, 14, 28, 90}},
+	          .i_output = {}},
+	         {.inputs = {{}}, .n_outputs = {{}}, .i_output = {}},
+	         {.inputs = {{}}, .n_outputs = {{}}, .i_output = {}},
+	     }}},
+	    // SIGNAL AMPLIFIER
+	    {},
+	    // DIFFERENTIAL CONVERTER
+	    {.data
+	     = {{{.inputs = {{44, 78, 88, 95, 65, 63, 41, 26, 87, 75, 21, 21, 62,
+	                      43, 26, 45, 13, 26, 30, 33, 34, 24, 39, 55, 54, 52,
+	                      67, 18, 77, 41, 31, 68, 28, 19, 97, 76, 27, 55, 89},
+	                     {93, 60, 92, 68, 56, 30, 90, 65, 94, 92, 62, 35, 63,
+	                      57, 45, 40, 81, 11, 35, 20, 85, 29, 86, 84, 36, 18,
+	                      33, 87, 87, 54, 82, 69, 31, 18, 79, 24, 34, 67, 74}},
+	          .n_outputs
+	          = {{-49, 18,  -4,  27,  9,   33, -49, -39, -7, -17, -41, -14, -1,
+	              -14, -19, 5,   -68, 15,  -5, 13,  -51, -5, -47, -29, 18,  34,
+	              34,  -69, -10, -13, -51, -1, -3,  1,   18, 52,  -7,  -12, 15},
+	             {49,  -18, 4,  -27, -9,  -33, 49,  39, 7,   17,  41, 14,  1,
+	              14,  19,  -5, 68,  -15, 5,   -13, 51, 5,   47,  29, -18, -34,
+	              -34, 69,  10, 13,  51,  1,   3,   -1, -18, -52, 7,  12,  -15}},
+	          .i_output = {}}}}},
+	    // SIGNAL COMPARATOR
+	    {},
+	    // SIGNAL MULTIPLEXER
+	    {.data
+	     = {{{.inputs = {{-13, -27, -29, -17, -19, -17, 0,   -28, -17, -28,
+	                      -1,  -3,  -3,  -26, -24, -17, -6,  -5,  -6,  -27,
+	                      -19, -27, -14, -13, -29, -16, -9,  -24, -2,  -2,
+	                      -20, -19, -3,  -15, -50, -55, -22, -46, -27},
+	                     {-1, 1,  1, -1, -1, 0, 1, 1,  1, 0, 0, 1, 0,
+	                      -1, -1, 0, 1,  -1, 0, 0, 1,  1, 0, 0, 1, -1,
+	                      0,  -1, 1, 0,  0,  0, 0, -1, 1, 1, 0, 1, -1},
+	                     {7,  7,  6,  17, 11, 29, 25, 29, 3,  7,  11, 14, 27,
+	                      5,  21, 26, 8,  25, 25, 15, 25, 3,  17, 20, 6,  11,
+	                      18, 4,  4,  17, 4,  24, 11, 29, 19, 27, 12, 12, 11}},
+	          .n_outputs
+	          = {{-13, 7,   6, -17, -19, 12, 25,  29,  3,  -21, 10,  14, 24,
+	              -26, -24, 9, 8,   -5,  19, -12, 25,  3,  3,   7,   6,  -16,
+	              9,   -24, 4, 15,  -16, 5,  8,   -15, 19, 27,  -10, 12, -27}},
+	          .i_output = {}}}}},
+	    // SEQUENCE GENERATOR
+	    {.data
+	     = {{{.inputs = {{46, 71, 66, 21, 79, 23, 62, 23, 36, 96, 12, 97, 47},
+	                     {71, 29, 90, 67, 79, 84, 78, 27, 60, 45, 67, 42, 64}},
+	          .n_outputs
+	          = {{46, 71, 0, 29, 71, 0, 66, 90, 0, 21, 67, 0, //
+	              79, 79, 0, 23, 84, 0, 62, 78, 0, 23, 27, 0, //
+	              36, 60, 0, 45, 96, 0, 12, 67, 0, 42, 97, 0, 47, 64, 0}},
+	          .i_output = {}},
+	         {.inputs = {{71, 29, 90, 67, 98, 84, 78, 27, 60, 45, 67, 37, 64},
+	                     {39, 72, 55, 40, 83, 22, 53, 19, 15, 67, 66, 37, 82}},
+	          .n_outputs
+	          = {{39, 71, 0, 29, 72, 0, 55, 90, 0, 40, 67, 0, //
+	              83, 98, 0, 22, 84, 0, 53, 78, 0, 19, 27, 0, //
+	              15, 60, 0, 45, 67, 0, 66, 67, 0, 37, 37, 0, 64, 82, 0}},
+	          .i_output = {}},
+	         {.inputs = {{39, 72, 55, 40, 83, 15, 53, 19, 15, 67, 66, 43, 82},
+	                     {34, 34, 94, 13, 86, 15, 47, 77, 21, 15, 83, 69, 33}},
+	          .n_outputs
+	          = {{34, 39, 0, 34, 72, 0, 55, 94, 0, 13, 40, 0, //
+	              83, 86, 0, 15, 15, 0, 47, 53, 0, 19, 77, 0, //
+	              15, 21, 0, 15, 67, 0, 66, 83, 0, 43, 69, 0, 33, 82, 0}},
+	          .i_output = {}}}}},
+	    // SEQUENCE COUNTER
+	    {},
+	    // SIGNAL EDGE DETECTOR
+	    {},
+	    // INTERRUPT HANDLER
+	    {},
+	    // SIMPLE SANDBOX
+	    {},
+	    // SIGNAL PATTERN DETECTOR
+	    {},
+	    // SEQUENCE PEAK DETECTOR
+	    {},
+	    // SEQUENCE REVERSER
+	    {},
+	    // SIGNAL MULTIPLIER
+	    {},
+	    // STACK MEMORY SANDBOX
+	    {},
+	    // IMAGE TEST PATTERN 1
+	    {.data = {{{.inputs = {},
+	                .n_outputs = {},
+	                .i_output = {30, 18, tis_pixel::C_white}},
+	               {.inputs = {},
+	                .n_outputs = {},
+	                .i_output = {30, 18, tis_pixel::C_white}},
+	               {.inputs = {},
+	                .n_outputs = {},
+	                .i_output = {30, 18, tis_pixel::C_white}}}}},
+	    // IMAGE TEST PATTERN 2
+	    {.data
+	     = {{{.inputs = {}, .n_outputs = {}, .i_output = checkerboard(30, 18)},
+	         {.inputs = {}, .n_outputs = {}, .i_output = checkerboard(30, 18)},
+	         {.inputs = {},
+	          .n_outputs = {},
+	          .i_output = checkerboard(30, 18)}}}},
+	    // EXPOSURE MASK VIEWER
+	    {},
+	    // HISTOGRAM VIEWER
+	    {},
+	    // IMAGE CONSOLE SANDBOX
+	    {},
+	    // SIGNAL WINDOW FILTER
+	    {},
+	    // SIGNAL DIVIDER
+	    {},
+	    // SEQUENCE INDEXER
+	    {},
+	    // SEQUENCE SORTER
+	    {},
+	    // STORED IMAGE DECODER
+	    {},
+	    // SEQUENCE MERGER
+	    {},
+	    // INTEGER SERIES CALCULATOR
+	    {},
+	    // SEQUENCE RANGE LIMITER
+	    {},
+	    // SIGNAL ERROR CORRECTOR
+	    {},
+	    // SUBSEQUENCE EXTRACTOR
+	    {},
+	    // SIGNAL PRESCALER
+	    {},
+	    // SIGNAL AVERAGER
+	    {},
+	    // SUBMAXIMUM SELECTOR
+	    {},
+	    // DECIMAL DECOMPOSER
+	    {},
+	    // SEQUENCE MODE CALCULATOR
+	    {},
+	    // SEQUENCE NORMALIZER
+	    {},
+	    // IMAGE TEST PATTERN 3
+	    {},
+	    // IMAGE TEST PATTERN 4
+	    {},
+	    // SPATIAL PATH VIEWER
+	    {},
+	    // CHARACTER TERMINAL
+	    {},
+	    // BACK-REFERENCE REIFIER
+	    {},
+	    // DYNAMIC PATTERN DETECTOR
+	    {},
+	    // SEQUENCE GAP INTERPOLATOR
+	    {},
+	    // DECIMAL TO OCTAL CONVERTER
+	    {},
+	    // PROLONGED SEQUENCE SORTER
+	    {},
+	    // PRIME FACTOR CALCULATOR
+	    {},
+	    // SIGNAL EXPONENTIATOR
+	    {},
+	    // T20 NODE EMULATOR
+	    {},
+	    // T31 NODE EMULATOR
+	    {},
+	    // WAVE COLLAPSE SUPERVISOR
+	    {},
+	    // UNKNOWN
+	    {},
+	}};
+	return r;
+}
+
+inline const tests_t tests = populate_builtins();
 
 inline bool check_achievement(int id, const field& solve, score sc) {
 	// SELF-TEST DIAGNOSTIC
