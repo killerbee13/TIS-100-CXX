@@ -155,6 +155,7 @@ inline image_t checkerboard(std::ptrdiff_t w, std::ptrdiff_t h) {
 }
 
 inline const std::array<inputs_outputs, layouts.size()> tests{{
+    // SELF-TEST DIAGNOSTIC
     {.data = {{
          {.inputs = {{51, 62, 16, 83, 61, 14, 35, 17, 63, 48, 22, 40, 29,
                       50, 77, 32, 31, 49, 89, 89, 12, 59, 53, 75, 37, 78,
@@ -172,7 +173,9 @@ inline const std::array<inputs_outputs, layouts.size()> tests{{
          {.inputs = {{}}, .n_outputs = {{}}, .i_output = {}},
          {.inputs = {{}}, .n_outputs = {{}}, .i_output = {}},
      }}},
+    // SIGNAL AMPLIFIER
     {},
+    // DIFFERENTIAL CONVERTER
     {.data
      = {{{.inputs = {{44, 78, 88, 95, 65, 63, 41, 26, 87, 75, 21, 21, 62,
                       43, 26, 45, 13, 26, 30, 33, 34, 24, 39, 55, 54, 52,
@@ -188,7 +191,9 @@ inline const std::array<inputs_outputs, layouts.size()> tests{{
               14,  19,  -5, 68,  -15, 5,   -13, 51, 5,   47,  29, -18, -34,
               -34, 69,  10, 13,  51,  1,   3,   -1, -18, -52, 7,  12,  -15}},
           .i_output = {}}}}},
+    // SIGNAL COMPARATOR
     {},
+    // SIGNAL MULTIPLEXER
     {.data
      = {{{.inputs
           = {{-13, -27, -29, -17, -19, -17, 0,   -28, -17, -28, -1,  -3,  -3,
@@ -205,6 +210,7 @@ inline const std::array<inputs_outputs, layouts.size()> tests{{
               -26, -24, 9, 8,   -5,  19, -12, 25,  3,  3,   7,   6,  -16,
               9,   -24, 4, 15,  -16, 5,  8,   -15, 19, 27,  -10, 12, -27}},
           .i_output = {}}}}},
+    // SEQUENCE GENERATOR
     {.data
      = {{{.inputs = {{46, 71, 66, 21, 79, 23, 62, 23, 36, 96, 12, 97, 47},
                      {71, 29, 90, 67, 79, 84, 78, 27, 60, 45, 67, 42, 64}},
@@ -227,15 +233,25 @@ inline const std::array<inputs_outputs, layouts.size()> tests{{
               83, 86, 0, 15, 15, 0, 47, 53, 0, 19, 77, 0, //
               15, 21, 0, 15, 67, 0, 66, 83, 0, 43, 69, 0, 33, 82, 0}},
           .i_output = {}}}}},
+    // SEQUENCE COUNTER
     {},
+    // SIGNAL EDGE DETECTOR
     {},
+    // INTERRUPT HANDLER
     {},
+    // SIMPLE SANDBOX
     {},
+    // SIGNAL PATTERN DETECTOR
     {},
+    // SEQUENCE PEAK DETECTOR
     {},
+    // SEQUENCE REVERSER
     {},
+    // SIGNAL MULTIPLIER
     {},
+    // STACK MEMORY SANDBOX
     {},
+    // IMAGE TEST PATTERN 1
     {.data = {{{.inputs = {},
                 .n_outputs = {},
                 .i_output = {30, 18, tis_pixel::C_white}},
@@ -245,10 +261,79 @@ inline const std::array<inputs_outputs, layouts.size()> tests{{
                {.inputs = {},
                 .n_outputs = {},
                 .i_output = {30, 18, tis_pixel::C_white}}}}},
+    // IMAGE TEST PATTERN 2
     {.data
      = {{{.inputs = {}, .n_outputs = {}, .i_output = checkerboard(30, 18)},
          {.inputs = {}, .n_outputs = {}, .i_output = checkerboard(30, 18)},
          {.inputs = {}, .n_outputs = {}, .i_output = checkerboard(30, 18)}}}},
+    // EXPOSURE MASK VIEWER
+    {},
+    // HISTOGRAM VIEWER
+    {},
+    // IMAGE CONSOLE SANDBOX
+    {},
+    // SIGNAL WINDOW FILTER
+    {},
+    // SIGNAL DIVIDER
+    {},
+    // SEQUENCE INDEXER
+    {},
+    // SEQUENCE SORTER
+    {},
+    // STORED IMAGE DECODER
+    {},
+    // SEQUENCE MERGER
+    {},
+    // INTEGER SERIES CALCULATOR
+    {},
+    // SEQUENCE RANGE LIMITER
+    {},
+    // SIGNAL ERROR CORRECTOR
+    {},
+    // SUBSEQUENCE EXTRACTOR
+    {},
+    // SIGNAL PRESCALER
+    {},
+    // SIGNAL AVERAGER
+    {},
+    // SUBMAXIMUM SELECTOR
+    {},
+    // DECIMAL DECOMPOSER
+    {},
+    // SEQUENCE MODE CALCULATOR
+    {},
+    // SEQUENCE NORMALIZER
+    {},
+    // IMAGE TEST PATTERN 3
+    {},
+    // IMAGE TEST PATTERN 4
+    {},
+    // SPATIAL PATH VIEWER
+    {},
+    // CHARACTER TERMINAL
+    {},
+    // BACK-REFERENCE REIFIER
+    {},
+    // DYNAMIC PATTERN DETECTOR
+    {},
+    // SEQUENCE GAP INTERPOLATOR
+    {},
+    // DECIMAL TO OCTAL CONVERTER
+    {},
+    // PROLONGED SEQUENCE SORTER
+    {},
+    // PRIME FACTOR CALCULATOR
+    {},
+    // SIGNAL EXPONENTIATOR
+    {},
+    // T20 NODE EMULATOR
+    {},
+    // T31 NODE EMULATOR
+    {},
+    // WAVE COLLAPSE SUPERVISOR
+    {},
+    // UNKNOWN
+    {},
 }};
 
 inline bool check_achievement(int id, const field& solve, score sc) {

@@ -166,7 +166,7 @@ field parse(std::string_view layout, std::string_view source,
             const single_test& expected, int T21_size = def_T21_size,
             int T30_size = def_T30_size);
 
-std::vector<instr> assemble(std::string_view source,
+std::vector<instr> assemble(std::string_view source, int node,
                             int T21_size = def_T21_size);
 
 struct score {

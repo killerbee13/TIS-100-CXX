@@ -108,7 +108,9 @@ bool T21::step() {
 	    },
 	    [&](kblib::constant<std::size_t, instr::hcf>, seq_instr) {
 		    log << "hcf";
-		    std::abort();
+		    log_debug(std::move(log).str());
+		    log_debug("\ts = ", kblib::etoi(s));
+		    throw std::runtime_error{"HCF"};
 		    return true;
 	    },
 	    [&, this](kblib::constant<std::size_t, instr::mov>, mov_instr i) {

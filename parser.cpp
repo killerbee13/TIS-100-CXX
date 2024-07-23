@@ -27,6 +27,7 @@
 #include <kblib/stringops.h>
 #include <kblib/variant.h>
 
+#include <set>
 #include <spanstream>
 
 using namespace std::literals;
@@ -203,12 +204,16 @@ std::string_view pop(std::string_view& str, std::size_t n) {
 
 void parse_code(field& f, std::string_view source, int T21_size) {
 	source.remove_prefix(std::min(source.find_first_of('@'), source.size()));
+	std::set<int> nodes_seen;
 	while (not source.empty()) {
 		auto header = pop(source, source.find_first_of('\n'));
 		pop(source, source.find_first_not_of(" \t\r\n"));
 		header.remove_prefix(1);
 		auto i = kblib::parse_integer<int>(header);
 		auto section = pop(source, source.find_first_of('@'));
+		if (not nodes_seen.insert(i).second) {
+			throw std::invalid_argument{kblib::concat("duplicate node label ", i)};
+		}
 		if (section.empty()) {
 			continue;
 		}
@@ -217,8 +222,11 @@ void parse_code(field& f, std::string_view source, int T21_size) {
 		    - std::min(section.find_last_not_of(" \t\r\n"), section.size()) - 1);
 		log_debug("index ", i, " of ", f.nodes_avail());
 		auto p = f.node_by_index(static_cast<std::size_t>(i));
-		assert(p);
-		p->code = assemble(section, T21_size);
+		if (not p) {
+			throw std::invalid_argument{
+			    kblib::concat("node label ", i, " out of range")};
+		}
+		p->code = assemble(section, i, T21_size);
 	}
 }
 
@@ -454,10 +462,11 @@ index_t parse_label(
 	throw std::invalid_argument{""};
 }
 
-std::vector<instr> assemble(std::string_view source, int T21_size) {
+std::vector<instr> assemble(std::string_view source, int node, int T21_size) {
 	auto lines = kblib::split_dsv(source, '\n');
 	if (std::cmp_greater(lines.size(), T21_size)) {
-		throw std::invalid_argument{""};
+		throw std::invalid_argument{
+		    kblib::concat("too many lines of asm for node ", node)};
 	}
 	std::vector<instr> ret;
 	std::vector<std::pair<std::string, index_t>> labels;

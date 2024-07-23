@@ -71,15 +71,38 @@ struct output_node : node {
 struct image_output : node {
 	using node::node;
 	type_t type() const noexcept override { return image; }
-	bool step() override { return false; }
+	bool step() override {
+		if (auto r = do_read(neighbors[port::up], port::down)) {
+			if (not c_x) {
+				c_x = r;
+			} else if (not c_y) {
+				c_y = r;
+			} else if (r > 0) {
+				poke(*r);
+				++*c_x;
+			} else {
+				c_x.reset();
+				c_y.reset();
+			}
+			return true;
+		}
+		return false;
+	}
 	bool finalize() override { return false; }
 	std::optional<word_t> read_(port) override { return std::nullopt; }
 
+	void poke(tis_pixel p) {
+		if (c_x < width and c_y < height) {
+			image_received.at(*c_x, *c_y) = p;
+		}
+	}
 	image_t image_expected;
 	image_t image_received;
 	std::string filename;
 	std::size_t width;
 	std::size_t height;
+	std::optional<word_t> c_x;
+	std::optional<word_t> c_y;
 };
 
 #endif // IO_HPP

@@ -49,7 +49,7 @@ struct instr {
 		swp,
 		sav,
 		neg,
-		hcf, // 4
+		hcf, // 5
 		mov, // 1
 		add,
 		sub, // 2
