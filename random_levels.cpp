@@ -47,6 +47,18 @@ std::array<single_test, 3> static_suite(int id) {
 	};
 }
 
+template <typename F>
+void for_each_subsequence_of(std::vector<word_t>& in, word_t delim, F f) {
+	auto start = in.begin();
+	auto cur = start;
+	for (; cur != in.end(); ++cur) {
+		if (*cur == delim) {
+			f(start, cur);
+			start = cur + 1;
+		}
+	}
+}
+
 single_test random_test(int id, int32_t seed) {
 	// log_info("random_test(", id, ", ", seed, ")");
 	single_test ret{};
@@ -207,35 +219,27 @@ single_test random_test(int id, int32_t seed) {
 		ret.inputs[0].back() = 0;
 		ret.n_outputs.resize(2);
 
-		auto it = ret.inputs[0].begin();
-		auto end = std::ranges::find(ret.inputs[0], 0);
-		while (it != ret.inputs[0].end()) {
-			auto v = std::ranges::minmax_element(it, end - 1);
-			ret.n_outputs[0].push_back(*v.max);
-			ret.n_outputs[1].push_back(*v.min);
-			it = end + 1;
-			end = std::ranges::find(it, ret.inputs[0].end(), 0);
-		}
+		for_each_subsequence_of(ret.inputs[0], 0, [&](auto begin, auto end) {
+			auto v = std::ranges::minmax_element(begin, end);
+			ret.n_outputs[0].push_back(*v.min);
+			ret.n_outputs[1].push_back(*v.max);
+		});
 	} break;
 	case "SEQUENCE REVERSER"_lvl: {
 		ret.inputs.push_back(
 		    make_composite_array(seed, max_test_length, 0, 6, 10, 100));
 		ret.n_outputs.resize(1);
 
-		auto it = ret.inputs[0].begin();
-		auto end = std::ranges::find(ret.inputs[0], 0);
-		while (it != ret.inputs[0].end()) {
-			std::ranges::reverse_copy(it, end - 1,
+		for_each_subsequence_of(ret.inputs[0], 0, [&](auto begin, auto end) {
+			std::ranges::reverse_copy(begin, end,
 			                          std::back_inserter(ret.n_outputs[0]));
 			ret.n_outputs[0].push_back(0);
-			it = end + 1;
-			end = std::ranges::find(it, ret.inputs[0].end(), 0);
-		}
+		});
 	} break;
 	case "SIGNAL MULTIPLIER"_lvl: {
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 0, 10));
 		ret.inputs.push_back(make_random_array(seed + 1, max_test_length, 0, 10));
-		ret.n_outputs.resize(1);
+		ret.n_outputs.push_back(std::vector<word_t>(max_test_length));
 		std::ranges::transform(ret.inputs[0], ret.inputs[1],
 		                       ret.n_outputs[0].begin(), std::multiplies<>{});
 	} break;
@@ -346,17 +350,13 @@ single_test random_test(int id, int32_t seed) {
 		ret.n_outputs[0].reserve(max_test_length);
 
 		std::vector<word_t> sublist;
-		auto it = ret.inputs[0].begin();
-		auto end = std::ranges::find(ret.inputs[0], 0);
-		while (it != ret.inputs[0].end()) {
-			sublist.assign(it, end - 1);
+		for_each_subsequence_of(ret.inputs[0], 0, [&](auto begin, auto end) {
+			sublist.assign(begin, end);
 			std::ranges::sort(sublist);
 			ret.n_outputs[0].insert(ret.n_outputs[0].end(), sublist.begin(),
 			                        sublist.end());
 			ret.n_outputs[0].push_back(0);
-			it = end + 1;
-			end = std::ranges::find(it, ret.inputs[0].end(), 0);
-		}
+		});
 	} break;
 	case "STORED IMAGE DECODER"_lvl: {
 		xorshift128_engine engine(seed);

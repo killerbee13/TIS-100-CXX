@@ -29,7 +29,7 @@
 
 using namespace std::literals;
 
-constexpr int cycles_limit = 1'000;
+constexpr int cycles_limit = 2'500;
 
 std::ostream& write_list(std::ostream& os, const std::vector<word_t>& v) {
 	os << '(' << v.size() << ") [\n\t";

@@ -81,7 +81,7 @@ struct node {
 	// damaged and stack nodes are always idle, so this default simplifies them
 	virtual activity state() const noexcept { return activity::idle; };
 
-	std::array<node*, 6> neighbors;
+	std::array<node*, 6> neighbors{};
 	int x{};
 	int y{};
 
