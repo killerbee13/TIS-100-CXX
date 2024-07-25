@@ -34,7 +34,8 @@ struct T30 : node {
 		if (not wrote and data.size() < max_size) {
 			for (auto p : {port::up, port::left, port::right, port::down, port::D5,
 			               port::D6}) {
-				if (auto r = do_read(neighbors[p], invert(p))) {
+				if (auto r
+				    = do_read(neighbors[static_cast<std::size_t>(p)], invert(p))) {
 					data.push_back(*r);
 					return true;
 				}
@@ -46,6 +47,11 @@ struct T30 : node {
 		wrote = false;
 		return false;
 	}
+	void reset() noexcept override {
+		data.clear();
+		read = false;
+		wrote = false;
+	}
 	std::optional<word_t> read_(port) override {
 		if (not read and not data.empty()) {
 			auto v = data.back();
@@ -55,6 +61,14 @@ struct T30 : node {
 		} else {
 			return std::nullopt;
 		}
+	}
+	std::string print() const override {
+		std::string ret = kblib::concat('(', x, ',', y, ") T30 {");
+		for (auto w : data) {
+			kblib::append(ret, w, ", ");
+		}
+		kblib::append(ret, '}');
+		return ret;
 	}
 };
 

@@ -41,16 +41,20 @@ Node* do_insert(std::vector<std::unique_ptr<node>>& v, int x) {
 }
 
 template <bool use_nonstandard_rep>
-field parse_layout(std::string_view layout, int T30_size) {
+field parse_layout(std::string_view layout, std::size_t T30_size) {
 	auto ss
 	    = std::ispanstream{std::span<const char>{layout.begin(), layout.size()}};
 
 	constexpr static std::string_view cs = use_nonstandard_rep ? "BSMC" : "CSMD";
 
+	if (layout.empty()) {
+		throw std::invalid_argument{"empty layout is not valid"};
+	}
+
 	int h{};
 	int w{};
 	// if no height and width set, assume "3 4"
-	if ("BCDMS"sv.contains(ss.peek())) {
+	if ("BCDMS"sv.contains(static_cast<char>(ss.peek()))) {
 		h = 3;
 		w = 4;
 	} else if (not (ss >> h >> std::ws >> w)) {
@@ -145,11 +149,10 @@ field parse_layout(std::string_view layout, int T30_size) {
 				assert(valid(n));
 				p->neighbors[up] = n;
 				n->neighbors[down] = p;
-				int w{};
-				int h{};
-				ss >> p->filename >> w >> h;
-				p->image_expected.reshape(w, h);
-				p->image_received.reshape(w, h);
+				int i_w{};
+				int i_h{};
+				ss >> p->filename >> i_w >> i_h;
+				p->reshape(i_w, i_h);
 			} else {
 				auto p = do_insert<output_node>(ret.nodes, x);
 				auto n = ret.node_by_location(static_cast<std::size_t>(x),
@@ -183,7 +186,7 @@ field parse_layout(std::string_view layout, int T30_size) {
 	return ret;
 }
 
-field parse_layout_guess(std::string_view layout, int T30_size) {
+field parse_layout_guess(std::string_view layout, std::size_t T30_size) {
 	/*std::clog << "layout detection: " << layout.find_first_of('B') << " < "
 	          << layout.find_first_of("IO") << ": " << std::boolalpha
 	          << (layout.find_first_of('B') < layout.find_first_of("IO"))
@@ -202,7 +205,7 @@ std::string_view pop(std::string_view& str, std::size_t n) {
 	return r;
 }
 
-void parse_code(field& f, std::string_view source, int T21_size) {
+void parse_code(field& f, std::string_view source, std::size_t T21_size) {
 	source.remove_prefix(std::min(source.find_first_of('@'), source.size()));
 	std::set<int> nodes_seen;
 	while (not source.empty()) {
@@ -231,38 +234,49 @@ void parse_code(field& f, std::string_view source, int T21_size) {
 }
 
 field parse(std::string_view layout, std::string_view source,
-            std::string_view expected, int T21_size, int T30_size) {
+            std::string_view expected, std::size_t T21_size,
+            std::size_t T30_size) {
 	field ret = parse_layout_guess(layout, T30_size);
 	log_debug(ret.layout());
 	log_debug(ret.nodes_avail(), " programmable nodes");
 	parse_code(ret, source, T21_size);
 
 	// parse expected
+	std::abort();
 	return ret;
 }
+
+void set_expected(field& f, const single_test& expected) {
+	auto it = f.begin();
+	std::size_t in_idx{};
+	std::size_t out_idx{};
+	for (; it != f.end(); ++it) {
+		auto p = it->get();
+		if (p) {
+			p->reset();
+		}
+		if (type(p) == node::in) {
+			assert(in_idx < expected.inputs.size());
+			auto i = static_cast<input_node*>(p);
+			i->inputs = expected.inputs[in_idx++];
+		} else if (type(p) == node::out) {
+			assert(out_idx < expected.n_outputs.size());
+			auto o = static_cast<output_node*>(p);
+			o->outputs_expected = expected.n_outputs[out_idx++];
+		} else if (type(p) == node::image) {
+			auto i = static_cast<image_output*>(p);
+			i->image_expected = expected.i_output;
+		}
+	}
+}
 field parse(std::string_view layout, std::string_view source,
-            const single_test& expected, int T21_size, int T30_size) {
+            const single_test& expected, std::size_t T21_size,
+            std::size_t T30_size) {
 	field ret = parse_layout_guess(layout, T30_size);
 	log_debug(ret.layout());
 	log_debug(ret.nodes_avail(), " programmable nodes");
 	parse_code(ret, source, T21_size);
-	auto it = ret.begin() + ret.nodes_total();
-	std::size_t in_idx{};
-	std::size_t out_idx{};
-	for (; it != ret.end(); ++it) {
-		if (auto p = it->get(); type(p) == node::in) {
-			assert(in_idx < expected.inputs.size());
-			static_cast<input_node*>(p)->inputs = expected.inputs[in_idx++];
-		} else if (type(p) == node::out) {
-			assert(out_idx < expected.n_outputs.size());
-			static_cast<output_node*>(p)->outputs_expected
-			    = expected.n_outputs[out_idx++];
-		} else if (type(p) == node::image) {
-			static_cast<image_output*>(p)->image_expected = expected.i_output;
-		} else {
-			assert(false);
-		}
-	}
+	set_expected(ret, expected);
 	return ret;
 }
 
@@ -462,9 +476,10 @@ index_t parse_label(
 	throw std::invalid_argument{""};
 }
 
-std::vector<instr> assemble(std::string_view source, int node, int T21_size) {
+std::vector<instr> assemble(std::string_view source, int node,
+                            std::size_t T21_size) {
 	auto lines = kblib::split_dsv(source, '\n');
-	if (std::cmp_greater(lines.size(), T21_size)) {
+	if (lines.size() > T21_size) {
 		throw std::invalid_argument{
 		    kblib::concat("too many lines of asm for node ", node)};
 	}
@@ -542,6 +557,10 @@ std::vector<instr> assemble(std::string_view source, int node, int T21_size) {
 		std::erase(tokens, "");
 		for (auto j : kblib::range(tokens.size())) {
 			auto& tok = tokens[j];
+			tok.erase(0, tok.find_first_not_of('!'));
+			if (tok.empty()) {
+				continue;
+			}
 			auto& i = tmp.emplace();
 			using enum instr::op;
 			if (tok == "NOP") {

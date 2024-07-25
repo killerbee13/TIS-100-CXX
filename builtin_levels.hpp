@@ -137,7 +137,8 @@ constexpr int level_id(std::string_view s) {
 			return static_cast<int>(i);
 		}
 	}
-	throw std::invalid_argument{""};
+	throw std::invalid_argument{
+	    kblib::concat("invalid level ID ", kblib::quoted(s))};
 }
 
 consteval int operator""_lvl(const char* s, std::size_t size) {
@@ -380,7 +381,8 @@ inline bool check_achievement(int id, const field& solve, score sc) {
 			if (auto p = solve.node_by_index(i)) {
 				if (std::any_of(
 				        p->code.begin(), p->code.end(), [&](const instr& i) {
-					        if (auto* m = std::get_if<instr::mov>(&i.data)) {
+					        if (auto* m = std::get_if<instr::mov>(&i.data);
+					            m and m->dst <= port::D6) {
 						        return type(p->neighbors[static_cast<std::size_t>(
 						                   m->dst)])
 						               == node::T30;

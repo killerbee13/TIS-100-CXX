@@ -38,8 +38,17 @@ struct input_node : node {
 			return false;
 		}
 	}
+	void reset() noexcept override {
+		idx = 0;
+		wrt.reset();
+	}
 	std::optional<word_t> read_(port) override {
 		return std::exchange(wrt, std::nullopt);
+	}
+	std::string print() const override {
+		std::string ret = kblib::concat("I(", x, " NUMERIC {}");
+
+		return ret;
 	}
 
 	std::vector<word_t> inputs;
@@ -53,15 +62,28 @@ struct output_node : node {
 	type_t type() const noexcept override { return out; }
 	bool step() override {
 		if (auto r = do_read(neighbors[port::up], port::down)) {
-			log_debug("O: read");
+			log_debug("O", x, ": read");
+			auto i = outputs_received.size();
 			outputs_received.push_back(*r);
+			if (i > outputs_expected.size()
+			    or outputs_received[i] != outputs_expected[i]) {
+				log_debug("incorrect value written");
+			}
 			return true;
 		} else {
 			return false;
 		}
 	}
 	bool finalize() override { return false; }
+	void reset() noexcept override { outputs_received.clear(); }
 	std::optional<word_t> read_(port) override { return std::nullopt; }
+	std::string print() const override {
+		std::ostringstream ret;
+		ret << kblib::concat("O(", x, " NUMERIC {\nreceived:");
+		write_list(ret, outputs_received, &outputs_expected, false);
+		ret << "\n}";
+		return std::move(ret).str();
+	}
 	std::vector<word_t> outputs_expected;
 	std::vector<word_t> outputs_received;
 	std::string filename;
@@ -70,6 +92,14 @@ struct output_node : node {
 };
 struct image_output : node {
 	using node::node;
+
+	constexpr void reshape(std::ptrdiff_t w, std::ptrdiff_t h) {
+		image_expected.reshape(w, h);
+		image_received.reshape(w, h);
+		width = w;
+		height = h;
+	}
+
 	type_t type() const noexcept override { return image; }
 	bool step() override {
 		if (auto r = do_read(neighbors[port::up], port::down)) {
@@ -92,18 +122,29 @@ struct image_output : node {
 		return false;
 	}
 	bool finalize() override { return false; }
+	void reset() noexcept override {
+		image_received.fill(tis_pixel::C_black);
+		c_x.reset();
+		c_y.reset();
+	}
 	std::optional<word_t> read_(port) override { return std::nullopt; }
+	std::string print() const override {
+		std::string ret = kblib::concat("O", x, " IMAGE {\n");
+		ret += image_received.write_text();
+		ret += "}";
+		return ret;
+	}
 
 	void poke(tis_pixel p) {
-		if (c_x < width and c_y < height) {
+		if (c_x and c_y and c_x < width and c_y < height) {
 			image_received.at(*c_x, *c_y) = p;
 		}
 	}
 	image_t image_expected;
 	image_t image_received;
 	std::string filename;
-	std::size_t width;
-	std::size_t height;
+	std::ptrdiff_t width;
+	std::ptrdiff_t height;
 	std::optional<word_t> c_x;
 	std::optional<word_t> c_y;
 };

@@ -19,13 +19,14 @@
 #define NODE_HPP
 
 #include "image.hpp"
+#include "logger.hpp"
 
 #include <array>
 #include <cstdint>
 #include <vector>
 
 using word_t = std::int16_t;
-using index_t = std::int8_t;
+using index_t = std::int16_t;
 
 constexpr inline int def_T21_size = 15;
 constexpr inline int def_T30_size = 15;
@@ -71,12 +72,54 @@ struct node {
  public:
 	enum type_t { T21 = 1, T30, in, out, image, Damaged = -1 };
 	enum class activity { idle, run, read, write };
+	constexpr static std::string_view state_name(activity s) {
+		switch (s) {
+		case activity::idle:
+			return "IDLE";
+		case activity::run:
+			return "RUN";
+		case activity::read:
+			return "READ";
+		case activity::write:
+			return "WRTE";
+			break;
+		}
+	}
+	constexpr static std::string_view port_name(port p) {
+		switch (p) {
+		case up:
+			return "UP";
+		case left:
+			return "LEFT";
+		case right:
+			return "RIGHT";
+		case down:
+			return "DOWN";
+		case D5:
+			return "D5";
+		case D6:
+			return "D6";
+		case nil:
+			return "NIL";
+		case acc:
+			return "ACC";
+		case any:
+			return "ANY";
+		case last:
+			return "LAST";
+		case immediate:
+			return "VAL";
+			break;
+		}
+	}
 
 	virtual type_t type() const noexcept = 0;
 	virtual bool step() = 0;
 	virtual bool finalize() = 0;
+	virtual void reset() noexcept = 0;
 
 	virtual std::optional<word_t> read_(port p) = 0;
+	virtual std::string print() const = 0;
 
 	// damaged and stack nodes are always idle, so this default simplifies them
 	virtual activity state() const noexcept { return activity::idle; };
@@ -121,7 +164,11 @@ struct damaged : node {
 	type_t type() const noexcept override { return Damaged; }
 	bool step() override { return false; }
 	bool finalize() override { return false; }
+	void reset() noexcept override {}
 	std::optional<word_t> read_(port) override { return std::nullopt; }
+	std::string print() const override {
+		return kblib::concat("(", x, ',', y, ") {Damaged}");
+	}
 };
 
 struct tis_pixel {
@@ -207,32 +254,32 @@ struct image_t : pnm::image<tis_pixel> {
 	void write_line(word_t x, word_t y, const std::vector<word_t>& vals) {
 		x = std::max(x, word_t{});
 		y = std::max(y, word_t{});
-		auto l = std::min(static_cast<std::ptrdiff_t>(vals.size()), width() - x);
+		auto l = std::min(kblib::to_signed(vals.size()), width() - x);
 		std::copy_n(vals.begin(), l, begin() + y * width() + x);
 	}
 
 	using image::assign;
 	constexpr void assign(std::u16string_view image,
-	                      std::u16string_view key = image_t::key) {
+	                      std::u16string_view key_ = key) {
 		assert(image.size() == size());
 		auto it = begin();
 		for (auto px : image) {
-			if (px == key[0]) {
+			if (px == key_[0]) {
 				*it++ = {C_black};
-			} else if (px == key[1]) {
+			} else if (px == key_[1]) {
 				*it++ = {C_dark_grey};
-			} else if (px == key[2]) {
+			} else if (px == key_[2]) {
 				*it++ = {C_light_grey};
-			} else if (px == key[3]) {
+			} else if (px == key_[3]) {
 				*it++ = {C_white};
-			} else if (px == key[4]) {
+			} else if (px == key_[4]) {
 				*it++ = {C_red};
 			}
 		}
 	}
 
 	constexpr void assign(std::initializer_list<std::u16string_view> image,
-	                      std::u16string_view key = image_t::key) {
+	                      std::u16string_view key_ = key) {
 		if (image.size() == 0) {
 			reshape(0, 0);
 		}
@@ -240,19 +287,19 @@ struct image_t : pnm::image<tis_pixel> {
 		for (auto line : image) {
 			assert(line.size() == w);
 		}
-		reshape(w, image.size());
+		reshape(kblib::to_signed(w), kblib::to_signed(image.size()));
 		auto it = begin();
 		for (auto line : image) {
 			for (auto px : line) {
-				if (px == key[0]) {
+				if (px == key_[0]) {
 					*it++ = {C_black};
-				} else if (px == key[1]) {
+				} else if (px == key_[1]) {
 					*it++ = {C_dark_grey};
-				} else if (px == key[2]) {
+				} else if (px == key_[2]) {
 					*it++ = {C_light_grey};
-				} else if (px == key[3]) {
+				} else if (px == key_[3]) {
 					*it++ = {C_white};
-				} else if (px == key[4]) {
+				} else if (px == key_[4]) {
 					*it++ = {C_red};
 				}
 			}
@@ -261,14 +308,26 @@ struct image_t : pnm::image<tis_pixel> {
 
 	constexpr std::ostream& write_text(
 	    std::ostream& os,
-	    const std::array<std::string_view, 5>& rkey = image_t::rkey) {
+	    const std::array<std::string_view, 5>& rkey_ = rkey) const {
 		for (const auto y : kblib::range(height())) {
 			for (const auto x : kblib::range(width())) {
-				os << rkey[kblib::etoi(at(x, y).val)];
+				os << rkey_[kblib::etoi(at(x, y).val)];
 			}
 			os << '\n';
 		}
 		return os;
+	}
+
+	constexpr std::string write_text(const std::array<std::string_view, 5>& rkey_
+	                                 = rkey) const {
+		std::string ret;
+		for (const auto y : kblib::range(height())) {
+			for (const auto x : kblib::range(width())) {
+				ret += rkey_[kblib::etoi(at(x, y).val)];
+			}
+			ret += '\n';
+		}
+		return ret;
 	}
 };
 
@@ -283,10 +342,10 @@ struct inputs_outputs {
 };
 
 template <typename T, typename U>
-constexpr auto sat_add(T a, T b, U l, U h) {
+constexpr U sat_add(T a, T b, U l, U h) {
 	using I = std::common_type_t<T, U>;
-	return static_cast<U>(std::min(
-	    std::max(static_cast<I>(a + b), static_cast<I>(l)), static_cast<I>(h)));
+	return static_cast<U>(
+	    std::clamp(static_cast<I>(a + b), static_cast<I>(l), static_cast<I>(h)));
 }
 
 template <auto l = word_t{-999}, auto h = word_t{999}, typename T>
@@ -296,6 +355,33 @@ constexpr auto sat_add(T a, T b) {
 template <auto l = word_t{-999}, auto h = word_t{999}, typename T>
 constexpr auto sat_sub(T a, T b) {
 	return sat_add<T, std::common_type_t<decltype(l), decltype(h)>>(a, -b, l, h);
+}
+
+inline std::ostream& write_list(std::ostream& os, const std::vector<word_t>& v,
+                                const std::vector<word_t>* expected = nullptr,
+                                bool colored = use_color) {
+
+	if (colored and expected and v.size() != expected->size()) {
+		os << print_color(bright_red);
+	}
+	os << '(';
+	os << v.size() << ')';
+	if (colored) {
+		os << print_color(reset);
+	}
+	os << " [\n\t";
+	for (std::size_t i = 0; i < v.size(); ++i) {
+		if (colored and expected
+		    and (i >= expected->size() or v[i] != (*expected)[i])) {
+			os << print_color(bright_red);
+		}
+		os << v[i] << ' ';
+		if (colored) {
+			os << print_color(reset);
+		}
+	}
+	os << "\n]";
+	return os;
 }
 
 #endif // NODE_HPP

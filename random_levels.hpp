@@ -23,6 +23,6 @@
 single_test o_random_test(int id);
 
 std::array<single_test, 3> static_suite(int id);
-single_test random_test(int id, std::int32_t seed);
+single_test random_test(int id, std::uint32_t seed);
 
 #endif // RANDOM_LEVELS_HPP

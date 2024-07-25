@@ -1,3 +1,6 @@
 [submodule "kblib"]
 	path = kblib
 	url = https://github.com/killerbee13/kblib.git
+[submodule "tclap"]
+	path = tclap
+	url = https://git.code.sf.net/p/tclap/code

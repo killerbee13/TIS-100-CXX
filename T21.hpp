@@ -78,8 +78,18 @@ struct T21 : node {
 	type_t type() const noexcept override { return type_t::T21; }
 	bool step() override;
 	bool finalize() override;
+	void reset() noexcept override {
+		acc = 0;
+		bak = 0;
+		wrt = 0;
+		pc = 0;
+		write_port = port::nil;
+		last = port::nil;
+		s = activity::idle;
+	}
 	std::optional<word_t> read_(port) override;
 	activity state() const noexcept override { return s; }
+	std::string print() const override;
 
 	word_t acc{}, bak{}, wrt{};
 	index_t pc{};

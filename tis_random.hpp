@@ -48,15 +48,6 @@ class xorshift128_engine {
 		z = w;
 		return w = w ^ (w >> 19) ^ t ^ (t >> 8);
 	}
-
-	constexpr uint next(uint max) noexcept {
-		if (max == 0) {
-			return 0;
-		} else {
-			return next() % max;
-		}
-	}
-
 	constexpr uint next(uint min, uint max) noexcept {
 		if (max - min == 0)
 			return min;
@@ -66,47 +57,37 @@ class xorshift128_engine {
 		else
 			return min + next() % (max - min);
 	}
-
-	constexpr std::int32_t next_int() noexcept {
-		return static_cast<std::int32_t>(next());
-	}
-	constexpr std::int32_t next_int(std::int32_t max) noexcept {
-		return next_int() % max;
-	}
-	constexpr std::int32_t next_int(std::int32_t min,
-	                                std::int32_t max) noexcept {
+	constexpr word_t next_int(word_t min, word_t max) noexcept {
 		if (max == min) {
 			return min;
 		}
 
-		std::int64_t minLong = (std::int64_t)min;
-		std::int64_t maxLong = (std::int64_t)max;
+		std::int64_t minLong = static_cast<std::int64_t>(min);
+		std::int64_t maxLong = static_cast<std::int64_t>(max);
 		std::int64_t r = next();
 
 		if (max < min)
-			return (int)(minLong - r % (maxLong - minLong));
+			return static_cast<word_t>(minLong - r % (maxLong - minLong));
 		else
-			return (int)(minLong + r % (maxLong - minLong));
+			return static_cast<word_t>(minLong + r % (maxLong - minLong));
 	}
 };
 
 inline std::vector<word_t> make_random_array(std::uint32_t seed,
-                                             std::uint32_t size,
-                                             std::uint32_t min,
-                                             std::uint32_t max) {
+                                             std::uint32_t size, word_t min,
+                                             word_t max) {
 	xorshift128_engine engine(seed);
 	std::vector<word_t> array(size);
 	std::uint32_t num = 0;
 	while (num < size) {
-		array[num] = engine.next_int(min, max);
+		array[num] = static_cast<word_t>(engine.next_int(min, max));
 		num++;
 	}
 	return array;
 }
 inline std::vector<word_t> make_random_array(xorshift128_engine& engine,
-                                             std::uint32_t size,
-                                             std::uint32_t min,
-                                             std::uint32_t max) {
+                                             std::uint32_t size, word_t min,
+                                             word_t max) {
 	std::vector<word_t> array(size);
 	std::uint32_t num = 0;
 	while (num < size) {
@@ -116,9 +97,11 @@ inline std::vector<word_t> make_random_array(xorshift128_engine& engine,
 	return array;
 }
 
-inline std::vector<word_t> make_composite_array(int seed, int size,
-                                                int sublistmin, int sublistmax,
-                                                int valuemin, int valuemax) {
+inline std::vector<word_t> make_composite_array(uint seed, word_t size,
+                                                word_t sublistmin,
+                                                word_t sublistmax,
+                                                word_t valuemin,
+                                                word_t valuemax) {
 	xorshift128_engine engine(seed);
 	std::vector<word_t> list;
 	while (std::cmp_less(list.size(), size)) {
@@ -136,9 +119,10 @@ inline std::vector<word_t> make_composite_array(int seed, int size,
 	return list;
 }
 inline std::vector<word_t> make_composite_array(xorshift128_engine& engine,
-                                                int size, int sublistmin,
-                                                int sublistmax, int valuemin,
-                                                int valuemax) {
+                                                word_t size, word_t sublistmin,
+                                                word_t sublistmax,
+                                                word_t valuemin,
+                                                word_t valuemax) {
 	std::vector<word_t> list;
 	while (std::cmp_less(list.size(), size)) {
 		int sublistsize = engine.next_int(sublistmin, sublistmax);

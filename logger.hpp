@@ -42,6 +42,85 @@ auto set_log_output(const std::ostream&&) -> void = delete;
 auto log_flush() -> void;
 auto log_flush(bool do_flush) -> void;
 
+inline bool use_color{false};
+
+enum color {
+	none,
+	black = 30,
+	red,
+	green,
+	yellow,
+	blue,
+	magenta,
+	cyan,
+	white,
+	reset = 39,
+	bright_black = 90,
+	bright_red,
+	bright_green,
+	bright_yellow,
+	bright_blue,
+	bright_magenta,
+	bright_cyan,
+	bright_white,
+};
+
+inline std::string print_color(color fg, color bg = none) {
+	if (not use_color) {
+		return {};
+	}
+	std::string ret = "\033[";
+	switch (fg) {
+	case none:
+		break;
+	case black:
+	case red:
+	case green:
+	case yellow:
+	case blue:
+	case magenta:
+	case cyan:
+	case white:
+	case reset:
+	case bright_black:
+	case bright_red:
+	case bright_green:
+	case bright_yellow:
+	case bright_blue:
+	case bright_magenta:
+	case bright_cyan:
+	case bright_white:
+		ret += std::to_string(static_cast<int>(fg));
+		break;
+	}
+	switch (bg) {
+	case none:
+		break;
+	case black:
+	case red:
+	case green:
+	case yellow:
+	case blue:
+	case magenta:
+	case cyan:
+	case white:
+	case reset:
+	case bright_black:
+	case bright_red:
+	case bright_green:
+	case bright_yellow:
+	case bright_blue:
+	case bright_magenta:
+	case bright_cyan:
+	case bright_white:
+		ret += ';';
+		ret += std::to_string(static_cast<int>(fg) + 10);
+		break;
+	}
+	ret += 'm';
+	return ret;
+}
+
 template <typename... Strings>
 auto log_debug(Strings&&... strings) -> void {
 	if (get_log_level() >= log_level::debug) {
@@ -66,14 +145,16 @@ auto log_notice(Strings&&... strings) -> void {
 template <typename... Strings>
 auto log_warn(Strings&&... strings) -> void {
 	if (get_log_level() >= log_level::warn) {
-		detail::log(kblib::concat("WARN: ", strings...));
+		detail::log(kblib::concat(print_color(yellow),
+		                          "WARN: ", print_color(reset), strings...));
 	}
 }
 
 template <typename... Strings>
 auto log_err(Strings&&... strings) -> void {
 	if (get_log_level() >= log_level::err) {
-		detail::log(kblib::concat("ERROR: ", strings...));
+		detail::log(kblib::concat(print_color(red), "ERROR: ", print_color(reset),
+		                          strings...));
 	}
 }
 

@@ -21,11 +21,11 @@
 #include "tis_random.hpp"
 #include <kblib/random.h>
 
-constexpr static int image_width = 30;
-constexpr static int image_height = 18;
+constexpr static word_t image_width = 30;
+constexpr static word_t image_height = 18;
 constexpr static int max_test_length = 39;
 
-constexpr static std::array<std::int32_t, layouts.size()> seeds{
+constexpr static std::array<std::uint32_t, layouts.size()> seeds{
     50,      2,       3,       4,       22,      //
     5,       9,       7,       19,               //
     888,     18,      10,      6,                //
@@ -41,9 +41,9 @@ constexpr static std::array<std::int32_t, layouts.size()> seeds{
 
 std::array<single_test, 3> static_suite(int id) {
 	return {
-	    random_test(id, seeds.at(id) * 100),
-	    random_test(id, seeds[id] * 100 + 1),
-	    random_test(id, seeds[id] * 100 + 2),
+	    random_test(id, seeds.at(static_cast<std::size_t>(id)) * 100),
+	    random_test(id, seeds[static_cast<std::size_t>(id)] * 100 + 1),
+	    random_test(id, seeds[static_cast<std::size_t>(id)] * 100 + 2),
 	};
 }
 
@@ -59,7 +59,7 @@ void for_each_subsequence_of(std::vector<word_t>& in, word_t delim, F f) {
 	}
 }
 
-single_test random_test(int id, int32_t seed) {
+single_test random_test(int id, uint32_t seed) {
 	// log_info("random_test(", id, ", ", seed, ")");
 	single_test ret{};
 	switch (id) {
@@ -116,7 +116,7 @@ single_test random_test(int id, int32_t seed) {
 		ret.inputs.push_back(make_random_array(seed, 13, 10, 100));
 		ret.inputs.push_back(make_random_array(seed + 1, 13, 10, 100));
 		ret.n_outputs.resize(1);
-		for (const auto i : kblib::range(13)) {
+		for (const auto i : kblib::range(13u)) {
 			auto v = std::minmax(ret.inputs[0][i], ret.inputs[1][i]);
 			ret.n_outputs[0].push_back(v.first);
 			ret.n_outputs[0].push_back(v.second);
@@ -143,23 +143,20 @@ single_test random_test(int id, int32_t seed) {
 	case "SIGNAL EDGE DETECTOR"_lvl: {
 		xorshift128_engine engine(seed);
 		ret.inputs.push_back(std::vector<word_t>(max_test_length));
-		ret.inputs[0][1] = engine.next(25, 75);
-		int num22 = 2;
-		while (num22 < max_test_length) {
+		ret.inputs[0][1] = engine.next_int(25, 75);
+		std::size_t i = 2;
+		while (i < max_test_length) {
 			switch (engine.next(0, 6)) {
 			case 1:
-				ret.inputs[0][num22]
-				    = ret.inputs[0][num22 - 1] + engine.next(-11, -8);
+				ret.inputs[0][i] = ret.inputs[0][i - 1] + engine.next_int(-11, -8);
 				break;
 			case 2:
-				ret.inputs[0][num22]
-				    = ret.inputs[0][num22 - 1] + engine.next(9, 12);
+				ret.inputs[0][i] = ret.inputs[0][i - 1] + engine.next_int(9, 12);
 				break;
 			default:
-				ret.inputs[0][num22]
-				    = ret.inputs[0][num22 - 1] + engine.next(-4, 5);
+				ret.inputs[0][i] = ret.inputs[0][i - 1] + engine.next_int(-4, 5);
 			}
-			++num22;
+			++i;
 		}
 
 		ret.n_outputs.resize(1);
@@ -174,15 +171,16 @@ single_test random_test(int id, int32_t seed) {
 		std::array<bool, 4> array2{};
 
 		xorshift128_engine engine(seed);
-		for (int m = 1; m < max_test_length; ++m) {
-			int rand = engine.next(0, 6);
+		for (std::size_t m = 1; m < max_test_length; ++m) {
+			auto rand = engine.next(0, 6);
 			if (rand < 4) {
 				array2[rand] = not array2[rand];
-				ret.n_outputs[0].push_back(array2[rand] ? rand + 1 : 0);
+				ret.n_outputs[0].push_back(
+				    array2[rand] ? static_cast<word_t>(rand + 1) : 0);
 			} else {
 				ret.n_outputs[0].push_back(0);
 			}
-			for (int n = 0; n < 4; ++n) {
+			for (std::size_t n = 0; n < 4; ++n) {
 				ret.inputs[n].push_back(array2[n]);
 			}
 		}
@@ -194,18 +192,18 @@ single_test random_test(int id, int32_t seed) {
 	case "SIGNAL PATTERN DETECTOR"_lvl: {
 		xorshift128_engine engine(seed);
 		ret.inputs.push_back(make_random_array(engine, max_test_length, 0, 6));
-		for (int i = 0; i < 8; ++i) {
-			int num = engine.next(0, 36);
+		for (std::size_t i = 0; i < 8; ++i) {
+			std::size_t num = engine.next(0, 36);
 			ret.inputs[0][num] = 0;
 			ret.inputs[0][num + 1] = 0;
 			ret.inputs[0][num + 2] = 0;
 			num = engine.next(0, 35);
 			ret.inputs[0][num] = 0;
 			ret.inputs[0][num + 1] = 0;
-			ret.inputs[0][num + 2] = engine.next(1, 6);
+			ret.inputs[0][num + 2] = engine.next_int(1, 6);
 		}
 		ret.n_outputs.push_back(std::vector<word_t>(max_test_length));
-		for (int j = 0; j < max_test_length; ++j) {
+		for (std::size_t j = 0; j < max_test_length; ++j) {
 			ret.n_outputs[0][j]
 			    = (j > 1 and ret.inputs[0][j - 2] == 0
 			       and ret.inputs[0][j - 1] == 0 and ret.inputs[0][j] == 0);
@@ -215,7 +213,7 @@ single_test random_test(int id, int32_t seed) {
 		xorshift128_engine engine(seed);
 		ret.inputs.push_back(
 		    make_composite_array(engine, max_test_length, 3, 6, 10, 100));
-		ret.inputs[0][37] = engine.next(10, 100);
+		ret.inputs[0][37] = engine.next_int(10, 100);
 		ret.inputs[0].back() = 0;
 		ret.n_outputs.resize(2);
 
@@ -259,18 +257,18 @@ single_test random_test(int id, int32_t seed) {
 		ret.inputs.resize(1);
 		ret.i_output.reshape(image_width, 18);
 		for (int i = 0; i < 9; ++i) {
-			int num2{};
-			int num3{};
-			int num4{};
-			int num5{};
+			std::size_t num2{};
+			std::size_t num3{};
+			std::size_t num4{};
+			std::size_t num5{};
 			while (true) {
 			IL_0030:
 				num2 = engine.next(3, 6);
 				num3 = engine.next(3, 6);
 				num4 = engine.next(1, image_width - 1 - num2);
 				num5 = engine.next(1, image_height - 1 - num3);
-				for (int j = -1; j < num2; ++j) {
-					for (int k = -1; k < num3 + 1; ++k) {
+				for (int j = -1; std::cmp_less(j, num2); ++j) {
+					for (int k = -1; std::cmp_less(k, num3 + 1); ++k) {
 						if (ret.i_output.at(num4 + j + (num5 + k) * image_width)
 						    != 0) {
 							goto IL_0030;
@@ -279,12 +277,12 @@ single_test random_test(int id, int32_t seed) {
 				}
 				break;
 			}
-			ret.inputs[0].push_back(num4);
-			ret.inputs[0].push_back(num5);
-			ret.inputs[0].push_back(num2);
-			ret.inputs[0].push_back(num3);
-			for (int l = 0; l < num2; ++l) {
-				for (int m = 0; m < num3; ++m) {
+			ret.inputs[0].push_back(static_cast<word_t>(num4));
+			ret.inputs[0].push_back(static_cast<word_t>(num5));
+			ret.inputs[0].push_back(static_cast<word_t>(num2));
+			ret.inputs[0].push_back(static_cast<word_t>(num3));
+			for (std::size_t l = 0; l < num2; ++l) {
+				for (std::size_t m = 0; m < num3; ++m) {
 					ret.i_output.at(num4 + 1 + (num5 + m) * image_width) = 3;
 				}
 			}
@@ -294,18 +292,22 @@ single_test random_test(int id, int32_t seed) {
 		xorshift128_engine engine(seed);
 		ret.inputs.push_back(std::vector<word_t>(image_width));
 		ret.i_output.reshape(image_width, image_height);
-		ret.inputs[0][0] = engine.next(3, 14);
-		for (int x = 1; x < image_width; ++x) {
+		ret.inputs[0][0] = engine.next_int(3, 14);
+		for (std::size_t x = 1; x < image_width; ++x) {
 			if (engine.next(0, 4) != 0) {
 				ret.inputs[0][x]
-				    = std::clamp(ret.inputs[0][x - 1] + engine.next_int(-2, 3), 1,
-				                 image_height - 1);
+				    = std::clamp(static_cast<word_t>(ret.inputs[0][x - 1]
+				                                     + engine.next_int(-2, 3)),
+				                 word_t{1}, word_t{image_height - 1});
 			}
 		}
 		for (int y = 0; y < image_height; ++y) {
 			for (int x = 0; x < image_width; ++x) {
 				ret.i_output.at(x, y)
-				    = (image_height - y <= ret.inputs[0][x]) ? 3 : 0;
+				    = (kblib::to_signed(image_height - y)
+				       <= ret.inputs[0][static_cast<std::size_t>(x)])
+				          ? 3
+				          : 0;
 			}
 		}
 	} break;
@@ -316,9 +318,10 @@ single_test random_test(int id, int32_t seed) {
 	case "SIGNAL WINDOW FILTER"_lvl: {
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 10, 100));
 		ret.n_outputs.resize(2);
-		for (int idx = 0; idx < max_test_length; ++idx) {
-			int t = ret.inputs[0][idx] + ((idx >= 1) ? ret.inputs[0][idx - 1] : 0)
-			        + ((idx >= 2) ? ret.inputs[0][idx - 2] : 0);
+		for (std::size_t idx = 0; idx < max_test_length; ++idx) {
+			word_t t = ret.inputs[0][idx]
+			           + ((idx >= 1) ? ret.inputs[0][idx - 1] : 0)
+			           + ((idx >= 2) ? ret.inputs[0][idx - 2] : 0);
 			ret.n_outputs[0].push_back(t);
 			t += ((idx >= 3) ? ret.inputs[0][idx - 3] : 0)
 			     + ((idx >= 4) ? ret.inputs[0][idx - 4] : 0);
@@ -329,7 +332,7 @@ single_test random_test(int id, int32_t seed) {
 		ret.inputs.push_back(make_random_array(seed, 39, 10, 100));
 		ret.inputs.push_back(make_random_array(seed + 1, 39, 1, 10));
 		ret.n_outputs.resize(2, std::vector<word_t>(max_test_length));
-		for (int i = 0; i < max_test_length; ++i) {
+		for (std::size_t i = 0; i < max_test_length; ++i) {
 			ret.n_outputs[0][i] = ret.inputs[0][i] / ret.inputs[1][i];
 			ret.n_outputs[1][i] = ret.inputs[0][i] % ret.inputs[1][i];
 		}
@@ -339,8 +342,9 @@ single_test random_test(int id, int32_t seed) {
 		ret.inputs[0].push_back(0);
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 0, 10));
 		ret.n_outputs.resize(1, std::vector<word_t>(max_test_length));
-		for (auto i = 0; i < max_test_length; ++i) {
-			ret.n_outputs[0][i] = ret.inputs[0][ret.inputs[1][i]];
+		for (std::size_t i = 0; i < max_test_length; ++i) {
+			ret.n_outputs[0][i]
+			    = ret.inputs[0][kblib::to_unsigned(ret.inputs[1][i])];
 		}
 	} break;
 	case "SEQUENCE SORTER"_lvl: {
@@ -364,12 +368,13 @@ single_test random_test(int id, int32_t seed) {
 		ret.i_output.reshape(image_width, image_height);
 		std::vector<tis_pixel> image;
 		while (image.size() < image_width * image_height) {
-			int num = engine.next(20, 45);
-			int num2 = engine.next(0, 4);
+			word_t num = engine.next_int(20, 45);
+			word_t num2 = engine.next_int(0, 4);
 			ret.inputs[0].push_back(num);
 			ret.inputs[0].push_back(num2);
-			image.insert(image.end(), num, tis_pixel(num2));
+			image.insert(image.end(), kblib::to_unsigned(num), tis_pixel(num2));
 		}
+		image.resize(ret.i_output.size());
 		ret.i_output.assign(std::move(image));
 	} break;
 	case "UNKNOWN"_lvl: {
@@ -377,22 +382,23 @@ single_test random_test(int id, int32_t seed) {
 		ret.inputs.push_back(std::vector<word_t>(max_test_length));
 		ret.n_outputs.resize(2);
 		while (ret.n_outputs[0].size() < max_test_length) {
-			int item = engine.next(0, 4);
-			int size = engine.next(2, 5);
+			word_t item = engine.next_int(0, 4);
+			word_t size = engine.next_int(2, 5);
 			for (int i = 0; i < size; ++i) {
 				if (ret.n_outputs[0].size() < max_test_length) {
 					ret.n_outputs[0].push_back(item);
 				}
 			}
 		}
-		for (int j = 0; j < max_test_length; ++j) {
-			ret.inputs[0][j] = ret.n_outputs[0][j] * 25 + 12 + engine.next(-6, 7);
+		for (std::size_t j = 0; j < max_test_length; ++j) {
+			ret.inputs[0][j]
+			    = ret.n_outputs[0][j] * 25 + 12 + engine.next_int(-6, 7);
 		}
 		ret.n_outputs[0].back() = -1;
 		ret.inputs[0].back() = -1;
-		int num4 = -1;
-		int num5 = 0;
-		for (int k = 0; k < max_test_length; ++k) {
+		word_t num4 = -1;
+		word_t num5 = 0;
+		for (std::size_t k = 0; k < max_test_length; ++k) {
 			if (num4 != ret.n_outputs[0][k]) {
 				if (num4 >= 0) {
 					ret.n_outputs[1].push_back(num5);
@@ -613,7 +619,7 @@ single_test o_random_test(int id) {
 		ret.inputs.push_back(random_inputs(0, 99, 13));
 		ret.inputs.push_back(random_inputs(0, 99, 13));
 		ret.n_outputs.resize(1);
-		for (const auto i : kblib::range(13)) {
+		for (const auto i : kblib::range(13u)) {
 			ret.n_outputs[0].push_back(ret.inputs[0][i]);
 			ret.n_outputs[0].push_back(ret.inputs[1][i]);
 			ret.n_outputs[0].push_back(0);
@@ -622,11 +628,10 @@ single_test o_random_test(int id) {
 	case "SEQUENCE COUNTER"_lvl: {
 		ret.inputs.push_back(random_inputs(1, 99));
 		ret.inputs[0].back() = 0;
-		std::uniform_int_distribution<word_t> dst(8, 12);
+		std::uniform_int_distribution<std::size_t> dst(8, 12);
 		auto c = dst(rng);
-		dst.param(std::uniform_int_distribution<word_t>::param_type{
-		    0, max_test_length - 1});
-		for (const auto n : kblib::range(c)) {
+		dst.param(decltype(dst)::param_type{0, max_test_length - 1});
+		for ([[maybe_unused]] const auto _ : kblib::range(c)) {
 			ret.inputs[0][dst(rng)] = 0;
 		}
 
@@ -656,13 +661,14 @@ single_test o_random_test(int id) {
 		ret.inputs.resize(4, std::vector<word_t>(max_test_length));
 		ret.n_outputs.resize(1, std::vector<word_t>(max_test_length));
 		std::uniform_int_distribution<word_t> d(0, 3);
-		for (const auto i : kblib::range(1, max_test_length)) {
-			for (const auto j : kblib::range(4)) {
+		for (const auto i : kblib::range<std::size_t>(1u, max_test_length)) {
+			for (const auto j : kblib::range(4u)) {
 				ret.inputs[j][i] = ret.inputs[j][i - 1];
 			}
 			if (d(rng) > 1) {
 				auto k = d(rng);
-				if ((ret.inputs[k][i] = not ret.inputs[k][i - 1])) {
+				if ((ret.inputs[static_cast<std::size_t>(k)][i]
+				     = not ret.inputs[static_cast<std::size_t>(k)][i - 1])) {
 					ret.n_outputs[0][i] = k;
 				}
 			}

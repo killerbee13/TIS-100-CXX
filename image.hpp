@@ -228,7 +228,7 @@ class image {
 			    "negative dimension specified for pnm::image::reshape"};
 		}
 		width_ = w;
-		data.resize(w * h);
+		data.resize(static_cast<std::size_t>(w) * static_cast<std::size_t>(h));
 	}
 	constexpr void reshape(std::ptrdiff_t w, std::ptrdiff_t h, pixel p) {
 		if (w < 0 or h < 0) {
@@ -236,8 +236,10 @@ class image {
 			    "negative dimension specified for pnm::image::reshape"};
 		}
 		width_ = w;
-		data.resize(w * h, p);
+		data.resize(static_cast<std::size_t>(w) * static_cast<std::size_t>(h), p);
 	}
+
+	constexpr void fill(pixel p) { std::ranges::fill(data, p); }
 
 #if __cpp_multidimensional_subscript >= 202211L
 	constexpr pixel& operator[](std::ptrdiff_t x, std::ptrdiff_t y) noexcept {
@@ -254,8 +256,8 @@ class image {
 	constexpr const pixel& at(std::ptrdiff_t x, std::ptrdiff_t y) const {
 		return data[index_linear<true>(x, y)];
 	}
-	constexpr pixel& at(std::ptrdiff_t i) { return data.at(i); }
-	constexpr const pixel& at(std::ptrdiff_t i) const { return data.at(i); }
+	constexpr pixel& at(std::size_t i) { return data.at(i); }
+	constexpr const pixel& at(std::size_t i) const { return data.at(i); }
 
 	constexpr void assign(std::initializer_list<pixel> il) {
 		assert(il.size() == data.size());
@@ -300,9 +302,9 @@ class image {
 	           std::ptrdiff_t scale_h) const {
 		pixel::header(os, width_ * scale_w, height() * scale_h);
 		for (const auto y : kblib::range(height())) {
-			for (const auto _ : kblib::range(scale_h)) {
+			for ([[maybe_unused]] const auto _ : kblib::range(scale_h)) {
 				for (const auto x : kblib::range(width_)) {
-					for (const auto _ : kblib::range(scale_w)) {
+					for ([[maybe_unused]] const auto _1 : kblib::range(scale_w)) {
 						os << at(x, y);
 					}
 				}

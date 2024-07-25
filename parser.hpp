@@ -53,6 +53,7 @@ class field {
 	bool active() const {
 		bool r{};
 		bool all_outputs_satisfied{true};
+		bool all_outputs_correct{true};
 		for (auto& p : nodes) {
 			std::string log = kblib::concat("node(", p->x, ',', p->y, ") ");
 			if (type(p.get()) == node::T21) {
@@ -71,7 +72,31 @@ class field {
 				auto i = static_cast<const output_node*>(p.get());
 				kblib::append(log, "output ", i->outputs_received.size(), " of ",
 				              i->outputs_expected.size(), "; ");
-				if (i->outputs_expected != i->outputs_received) {
+				if (i->outputs_received.size() < i->outputs_expected.size()) {
+					r = true;
+					all_outputs_satisfied = false;
+					kblib::append(log, "unfilled");
+
+					if (i->outputs_received.size() > i->outputs_expected.size()) {
+						all_outputs_correct = false;
+					} else {
+						if (not std::equal(
+						        i->outputs_received.begin(),
+						        i->outputs_received.end(),
+						        i->outputs_expected.begin(),
+						        i->outputs_expected.begin()
+						            + kblib::to_signed(i->outputs_received.size()))) {
+							// all_outputs_correct = false;
+							/*kblib::append(log, " incorrect value written for output
+							   ", i->x);*/
+						}
+					}
+				} else {
+					kblib::append(log, "equal");
+				}
+			} else if (type(p.get()) == node::image) {
+				auto i = static_cast<const image_output*>(p.get());
+				if (i->image_expected != i->image_received) {
 					r = true;
 					all_outputs_satisfied = false;
 					kblib::append(log, "unequal");
@@ -83,10 +108,19 @@ class field {
 			}
 			log_debug(log);
 		}
-		if (all_outputs_satisfied) {
+		if (all_outputs_satisfied or not all_outputs_correct) {
 			return false;
 		}
 		return r;
+	}
+
+	std::string state() {
+		std::string ret;
+		for (auto& n : nodes) {
+			ret += n->print();
+			ret += '\n';
+		}
+		return ret;
 	}
 
 	std::size_t instructions() const;
@@ -138,9 +172,10 @@ class field {
 	}
 
 	friend field parse(std::string_view layout, std::string_view source,
-	                   std::string_view expected, int T21_size, int T30_size);
+	                   std::string_view expected, std::size_t T21_size,
+	                   std::size_t T30_size);
 	template <bool use_nonstandard_rep>
-	friend field parse_layout(std::string_view layout, int T30_size);
+	friend field parse_layout(std::string_view layout, std::size_t T30_size);
 
 	auto begin() const noexcept { return nodes.begin(); }
 	auto end() const noexcept { return nodes.end(); }
@@ -159,21 +194,44 @@ class field {
 };
 
 field parse(std::string_view layout, std::string_view source,
-            std::string_view expected, int T21_size = def_T21_size,
-            int T30_size = def_T30_size);
+            std::string_view expected, std::size_t T21_size = def_T21_size,
+            std::size_t T30_size = def_T30_size);
 
 field parse(std::string_view layout, std::string_view source,
-            const single_test& expected, int T21_size = def_T21_size,
-            int T30_size = def_T30_size);
+            const single_test& expected, std::size_t T21_size = def_T21_size,
+            std::size_t T30_size = def_T30_size);
+field parse_layout_guess(std::string_view layout, std::size_t T30_size);
 
 std::vector<instr> assemble(std::string_view source, int node,
-                            int T21_size = def_T21_size);
+                            std::size_t T21_size = def_T21_size);
+void parse_code(field& f, std::string_view source, std::size_t T21_size);
+void set_expected(field& f, const single_test& expected);
 
 struct score {
-	int cycles{};
-	int nodes{};
-	int instructions{};
+	std::size_t cycles{};
+	std::size_t nodes{};
+	std::size_t instructions{};
 	bool validated{};
+	bool achievement{};
+	bool cheat{};
+
+	friend std::ostream& operator<<(std::ostream& os, score sc) {
+		if (not sc.validated) {
+			os << print_color(red) << "-/";
+		}
+		os << sc.cycles << '/' << sc.nodes << '/' << sc.instructions;
+		if (sc.validated and (sc.achievement or sc.cheat)) {
+			os << '/';
+		}
+		if (sc.validated and sc.achievement) {
+			os << 'a';
+		}
+		if (sc.validated and sc.cheat) {
+			os << 'c';
+		}
+		os << print_color(reset);
+		return os;
+	}
 };
 
 #endif // PARSER_HPP

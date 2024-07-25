@@ -22,37 +22,37 @@
 #include "parser.hpp"
 #include "random_levels.hpp"
 #include "tis_random.hpp"
-#include <cassert>
 #include <iostream>
 
+#include <kblib/hash.h>
 #include <kblib/stringops.h>
+#include <random>
+#define TCLAP_SETBASE_ZERO 1
+#include <tclap/CmdLine.h>
+
+#if NDEBUG
+#	define RELEASE 1
+#else
+#	define RELEASE 0
+#endif
 
 using namespace std::literals;
 
-constexpr int cycles_limit = 2'500;
-
-std::ostream& write_list(std::ostream& os, const std::vector<word_t>& v) {
-	os << '(' << v.size() << ") [\n\t";
-	for (auto i : v) {
-		os << i << ' ';
-	}
-	os << "\n]";
-	return os;
-}
-
-score run(field& l) {
+score run(field& l, int cycles_limit) {
 	score sc{};
 	sc.instructions = l.instructions();
 	sc.nodes = l.nodes_used();
 	do {
 		++sc.cycles;
 		log_debug("step ", sc.cycles);
+		log_debug("Current state:\n", l.state());
 		l.step();
-	} while ((l.active()) and sc.cycles < cycles_limit);
+	} while ((l.active()) and std::cmp_less(sc.cycles, cycles_limit));
 	sc.validated = true;
 
 	log_flush();
-	for (auto it = l.begin() + l.nodes_total(); it != l.end(); ++it) {
+	for (auto it = l.begin() + static_cast<std::ptrdiff_t>(l.nodes_total());
+	     it != l.end(); ++it) {
 		auto n = it->get();
 		if (type(n) == node::out) {
 			auto p = static_cast<output_node*>(n);
@@ -68,7 +68,8 @@ score run(field& l) {
 	}
 
 	if (not sc.validated) {
-		for (auto it = l.begin() + l.nodes_total(); it != l.end(); ++it) {
+		for (auto it = l.begin() + static_cast<std::ptrdiff_t>(l.nodes_total());
+		     it != l.end(); ++it) {
 			auto n = it->get();
 			if (type(n) == node::in) {
 				auto p = static_cast<input_node*>(n);
@@ -77,9 +78,9 @@ score run(field& l) {
 			} else if (type(n) == node::out) {
 				auto p = static_cast<output_node*>(n);
 				if (p->outputs_expected != p->outputs_received) {
-					std::cout << "validation failure for output " << p->x << '\n';
-					std::cout << "output: ";
-					write_list(std::cout, p->outputs_received);
+					std::cout << "validation failure for output " << p->x;
+					std::cout << "\noutput: ";
+					write_list(std::cout, p->outputs_received, &p->outputs_expected);
 					std::cout << "\nexpected: ";
 					write_list(std::cout, p->outputs_expected);
 					std::cout << "\n";
@@ -87,7 +88,11 @@ score run(field& l) {
 			} else if (type(n) == node::image) {
 				auto p = static_cast<image_output*>(n);
 				if (p->image_expected != p->image_received) {
-					std::cout << "validation failure for output " << p->x << '\n';
+					std::cout << "validation failure for output " << p->x
+					          << "\noutput:\n"
+					          << p->image_received.write_text() //
+					          << "received:\n"
+					          << p->image_expected.write_text();
 				}
 			}
 		}
@@ -96,241 +101,337 @@ score run(field& l) {
 	return sc;
 }
 
-static_assert(xorshift128_engine(400).next_int(-2, 2) >= -2);
+static_assert(xorshift128_engine(400).next_int(-10, 0) < 0);
 
-int main(int argc, char** argv) {
+template <std::integral T>
+class range_int_constraint : public TCLAP::Constraint<T> {
+ public:
+	range_int_constraint(T low, T high)
+	    : low(low)
+	    , high(high) {
+		if (low > high) {
+			throw std::invalid_argument{""};
+		}
+	}
+	bool check(const T& value) const override {
+		return value >= low and value <= high;
+	}
+
+	std::string description() const override {
+		return kblib::concat('[', low, '-', high, ']');
+	}
+
+	std::string shortID() const override { return description(); }
+
+ private:
+	T low{};
+	T high{};
+};
+
+namespace TCLAP {
+template <>
+struct ArgTraits<field> {
+	using ValueCategory = StringLike;
+};
+} // namespace TCLAP
+
+int generate(uint32_t seed);
+
+int main(int argc, char** argv) try {
 	std::ios_base::sync_with_stdio(false);
-	set_log_level(log_level::info);
-	log_flush(true);
-#if 0
-	auto f = parse(
-		 "2 3 CCSCDC I0 NUMERIC numbers.txt O0 NUMERIC - 10 O2 ASCII -", "",
-"");
-	// std::clog << f.layout();
-	assert(f.layout() == R"(2 3
-CCS
-CDC
-I0 NUMERIC numbers.txt
-O0 NUMERIC - 10
-O2 ASCII -
-)");
-	// can parse the 'BSC' code used in my spreadsheet as well as the 'CSMD'
-code
-	// used by Phlarx/tis
-	// in fact S and M are always interchangeable
-	auto f2 = parse(
-		 "2 3 BBSBCB I0 NUMERIC numbers.txt O0 NUMERIC - 10 O2 ASCII -", "",
-""); assert(f.layout() == f2.layout());
+	log_flush(not RELEASE);
 
-	// not confused by Bs in IO specs
-	auto f3 = parse(
-		 "2 3 CCSCDC I0 NUMERIC numbers.txt O0 NUMERIC - 10 O2 ASCII B", "",
-"");
+	TCLAP::CmdLine cmd("TIS-100 simulator and validator");
 
-	assert(f3.layout() == R"(2 3
-CCS
-CDC
-I0 NUMERIC numbers.txt
-O0 NUMERIC - 10
-O2 ASCII B
-)");
-
-	auto code = assemble(R"(B:MOV 0,DOWN
-  MOV ACC,DOWN
-  SWP#C
-  SUB 15
-#COM M EN T:
-
-  C:
-L: MOV LEFT,DOWN
-  MOV LEFT DOWN
-  ADD 1#
-  JLZ + #
-N:+:MOV -1,DOWN
-  JRO -999
-  JMP C
-  NEG)");
-
-	for (const auto& l : layouts) {
-		// parse(l[1], "", "");
+	std::vector<std::string> ids_v;
+	for (auto l : layouts) {
+		ids_v.emplace_back(l.segment);
+		ids_v.emplace_back(l.name);
 	}
-#endif
-#if 0
-	{
-		image_t im{30, 18};
-		im.write_line(
-		    20, 10, {3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3});
-		std::ofstream ftest("test.pnm");
-		ftest << im;
-		// pnm::finalize_to_png(im, "test0.png", "", "");
-		tis_pixel::color c{tis_pixel::C_dark_grey};
-		for (auto& p : im) {
-			p = c;
-			c = static_cast<tis_pixel::color>(kblib::etoi(c) + 1);
-			if (c > tis_pixel::C_red) {
-				c = {tis_pixel::C_dark_grey};
-			}
+
+	TCLAP::UnlabeledValueArg<std::string> solution(
+	    "Solution", "path to solution file", true, "-", "path", cmd);
+	TCLAP::ValuesConstraint<std::string> ids_c(ids_v);
+	TCLAP::UnlabeledValueArg<std::string> id_arg("ID", "Level ID", false, "",
+	                                             &ids_c);
+
+	range_int_constraint<int> level_nums_constraint(0, layouts.size() - 1);
+	// unused because the test case parser is not implemented
+	TCLAP::ValueArg<std::string> layout_s("l", "layout", "Layout string", false,
+	                                      "", "layout");
+	TCLAP::ValueArg<int> level_num("L", "level", "Numeric level ID", false, 0,
+	                               &level_nums_constraint);
+	TCLAP::EitherOf layout(cmd);
+	layout.add(id_arg).add(level_num); //.add(layout_s);
+
+	TCLAP::ValueArg<bool> fixed("", "fixed", "Run fixed tests", false, true,
+	                            "bool", cmd);
+	TCLAP::ValueArg<int> random("r", "random", "Random tests to run", false, 0,
+	                            "integer", cmd);
+	TCLAP::ValueArg<std::uint32_t> seed_arg(
+	    "", "seed", "Seed to use for random tests", false, 0, "32-bit integer");
+	TCLAP::ValueArg<int> cycles_limit(
+	    "", "limit", "Number of cycles to run test for before timeout", false,
+	    10'000, "integer", cmd);
+	// unused because the test case parser is not implemented
+	TCLAP::ValueArg<std::string> set_test("t", "test", "Manually set test cases",
+	                                      false, "", "test case");
+
+	range_int_constraint<unsigned> size_constraint(0, kblib::max.of<index_t>());
+	TCLAP::ValueArg<unsigned> T21_size(
+	    "", "T21_size", "Number of instructions allowed per T21 node", false,
+	    def_T21_size, &size_constraint, cmd);
+	TCLAP::ValueArg<unsigned> T30_size("", "T30_size",
+	                                   "Memory capacity of T30 nodes", false,
+	                                   def_T30_size, &size_constraint, cmd);
+
+	std::vector<std::string> loglevels_allowed{"none",   "err",  "error", "warn",
+	                                           "notice", "info", "debug"};
+	TCLAP::ValuesConstraint<std::string> loglevels(loglevels_allowed);
+	const TCLAP::ValueArg<std::string> loglevel(
+	    "", "loglevel", "Set the logging level. Defaults to 'notice'.", false,
+	    "notice", &loglevels, cmd);
+	TCLAP::MultiSwitchArg quiet("q", "quiet",
+	                            "Suppress printing anything but score and "
+	                            "errors. A second flag suppresses errors.",
+	                            cmd);
+	TCLAP::SwitchArg color("c", "color", "Print in color", cmd);
+
+	cmd.parse(argc, argv);
+	use_color = color.getValue();
+
+	set_log_level([&] {
+		using namespace kblib::literals;
+		switch (kblib::FNV32a(loglevel.getValue())) {
+		case "none"_fnv32:
+			return log_level::silent;
+		case "err"_fnv32:
+		case "error"_fnv32:
+			return log_level::err;
+		case "warn"_fnv32:
+			return log_level::warn;
+		case "notice"_fnv32:
+			return log_level::notice;
+		case "info"_fnv32:
+			return log_level::info;
+		case "debug"_fnv32:
+			return log_level::debug;
+		default:
+			log_warn("Unknown log level ", kblib::quoted(loglevel.getValue()),
+			         " ignored. Validation bug?");
+			return get_log_level();
 		}
-		// pnm::finalize_to_png(im, "test1.png", "", "");
-	}
-#endif
+	}());
 
-	if (argc > 3 and argv[1] == "fixed"sv) {
-		auto filename = std::string(argv[3]);
-		auto s = kblib::get_file_contents(filename);
-		if (not s) {
-			std::cerr << "no such file: " << kblib::quoted(filename) << '\n';
-			return -1;
+	int id{};
+	field f = [&] {
+		if (id_arg.isSet()) {
+			id = level_id(id_arg.getValue());
+			return parse_layout_guess(layouts[static_cast<std::size_t>(id)].layout,
+			                          T30_size.getValue());
+		} else if (level_num.isSet()) {
+			id = level_num.getValue();
+			return parse_layout_guess(
+			    layouts.at(static_cast<std::size_t>(id)).layout,
+			    T30_size.getValue());
+		} else if (layout_s.isSet()) {
+			id = -1;
+			return parse_layout_guess(layout_s.getValue(), T30_size.getValue());
 		} else {
-			log_debug("source: ", kblib::quoted(*s), "\n");
+			abort();
 		}
-		auto id = level_id(argv[2]);
-		score worst{.validated = true};
+	}();
+
+	if (solution.getValue() == "-") {
+		std::ostringstream in;
+		in << std::cin.rdbuf();
+		std::string code = std::move(in).str();
+
+		parse_code(f, code, T21_size.getValue());
+	} else {
+		if (std::filesystem::is_regular_file(solution.getValue())) {
+			auto code = kblib::try_get_file_contents(solution.getValue());
+			parse_code(f, code, T21_size.getValue());
+		} else {
+			log_err("invalid file: ", kblib::quoted(solution.getValue()));
+			throw std::invalid_argument{"Solution must name a regular file"};
+		}
+	}
+
+	std::uint32_t seed;
+	if (random.getValue() > 0) {
+		if (seed_arg.isSet()) {
+			seed = seed_arg.getValue();
+		} else {
+			seed = std::random_device{}();
+			log_info("random seed: ", seed);
+		}
+	}
+
+	score sc;
+	if (fixed.getValue()) {
+		sc.validated = true;
 		score last{};
 		int succeeded{1};
 		for (auto test : static_suite(id)) {
-			auto l = parse(layouts[id].layout, *s, test);
-			last = run(l);
-			worst.cycles = std::max(worst.cycles, last.cycles);
-			worst.instructions = last.instructions;
-			worst.nodes = last.nodes;
-			worst.validated = worst.validated and last.validated;
+			set_expected(f, test);
+			last = run(f, cycles_limit.getValue());
+			sc.cycles = std::max(sc.cycles, last.cycles);
+			sc.instructions = last.instructions;
+			sc.nodes = last.nodes;
+			sc.validated = sc.validated and last.validated;
 			if (not last.validated) {
 				break;
 			}
 			++succeeded;
 		}
-
-		if (worst.validated) {
-			std::cout << "validation successful\n";
-			std::cout << "score: " << worst.cycles << '/' << worst.nodes << '/'
-			          << worst.instructions << '\n';
-		} else {
-			std::cout << "validation failed for test " << succeeded << " after "
-			          << worst.cycles << " cycles ";
-			if (worst.cycles == cycles_limit) {
-				std::cout << "[timeout]";
-			}
-			std::cout << '\n';
-		}
-		return worst.validated ? 0 : 1;
-	}
-
-	if (argc > 2) {
-		auto filename = std::string(argv[2]);
-		auto s = kblib::get_file_contents(filename);
-		if (not s) {
-			std::cerr << "no such file: " << kblib::quoted(filename) << '\n';
-			return -1;
-		} else {
-			log_debug("source: ", kblib::quoted(*s), "\n");
-		}
-		auto id = level_id(argv[1]);
-		auto test = [&] {
-			if (argc > 3 and argv[3] == "random"sv) {
-				return o_random_test(id);
-			} else if (argc > 3) {
-				return o_random_test(std::stoi(argv[3]));
-			} else {
-				return tests[id].data[0];
-			}
-		}();
-		auto l = parse(layouts[id].layout, *s, test);
-		auto sc = run(l);
+		sc.achievement = check_achievement(id, f, sc);
 
 		if (sc.validated) {
-			std::cout << "validation successful\n";
-			std::cout << "score: " << sc.cycles << '/' << sc.nodes << '/'
-			          << sc.instructions << '\n';
+			if (not quiet.getValue()) {
+				std::cout << print_color(bright_blue) << "validation successful"
+				          << print_color(reset) << "\n";
+			}
 		} else {
-			std::cout << "validation failed after " << sc.cycles << " cycles ";
-			if (sc.cycles == cycles_limit) {
+			std::cout << print_color(red) << "validation failed"
+			          << print_color(reset) << " for fixed test " << succeeded
+			          << " after " << last.cycles << " cycles ";
+			if (std::cmp_equal(sc.cycles, cycles_limit.getValue())) {
 				std::cout << "[timeout]";
 			}
 			std::cout << '\n';
 		}
-	} else if (argc == 2 and argv[1] == "generate"sv) {
-		auto copy = [](auto x) { return x; };
-		for (auto [lvl, i] : kblib::enumerate(layouts)) {
-			auto base_path = std::filesystem::path(std::filesystem::current_path()
-			                                       / lvl.segment);
-			log_info("writing cfg: ", copy(base_path).concat(".tiscfg").native());
-			log_flush();
-			std::ofstream layout_f(copy(base_path).concat(".tiscfg"),
-			                       std::ios_base::trunc);
-			auto l = parse(lvl.layout, "", "");
-			std::string layout;
-			kblib::search_replace_copy(l.layout(), "@"s,
-			                           std::string(lvl.segment) + "@",
-			                           std::back_inserter(layout));
-			layout_f << layout;
+	}
+	if (random.getValue() > 0) {
+		score last{};
+		score worst{};
+		int count = 0;
+		for (; count < random.getValue(); ++count) {
+			auto test = random_test(id, seed++);
+			set_expected(f, test);
+			last = run(f, cycles_limit.getValue());
+			if (not last.validated) {
+				worst.cheat = true;
+			}
+			worst.cycles = std::max(worst.cycles, last.cycles);
+			worst.instructions = last.instructions;
+			worst.nodes = last.nodes;
+			// for random tests, only one validation is needed
+			worst.validated = worst.validated or last.validated;
+		}
+		sc.cheat = worst.cheat;
+		if (not fixed.getValue()) {
+			sc = worst;
 
-			auto r = o_random_test(i);
-			std::size_t i_idx = 0;
-			std::size_t o_idx = 0;
-			for (auto it = l.begin() + l.nodes_total(); it != l.end(); ++it) {
-				auto n = it->get();
-				if (type(n) == node::in) {
-					auto p = static_cast<input_node*>(n);
-					auto o_path = copy(base_path).concat(p->filename);
-					log_info("writing in ", i_idx, ": ", o_path.native());
-					std::ofstream o_f(o_path, std::ios_base::trunc);
-					for (auto w : r.inputs[i_idx]) {
-						o_f << w << '\n';
-					}
-					++i_idx;
-				} else if (type(n) == node::out) {
-					auto p = static_cast<output_node*>(n);
-					auto o_path = copy(base_path).concat(p->filename);
-					log_info("writing out ", o_idx, ": ", o_path.native());
-					std::ofstream o_f(o_path, std::ios_base::trunc);
-					for (auto w : r.n_outputs[o_idx]) {
-						o_f << w << '\n';
-					}
-					++o_idx;
-				} else if (type(n) == node::image) {
-					auto p = static_cast<image_output*>(n);
-					auto o_path = copy(base_path).concat(p->filename);
-					log_info("writing image: ", o_path.native());
-					std::ofstream o_f(o_path, std::ios_base::trunc);
-					o_f << r.i_output;
-					o_f.close();
-
-					o_path += ".pnm";
-					log_info("writing scaled image: ", o_path.native());
-					o_f.open(o_path, std::ios_base::trunc);
-					r.i_output.write(o_f, 11, 17);
+			if (sc.validated and not quiet.getValue()) {
+				if (not quiet.getValue()) {
+					std::cout << print_color(bright_blue) << "validation successful"
+					          << print_color(reset) << "\n";
 				}
+			} else if (quiet.getValue() < 2) {
+				std::cout << print_color(red) << "validation failed"
+				          << print_color(reset);
+				if (std::cmp_equal(sc.cycles, cycles_limit.getValue())) {
+					std::cout << " [timeout]";
+				}
+				std::cout << '\n';
 			}
-		}
-	} else {
-		// tiny self-test
-		auto l = parse(
-		    "1 1 B I0 NUMERIC @0 O0 NUMERIC @5",
-		    "@0\nMOV UP,ACC\nADD ACC\nMOV ACC,DOWN",
-		    single_test{
-		        .inputs = {{51, 62, 16, 83, 61, 14, 35, 17, 63, 48, 22, 40, 29,
-		                    50, 77, 32, 31, 49, 89, 89, 12, 59, 53, 75, 37, 78,
-		                    57, 38, 44, 98, 85, 25, 80, 39, 20, 16, 91, 81, 84}},
-		        .n_outputs = {{102, 124, 32,  166, 122, 28,  70,  34,  126, 96,
-		                       44,  80,  58,  100, 154, 64,  62,  98,  178, 178,
-		                       24,  118, 106, 150, 74,  156, 114, 76,  88,  196,
-		                       170, 50,  160, 78,  40,  32,  182, 162, 168}},
-		        .i_output = {}});
-		auto sc = run(l);
-
-		if (sc.validated) {
-			std::cout << "validation successful\n";
-			std::cout << "score: " << sc.cycles << '/' << sc.nodes << '/'
-			          << sc.instructions << '\n';
-		} else {
-			std::cout << "validation failed after " << sc.cycles << " cycles ";
-			if (sc.cycles == cycles_limit) {
-				std::cout << "[timeout]";
-			}
-			std::cout << '\n';
 		}
 	}
+	if (not quiet.getValue()) {
+		std::cout << "score: ";
+	}
+	std::cout << sc << '\n';
+	return (sc.validated) ? 0 : 1;
 
+#if 0
+	// tiny self-test
+	auto l = parse(
+		 "1 1 B I0 NUMERIC @0 O0 NUMERIC @5",
+		 "@0\nMOV UP,ACC\nADD ACC\nMOV ACC,DOWN",
+		 single_test{
+			  .inputs = {{51, 62, 16, 83, 61, 14, 35, 17, 63, 48, 22, 40, 29,
+							  50, 77, 32, 31, 49, 89, 89, 12, 59, 53, 75, 37, 78,
+							  57, 38, 44, 98, 85, 25, 80, 39, 20, 16, 91, 81, 84}},
+			  .n_outputs = {{102, 124, 32,  166, 122, 28,  70,  34,  126, 96,
+								  44,  80,  58,  100, 154, 64,  62,  98,  178, 178,
+								  24,  118, 106, 150, 74,  156, 114, 76,  88,  196,
+								  170, 50,  160, 78,  40,  32,  182, 162, 168}},
+			  .i_output = {}});
+	sc = run(l, cycles_limit.getValue());
+
+	if (sc.validated) {
+		std::cout << "validation successful\n";
+		std::cout << "score: " << sc << '\n';
+	} else {
+		std::cout << "validation failed after " << sc.cycles << " cycles ";
+		if (sc.cycles == cycles_limit) {
+			std::cout << "[timeout]";
+		}
+		std::cout << '\n';
+	}
+	return (sc.validated) ? 0 : 1;
+#endif
+
+} catch (const std::exception& e) {
+	log_err("failed with exception: ", e.what());
+	throw;
+}
+
+int generate(std::uint32_t seed) {
+	auto copy = [](auto x) { return x; };
+	for (auto [lvl, i] : kblib::enumerate(layouts)) {
+		auto base_path = std::filesystem::path(std::filesystem::current_path()
+		                                       / lvl.segment);
+		log_info("writing cfg: ", copy(base_path).concat(".tiscfg").native());
+		log_flush();
+		std::ofstream layout_f(copy(base_path).concat(".tiscfg"),
+		                       std::ios_base::trunc);
+		auto l = parse(lvl.layout, "", "");
+		std::string layout;
+		kblib::search_replace_copy(l.layout(), "@"s,
+		                           std::string(lvl.segment) + "@",
+		                           std::back_inserter(layout));
+		layout_f << layout;
+
+		auto r = random_test(static_cast<int>(i), seed);
+		std::size_t i_idx = 0;
+		std::size_t o_idx = 0;
+		for (auto it = l.begin() + static_cast<std::ptrdiff_t>(l.nodes_total());
+		     it != l.end(); ++it) {
+			auto n = it->get();
+			if (type(n) == node::in) {
+				auto p = static_cast<input_node*>(n);
+				auto o_path = copy(base_path).concat(p->filename);
+				log_info("writing in ", i_idx, ": ", o_path.native());
+				std::ofstream o_f(o_path, std::ios_base::trunc);
+				for (auto w : r.inputs[i_idx]) {
+					o_f << w << '\n';
+				}
+				++i_idx;
+			} else if (type(n) == node::out) {
+				auto p = static_cast<output_node*>(n);
+				auto o_path = copy(base_path).concat(p->filename);
+				log_info("writing out ", o_idx, ": ", o_path.native());
+				std::ofstream o_f(o_path, std::ios_base::trunc);
+				for (auto w : r.n_outputs[o_idx]) {
+					o_f << w << '\n';
+				}
+				++o_idx;
+			} else if (type(n) == node::image) {
+				auto p = static_cast<image_output*>(n);
+				auto o_path = copy(base_path).concat(p->filename);
+				log_info("writing image: ", o_path.native());
+				std::ofstream o_f(o_path, std::ios_base::trunc);
+				o_f << r.i_output;
+				o_f.close();
+
+				o_path += ".pnm";
+				log_info("writing scaled image: ", o_path.native());
+				o_f.open(o_path, std::ios_base::trunc);
+				r.i_output.write(o_f, 11, 17);
+			}
+		}
+	}
 	return 0;
 }
