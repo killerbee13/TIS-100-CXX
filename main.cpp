@@ -91,7 +91,7 @@ score run(field& l, int cycles_limit) {
 					std::cout << "validation failure for output " << p->x
 					          << "\noutput:\n"
 					          << p->image_received.write_text() //
-					          << "received:\n"
+					          << "expected:\n"
 					          << p->image_expected.write_text();
 				}
 			}

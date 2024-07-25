@@ -197,7 +197,8 @@ bool T21::step() {
 		    return true;
 	    },
 	    [&, this](kblib::constant<std::size_t, instr::jez>, jmp_instr i) {
-		    log << "jez (" << (acc == 0) << ") " << +i.target;
+		    log << "jez (" << (acc == 0 ? "taken" : "not taken") << ") "
+		        << +i.target;
 		    if (acc == 0) {
 			    pc = i.target;
 		    } else {
@@ -207,7 +208,8 @@ bool T21::step() {
 		    return true;
 	    },
 	    [&, this](kblib::constant<std::size_t, instr::jnz>, jmp_instr i) {
-		    log << "jnz (" << (acc != 0) << ") " << +i.target;
+		    log << "jnz (" << (acc != 0 ? "taken" : "not taken") << ") "
+		        << +i.target;
 		    if (acc != 0) {
 			    pc = i.target;
 		    } else {
@@ -217,7 +219,8 @@ bool T21::step() {
 		    return true;
 	    },
 	    [&, this](kblib::constant<std::size_t, instr::jgz>, jmp_instr i) {
-		    log << "jgz (" << (acc > 0) << ") " << +i.target;
+		    log << "jgz (" << (acc > 0 ? "taken" : "not taken") << ") "
+		        << +i.target;
 		    if (acc > 0) {
 			    pc = i.target;
 		    } else {
@@ -227,7 +230,8 @@ bool T21::step() {
 		    return true;
 	    },
 	    [&, this](kblib::constant<std::size_t, instr::jlz>, jmp_instr i) {
-		    log << "jlz (" << (acc < 0) << ") " << +i.target;
+		    log << "jlz (" << (acc < 0 ? "taken" : "not taken") << ") "
+		        << +i.target;
 		    if (acc < 0) {
 			    pc = i.target;
 		    } else {
@@ -273,7 +277,11 @@ bool T21::finalize() {
 			    // if write just started
 			    if (write_port == port::nil) {
 				    log_debug(log, "started");
-				    write_port = i.dst;
+				    if (i.dst == port::last) {
+					    write_port = last;
+				    } else {
+					    write_port = i.dst;
+				    }
 				    r = true;
 				    // if write completed
 			    } else if (write_port == port::immediate) {
@@ -306,6 +314,7 @@ std::optional<word_t> T21::read_(port p) {
 
 std::string T21::print() const {
 	return kblib::concat('(', x, ',', y, ") T21 { ", acc, " (", bak, ") ",
-	                     port_name(last), ' ', state_name(s), ' ', pc, ' ', wrt,
+	                     port_name(last), ' ', state_name(s), ' ', pc, " [",
+	                     code.empty() ? "" : to_string(code[pc]), "] ", wrt,
 	                     "->", port_name(write_port), " }");
 }
