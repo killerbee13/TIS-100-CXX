@@ -45,8 +45,10 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 	add_compile_options(/W3)
 endif()
 
-add_compile_options(-fsanitize=undefined,address)
-add_link_options(-fsanitize=undefined,address)
+if(CMAKE_BUILD_TYPE MATCHES "Debug")
+	add_compile_options(-fsanitize=undefined,address)
+	add_link_options(-fsanitize=undefined,address)
+endif()
 
 add_executable(TIS-100-CXX main.cpp parser.hpp node.hpp T21.hpp T30.hpp io.hpp
 	parser.cpp builtin_levels.hpp image.cpp image.hpp T21.cpp logger.hpp
