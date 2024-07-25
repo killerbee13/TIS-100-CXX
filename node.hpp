@@ -31,6 +31,22 @@ using index_t = std::int16_t;
 constexpr inline int def_T21_size = 15;
 constexpr inline int def_T30_size = 15;
 
+enum class activity { idle, run, read, write };
+
+constexpr static std::string_view state_name(activity s) {
+	switch (s) {
+	case activity::idle:
+		return "IDLE";
+	case activity::run:
+		return "RUN";
+	case activity::read:
+		return "READ";
+	case activity::write:
+		return "WRTE";
+		break;
+	}
+}
+
 enum port : std::int8_t {
 	left,
 	right,
@@ -67,20 +83,7 @@ constexpr port invert(port p) {
 struct node {
  public:
 	enum type_t { T21 = 1, T30, in, out, image, Damaged = -1 };
-	enum class activity { idle, run, read, write };
-	constexpr static std::string_view state_name(activity s) {
-		switch (s) {
-		case activity::idle:
-			return "IDLE";
-		case activity::run:
-			return "RUN";
-		case activity::read:
-			return "READ";
-		case activity::write:
-			return "WRTE";
-			break;
-		}
-	}
+
 	constexpr static std::string_view port_name(port p) {
 		switch (p) {
 		case up:

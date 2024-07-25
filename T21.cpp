@@ -112,7 +112,7 @@ bool T21::step() {
 	    [&](kblib::constant<std::size_t, instr::hcf>, seq_instr) {
 		    log << "hcf";
 		    log_debug(std::move(log).str());
-		    log_debug("\ts = ", kblib::etoi(s));
+		    log_debug("\ts = ", state_name(s));
 		    throw std::runtime_error{"HCF"};
 		    return true;
 	    },
@@ -254,7 +254,7 @@ bool T21::step() {
 		    }
 	    });
 	log_debug(std::move(log).str());
-	log_debug("\ts = ", kblib::etoi(s));
+	log_debug("\ts = ", state_name(s));
 	return r;
 }
 bool T21::finalize() {

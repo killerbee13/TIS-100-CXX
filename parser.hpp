@@ -58,8 +58,8 @@ class field {
 			std::string log = kblib::concat("node(", p->x, ',', p->y, ") ");
 			if (type(p.get()) == node::T21) {
 				kblib::append(
-				    log, "s = ", kblib::etoi(static_cast<const T21*>(p.get())->s));
-				if (static_cast<const T21*>(p.get())->s == T21::activity::run) {
+				    log, "s = ", state_name(static_cast<const T21*>(p.get())->s));
+				if (static_cast<const T21*>(p.get())->s == activity::run) {
 					// r = true;
 				}
 			} else if (type(p.get()) == node::in) {
