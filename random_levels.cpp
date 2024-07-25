@@ -190,6 +190,7 @@ single_test random_test(int id, uint32_t seed) {
 		ret.n_outputs.resize(1);
 	} break;
 	case "SIGNAL PATTERN DETECTOR"_lvl: {
+		// TODO: wrong
 		xorshift128_engine engine(seed);
 		ret.inputs.push_back(make_random_array(engine, max_test_length, 0, 6));
 		for (std::size_t i = 0; i < 8; ++i) {
@@ -210,6 +211,7 @@ single_test random_test(int id, uint32_t seed) {
 		}
 	} break;
 	case "SEQUENCE PEAK DETECTOR"_lvl: {
+		// TODO: wrong
 		xorshift128_engine engine(seed);
 		ret.inputs.push_back(
 		    make_composite_array(engine, max_test_length, 3, 6, 10, 100));
@@ -224,6 +226,7 @@ single_test random_test(int id, uint32_t seed) {
 		});
 	} break;
 	case "SEQUENCE REVERSER"_lvl: {
+		// TODO: wrong
 		ret.inputs.push_back(
 		    make_composite_array(seed, max_test_length, 0, 6, 10, 100));
 		ret.n_outputs.resize(1);
@@ -235,6 +238,7 @@ single_test random_test(int id, uint32_t seed) {
 		});
 	} break;
 	case "SIGNAL MULTIPLIER"_lvl: {
+		// TODO: wrong
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 0, 10));
 		ret.inputs.push_back(make_random_array(seed + 1, max_test_length, 0, 10));
 		ret.n_outputs.push_back(std::vector<word_t>(max_test_length));
@@ -253,6 +257,7 @@ single_test random_test(int id, uint32_t seed) {
 		ret.i_output = checkerboard(image_width, 18);
 	} break;
 	case "EXPOSURE MASK VIEWER"_lvl: {
+		// TODO: wrong
 		xorshift128_engine engine(seed);
 		ret.inputs.resize(1);
 		ret.i_output.reshape(image_width, 18);
@@ -289,6 +294,7 @@ single_test random_test(int id, uint32_t seed) {
 		}
 	} break;
 	case "HISTOGRAM VIEWER"_lvl: {
+		// TODO: wrong
 		xorshift128_engine engine(seed);
 		ret.inputs.push_back(std::vector<word_t>(image_width));
 		ret.i_output.reshape(image_width, image_height);
@@ -316,6 +322,7 @@ single_test random_test(int id, uint32_t seed) {
 		ret.i_output.reshape(36, 22);
 	} break;
 	case "SIGNAL WINDOW FILTER"_lvl: {
+		// TODO: wrong
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 10, 100));
 		ret.n_outputs.resize(2);
 		for (std::size_t idx = 0; idx < max_test_length; ++idx) {
@@ -329,6 +336,7 @@ single_test random_test(int id, uint32_t seed) {
 		}
 	} break;
 	case "SIGNAL DIVIDER"_lvl: {
+		// TODO: wrong
 		ret.inputs.push_back(make_random_array(seed, 39, 10, 100));
 		ret.inputs.push_back(make_random_array(seed + 1, 39, 1, 10));
 		ret.n_outputs.resize(2, std::vector<word_t>(max_test_length));
@@ -338,6 +346,7 @@ single_test random_test(int id, uint32_t seed) {
 		}
 	} break;
 	case "SEQUENCE INDEXER"_lvl: {
+		// TODO: wrong
 		ret.inputs.push_back(make_random_array(seed, 10, 100, 1000));
 		ret.inputs[0].push_back(0);
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 0, 10));
@@ -348,6 +357,7 @@ single_test random_test(int id, uint32_t seed) {
 		}
 	} break;
 	case "SEQUENCE SORTER"_lvl: {
+		// TODO: wrong
 		ret.inputs.push_back(
 		    make_composite_array(seed, max_test_length, 4, 8, 10, 100));
 		ret.n_outputs.resize(1);
@@ -363,6 +373,7 @@ single_test random_test(int id, uint32_t seed) {
 		});
 	} break;
 	case "STORED IMAGE DECODER"_lvl: {
+		// TODO: wrong
 		xorshift128_engine engine(seed);
 		ret.inputs.resize(1);
 		ret.i_output.reshape(image_width, image_height);
@@ -378,6 +389,7 @@ single_test random_test(int id, uint32_t seed) {
 		ret.i_output.assign(std::move(image));
 	} break;
 	case "UNKNOWN"_lvl: {
+		// TODO: wrong
 		xorshift128_engine engine(seed);
 		ret.inputs.push_back(std::vector<word_t>(max_test_length));
 		ret.n_outputs.resize(2);
