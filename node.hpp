@@ -31,10 +31,26 @@ using index_t = std::int16_t;
 constexpr inline int def_T21_size = 15;
 constexpr inline int def_T30_size = 15;
 
+enum class activity { idle, run, read, write };
+
+constexpr static std::string_view state_name(activity s) {
+	switch (s) {
+	case activity::idle:
+		return "IDLE";
+	case activity::run:
+		return "RUN";
+	case activity::read:
+		return "READ";
+	case activity::write:
+		return "WRTE";
+		break;
+	}
+}
+
 enum port : std::int8_t {
-	up,
 	left,
 	right,
+	up,
 	down,
 	D5, // 3D expansion
 	D6,
@@ -47,23 +63,19 @@ enum port : std::int8_t {
 
 constexpr port invert(port p) {
 	switch (p) {
-	case up:
-		return down;
 	case left:
 		return right;
 	case right:
 		return left;
+	case up:
+		return down;
 	case down:
 		return up;
 	case D5:
 		return D6;
 	case D6:
 		return D5;
-	case nil:
-	case acc:
-	case any:
-	case last:
-	case immediate:
+	default:
 		throw std::invalid_argument{""};
 	}
 }
@@ -71,20 +83,7 @@ constexpr port invert(port p) {
 struct node {
  public:
 	enum type_t { T21 = 1, T30, in, out, image, Damaged = -1 };
-	enum class activity { idle, run, read, write };
-	constexpr static std::string_view state_name(activity s) {
-		switch (s) {
-		case activity::idle:
-			return "IDLE";
-		case activity::run:
-			return "RUN";
-		case activity::read:
-			return "READ";
-		case activity::write:
-			return "WRTE";
-			break;
-		}
-	}
+
 	constexpr static std::string_view port_name(port p) {
 		switch (p) {
 		case up:
@@ -144,7 +143,7 @@ struct node {
 
 	friend bool valid(const node* n) { return n and n->type() != node::Damaged; }
 	friend std::optional<word_t> do_read(node* n, port p) {
-		assert(p >= port::up and p <= port::D6);
+		assert(p >= port::left and p <= port::D6);
 		if (not valid(n)) {
 			return std::nullopt;
 		} else {

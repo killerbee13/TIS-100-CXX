@@ -32,7 +32,7 @@ struct T30 : node {
 	bool step() override {
 		read = false;
 		if (not wrote and data.size() < max_size) {
-			for (auto p : {port::up, port::left, port::right, port::down, port::D5,
+			for (auto p : {port::left, port::right, port::up, port::down, port::D5,
 			               port::D6}) {
 				if (auto r
 				    = do_read(neighbors[static_cast<std::size_t>(p)], invert(p))) {
