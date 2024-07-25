@@ -42,10 +42,10 @@ void T21::next() {
 
 std::optional<word_t> T21::read(port p, word_t imm) {
 	switch (p) {
-	case port::up:
 	case port::left:
 	case port::right:
 	case port::down:
+	case port::up:
 	case port::D5:
 	case port::D6:
 		return do_read(neighbors[kblib::to_unsigned(kblib::etoi(p))], invert(p));
@@ -54,7 +54,7 @@ std::optional<word_t> T21::read(port p, word_t imm) {
 	case port::acc:
 		return acc;
 	case port::any:
-		for (auto p_ : {port::up, port::left, port::right, port::down, port::D5,
+		for (auto p_ : {port::left, port::right, port::up, port::down, port::D5,
 		                port::D6}) {
 			if (auto r = read(p_)) {
 				last = p_;
@@ -66,6 +66,8 @@ std::optional<word_t> T21::read(port p, word_t imm) {
 		return read(last);
 	case port::immediate:
 		return imm;
+	default:
+		throw std::invalid_argument{""};
 	}
 }
 
@@ -110,7 +112,7 @@ bool T21::step() {
 	    [&](kblib::constant<std::size_t, instr::hcf>, seq_instr) {
 		    log << "hcf";
 		    log_debug(std::move(log).str());
-		    log_debug("\ts = ", kblib::etoi(s));
+		    log_debug("\ts = ", state_name(s));
 		    throw std::runtime_error{"HCF"};
 		    return true;
 	    },
@@ -141,9 +143,9 @@ bool T21::step() {
 					    break;
 				    }
 				    [[fallthrough]];
-			    case port::up:
 			    case port::left:
 			    case port::right:
+			    case port::up:
 			    case port::down:
 			    case port::D5:
 			    case port::D6:
@@ -256,7 +258,7 @@ bool T21::step() {
 		    }
 	    });
 	log_debug(std::move(log).str());
-	log_debug("\ts = ", kblib::etoi(s));
+	log_debug("\ts = ", state_name(s));
 	return r;
 }
 bool T21::finalize() {
@@ -301,7 +303,7 @@ bool T21::finalize() {
 }
 
 std::optional<word_t> T21::read_(port p) {
-	assert(p >= port::up and p <= port::D6);
+	assert(p >= port::left and p <= port::D6);
 	if (write_port == port::any or write_port == p) {
 		auto r = std::exchange(wrt, word_t{});
 		// set write port to flag that the write has completed

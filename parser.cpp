@@ -105,9 +105,9 @@ field parse_layout(std::string_view layout, std::size_t T30_size) {
 		for (const auto x : kblib::range(ret.width)) {
 			if (auto p = ret.node_by_location(x, y); valid(p)) {
 				// safe because node_by_location returns nullptr on OOB
-				p->neighbors[up] = ret.node_by_location(x, y - 1);
 				p->neighbors[left] = ret.node_by_location(x - 1, y);
 				p->neighbors[right] = ret.node_by_location(x + 1, y);
+				p->neighbors[up] = ret.node_by_location(x, y - 1);
 				p->neighbors[down] = ret.node_by_location(x, y + 1);
 			}
 		}
@@ -296,12 +296,12 @@ field parse(std::string_view layout, std::string_view source,
 
 std::string to_string(port p) {
 	switch (p) {
-	case up:
-		return "UP";
 	case left:
 		return "LEFT";
 	case right:
 		return "RIGHT";
+	case up:
+		return "UP";
 	case down:
 		return "DOWN";
 	case D5:
@@ -430,12 +430,12 @@ instr::op parse_op(std::string_view str) {
 }
 
 port parse_port(std::string_view str) {
-	if (str == "UP" or str == "U") {
-		return up;
-	} else if (str == "LEFT" or str == "L") {
+	if (str == "LEFT" or str == "L") {
 		return left;
 	} else if (str == "RIGHT" or str == "R") {
 		return right;
+	} else if (str == "UP" or str == "U") {
+		return up;
 	} else if (str == "DOWN" or str == "D") {
 		return down;
 	} else if (str == "NIL") {
