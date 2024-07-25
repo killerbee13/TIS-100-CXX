@@ -43,7 +43,8 @@ constexpr static std::string_view state_name(activity s) {
 		return "READ";
 	case activity::write:
 		return "WRTE";
-		break;
+	default:
+		throw std::invalid_argument{""};
 	}
 }
 
@@ -108,7 +109,8 @@ struct node {
 			return "LAST";
 		case immediate:
 			return "VAL";
-			break;
+		default:
+			throw std::invalid_argument{""};
 		}
 	}
 
