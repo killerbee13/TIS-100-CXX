@@ -1,5 +1,14 @@
 cmake_minimum_required(VERSION 3.5)
 
+if (CMAKE_GENERATOR MATCHES "Ninja")
+file(
+    WRITE "${CMAKE_BINARY_DIR}/GNUMakeRulesOverwrite.cmake"
+        "STRING(REPLACE \"-MD\" \"-MMD\" CMAKE_DEPFILE_FLAGS_C \"\${CMAKE_DEPFILE_FLAGS_C}\")\n"
+        "STRING(REPLACE \"-MD\" \"-MMD\" CMAKE_DEPFILE_FLAGS_CXX \"\${CMAKE_DEPFILE_FLAGS_CXX}\")\n"
+)
+set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_BINARY_DIR}/GNUMakeRulesOverwrite.cmake" CACHE INTERNAL "")
+endif()
+
 project(TIS-100-CXX LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
