@@ -28,6 +28,10 @@
 #include <vector>
 
 class field {
+	using data_t = std::vector<std::unique_ptr<node>>;
+	using iterator = data_t::iterator;
+	using const_iterator = data_t::const_iterator;
+
  public:
 	bool step() {
 		// set up next step's IO
@@ -127,6 +131,17 @@ class field {
 	std::size_t nodes_used() const;
 	std::size_t nodes_avail() const;
 	std::size_t nodes_total() const { return io_node_offset; }
+	bool has_inputs() const {
+		for (auto it = begin() + static_cast<std::ptrdiff_t>(nodes_total());
+		     it != end(); ++it) {
+			if (auto p = it->get(); type(p) == node::in) {
+				log_debug("Field has input at location ", p->x);
+				return true;
+			}
+		}
+		log_debug("Field has no inputs");
+		return false;
+	}
 
 	std::string layout() const;
 
@@ -177,8 +192,8 @@ class field {
 	template <bool use_nonstandard_rep>
 	friend field parse_layout(std::string_view layout, std::size_t T30_size);
 
-	auto begin() const noexcept { return nodes.begin(); }
-	auto end() const noexcept { return nodes.end(); }
+	const_iterator begin() const noexcept { return nodes.begin(); }
+	const_iterator end() const noexcept { return nodes.end(); }
 
  private:
 	std::vector<std::unique_ptr<node>> nodes;
@@ -224,13 +239,43 @@ struct score {
 			os << '/';
 		}
 		if (sc.validated and sc.achievement) {
-			os << 'a';
+			os << print_color(bright_blue) << 'a';
 		}
 		if (sc.validated and sc.cheat) {
-			os << 'c';
+			os << print_color(yellow) << 'c';
 		}
 		os << print_color(reset);
 		return os;
+	}
+
+	friend std::string to_string(score sc, bool colored = use_color) {
+		std::string ret;
+		if (not sc.validated) {
+			if (colored) {
+				ret += print_color(red);
+			}
+			ret += "-/";
+		}
+		kblib::append(ret, sc.cycles, '/', sc.nodes, '/', sc.instructions);
+		if (sc.validated and (sc.achievement or sc.cheat)) {
+			ret += '/';
+		}
+		if (sc.validated and sc.achievement) {
+			if (colored) {
+				ret += print_color(bright_blue);
+			}
+			ret += 'a';
+		}
+		if (sc.validated and sc.cheat) {
+			if (colored) {
+				ret += print_color(yellow);
+			}
+			ret += 'c';
+		}
+		if (colored) {
+			ret += print_color(reset);
+		}
+		return ret;
 	}
 };
 

@@ -280,10 +280,19 @@ int main(int argc, char** argv) try {
 			sc.instructions = last.instructions;
 			sc.nodes = last.nodes;
 			sc.validated = sc.validated and last.validated;
+			log_info("fixed test ", succeeded, ' ',
+			         last.validated ? "validated"sv : "failed"sv, " with score ",
+			         to_string(last, false));
 			if (not last.validated) {
 				break;
 			}
 			++succeeded;
+			// optimization: skip running the 2nd and 3rd rounds for invariant
+			// levels (specifically, the image test patterns)
+			if (not f.has_inputs()) {
+				log_info("Secondary tests skipped for invariant level");
+				break;
+			}
 		}
 		sc.achievement = check_achievement(id, f, sc);
 

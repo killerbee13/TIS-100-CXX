@@ -382,7 +382,7 @@ inline bool check_achievement(int id, const field& solve, score sc) {
 				if (std::any_of(
 				        p->code.begin(), p->code.end(), [&](const instr& i) {
 					        if (auto* m = std::get_if<instr::mov>(&i.data);
-					            m and m->dst <= port::D6) {
+					            m and (m->dst <= port::D6 or m->dst == port::any)) {
 						        return type(p->neighbors[static_cast<std::size_t>(
 						                   m->dst)])
 						               == node::T30;

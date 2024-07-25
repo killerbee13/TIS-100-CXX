@@ -254,18 +254,32 @@ void set_expected(field& f, const single_test& expected) {
 		auto p = it->get();
 		if (p) {
 			p->reset();
+			log_debug("reset node (", p->x, ',', p->y, ')');
 		}
 		if (type(p) == node::in) {
 			assert(in_idx < expected.inputs.size());
 			auto i = static_cast<input_node*>(p);
 			i->inputs = expected.inputs[in_idx++];
+			std::ostringstream log;
+			log << kblib::concat("set expected input I", i->x, ":");
+			write_list(log, i->inputs, nullptr, false);
+			log_debug(std::move(log).str());
 		} else if (type(p) == node::out) {
 			assert(out_idx < expected.n_outputs.size());
 			auto o = static_cast<output_node*>(p);
 			o->outputs_expected = expected.n_outputs[out_idx++];
+			std::ostringstream log;
+			log << kblib::concat("set expected output O", o->x, ":");
+			write_list(log, o->outputs_expected, nullptr, false);
+			log_debug(std::move(log).str());
 		} else if (type(p) == node::image) {
 			auto i = static_cast<image_output*>(p);
 			i->image_expected = expected.i_output;
+			std::ostringstream log;
+			log << kblib::concat("set expected image O", i->x, ": {");
+			i->image_expected.write_text(log);
+			log << '}';
+			log_debug(std::move(log).str());
 		}
 	}
 }
