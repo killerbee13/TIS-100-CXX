@@ -45,7 +45,7 @@ score run(field& l, int cycles_limit) {
 	do {
 		++sc.cycles;
 		log_debug("step ", sc.cycles);
-		log_debug("Current state:\n", l.state());
+		log_debug([&] { return "Current state:\n" + l.state(); });
 		l.step();
 	} while ((l.active()) and std::cmp_less(sc.cycles, cycles_limit));
 	sc.validated = true;

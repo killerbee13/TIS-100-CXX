@@ -237,7 +237,7 @@ field parse(std::string_view layout, std::string_view source,
             std::string_view expected, std::size_t T21_size,
             std::size_t T30_size) {
 	field ret = parse_layout_guess(layout, T30_size);
-	log_debug(ret.layout());
+	log_debug([&] { return ret.layout(); });
 	log_debug(ret.nodes_avail(), " programmable nodes");
 	parse_code(ret, source, T21_size);
 
