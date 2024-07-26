@@ -191,7 +191,6 @@ single_test random_test(int id, uint32_t seed) {
 		ret.n_outputs.resize(1);
 	} break;
 	case "SIGNAL PATTERN DETECTOR"_lvl: {
-		// TODO: wrong
 		xorshift128_engine engine(seed);
 		ret.inputs.push_back(make_random_array(engine, max_test_length, 0, 6));
 		for (std::size_t i = 0; i < 8; ++i) {
@@ -200,9 +199,10 @@ single_test random_test(int id, uint32_t seed) {
 			ret.inputs[0][num + 1] = 0;
 			ret.inputs[0][num + 2] = 0;
 			num = engine.next(0, 35);
-			ret.inputs[0][num] = 0;
+			ret.inputs[0][num] = engine.next_int(1, 6);
 			ret.inputs[0][num + 1] = 0;
-			ret.inputs[0][num + 2] = engine.next_int(1, 6);
+			ret.inputs[0][num + 2] = 0;
+			ret.inputs[0][num + 3] = engine.next_int(1, 6);
 		}
 		ret.n_outputs.push_back(std::vector<word_t>(max_test_length));
 		for (std::size_t j = 0; j < max_test_length; ++j) {
