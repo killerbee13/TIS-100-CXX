@@ -39,7 +39,7 @@ score run(field& l, int cycles_limit) {
 	do {
 		++sc.cycles;
 		log_debug("step ", sc.cycles);
-		log_debug([&] { return "Current state:\n" + l.state(); });
+		log_debug_r([&] { return "Current state:\n" + l.state(); });
 		l.step();
 	} while ((l.active()) and std::cmp_less(sc.cycles, cycles_limit));
 	sc.validated = true;
@@ -190,6 +190,10 @@ int main(int argc, char** argv) try {
 	                            "errors. A second flag suppresses errors.",
 	                            cmd);
 	TCLAP::SwitchArg color("c", "color", "Print in color", cmd);
+	// TODO: implement log coloring detection
+	TCLAP::SwitchArg log_color("C", "log-color",
+	                           "Enable colors in the log. (Defaults on if -c is "
+	                           "set and STDERR is a tty.)");
 
 	cmd.parse(argc, argv);
 	use_color = color.getValue();

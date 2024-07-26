@@ -46,7 +46,7 @@ struct input_node : node {
 		return std::exchange(wrt, std::nullopt);
 	}
 	std::string print() const override {
-		std::string ret = kblib::concat("I(", x, " NUMERIC {}");
+		std::string ret = kblib::concat("I", x, " NUMERIC {", "}");
 
 		return ret;
 	}
@@ -79,7 +79,7 @@ struct output_node : node {
 	std::optional<word_t> read_(port) override { return std::nullopt; }
 	std::string print() const override {
 		std::ostringstream ret;
-		ret << kblib::concat("O(", x, " NUMERIC {\nreceived:");
+		ret << kblib::concat("O", x, " NUMERIC {\nreceived:");
 		write_list(ret, outputs_received, &outputs_expected, false);
 		ret << "\n}";
 		return std::move(ret).str();
@@ -129,10 +129,8 @@ struct image_output : node {
 	}
 	std::optional<word_t> read_(port) override { return std::nullopt; }
 	std::string print() const override {
-		std::string ret = kblib::concat("O", x, " IMAGE {\n");
-		ret += image_received.write_text();
-		ret += "}";
-		return ret;
+		return kblib::concat("O", x, " IMAGE {\n", image_received.write_text(),
+		                     "}");
 	}
 
 	void poke(tis_pixel p) {

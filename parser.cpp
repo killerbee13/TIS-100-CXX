@@ -237,7 +237,7 @@ field parse(std::string_view layout, std::string_view source,
             std::string_view expected, std::size_t T21_size,
             std::size_t T30_size) {
 	field ret = parse_layout_guess(layout, T30_size);
-	log_debug([&] { return ret.layout(); });
+	log_debug_r([&] { return ret.layout(); });
 	log_debug(ret.nodes_avail(), " programmable nodes");
 	parse_code(ret, source, T21_size);
 
@@ -260,26 +260,23 @@ void set_expected(field& f, const single_test& expected) {
 			assert(in_idx < expected.inputs.size());
 			auto i = static_cast<input_node*>(p);
 			i->inputs = expected.inputs[in_idx++];
-			std::ostringstream log;
+			auto log = log_debug();
 			log << kblib::concat("set expected input I", i->x, ":");
 			write_list(log, i->inputs, nullptr, false);
-			log_debug(std::move(log).str());
 		} else if (type(p) == node::out) {
 			assert(out_idx < expected.n_outputs.size());
 			auto o = static_cast<output_node*>(p);
 			o->outputs_expected = expected.n_outputs[out_idx++];
-			std::ostringstream log;
+			auto log = log_debug();
 			log << kblib::concat("set expected output O", o->x, ":");
 			write_list(log, o->outputs_expected, nullptr, false);
-			log_debug(std::move(log).str());
 		} else if (type(p) == node::image) {
 			auto i = static_cast<image_output*>(p);
 			i->image_expected = expected.i_output;
-			std::ostringstream log;
-			log << kblib::concat("set expected image O", i->x, ": {");
+			auto log = log_debug();
+			log << kblib::concat("set expected image O", i->x, ": {\n");
 			i->image_expected.write_text(log);
 			log << '}';
-			log_debug(std::move(log).str());
 		}
 	}
 }
@@ -347,49 +344,15 @@ std::string to_string(jro_instr i) {
 }
 
 std::string to_string(instr i) {
-	return kblib::visit_indexed(
+	return kblib::visit2(
 	    i.data,
-	    [](kblib::constant<std::size_t, instr::nop>, seq_instr) {
-		    return "NOP"s;
+	    [&](seq_instr) {
+		    return to_string(static_cast<instr::op>(i.data.index()));
 	    },
-	    [](kblib::constant<std::size_t, instr::swp>, seq_instr) {
-		    return "SWP"s;
-	    },
-	    [](kblib::constant<std::size_t, instr::sav>, seq_instr) {
-		    return "SAV"s;
-	    },
-	    [](kblib::constant<std::size_t, instr::neg>, seq_instr) {
-		    return "NEG"s;
-	    },
-	    [](kblib::constant<std::size_t, instr::hcf>, seq_instr) {
-		    return "HCF"s;
-	    },
-	    [](kblib::constant<std::size_t, instr::mov>, mov_instr i) {
-		    return "MOV "s + to_string(i);
-	    },
-	    [](kblib::constant<std::size_t, instr::add>, arith_instr i) {
-		    return "ADD "s + to_string(i);
-	    },
-	    [](kblib::constant<std::size_t, instr::sub>, arith_instr i) {
-		    return "SUB "s + to_string(i);
-	    },
-	    [](kblib::constant<std::size_t, instr::jmp>, jmp_instr i) {
-		    return "JMP "s + to_string(i);
-	    },
-	    [](kblib::constant<std::size_t, instr::jez>, jmp_instr i) {
-		    return "JEZ "s + to_string(i);
-	    },
-	    [](kblib::constant<std::size_t, instr::jnz>, jmp_instr i) {
-		    return "JNZ "s + to_string(i);
-	    },
-	    [](kblib::constant<std::size_t, instr::jgz>, jmp_instr i) {
-		    return "JGZ "s + to_string(i);
-	    },
-	    [](kblib::constant<std::size_t, instr::jlz>, jmp_instr i) {
-		    return "JLZ "s + to_string(i);
-	    },
-	    [](kblib::constant<std::size_t, instr::jro>, jro_instr i) {
-		    return "JRO "s + to_string(i);
+	    [&](auto d) {
+		    return kblib::concat(
+		        to_string(static_cast<instr::op>(i.data.index())), ' ',
+		        to_string(d));
 	    });
 }
 
@@ -642,7 +605,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 				throw std::invalid_argument{kblib::quoted(tok)
 				                            + " is not a valid instruction opcode"};
 			}
-			log_debug("parsed: ", to_string(i));
+			log_debug_r([&] { return "parsed: " + to_string(i); });
 			ret.push_back(i);
 			tmp.reset();
 			break;

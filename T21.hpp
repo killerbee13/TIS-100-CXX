@@ -70,6 +70,41 @@ struct instr {
 
 	op get_op() const { return static_cast<op>(data.index()); }
 };
+constexpr std::string to_string(instr::op o) {
+	switch (o) {
+	case instr::nop:
+		return "NOP";
+	case instr::swp:
+		return "SWP";
+	case instr::sav:
+		return "SAV";
+	case instr::neg:
+		return "NEG";
+	case instr::hcf:
+		return "HCF";
+	case instr::mov:
+		return "MOV";
+	case instr::add:
+		return "ADD";
+	case instr::sub:
+		return "SUB";
+	case instr::jmp:
+		return "JMP";
+	case instr::jez:
+		return "JEZ";
+	case instr::jnz:
+		return "JNZ";
+	case instr::jgz:
+		return "JGZ";
+	case instr::jlz:
+		return "JLZ";
+	case instr::jro:
+		return "JRO";
+	default:
+		throw std::invalid_argument{
+		    kblib::concat("Unknown instr::op ", kblib::etoi(o))};
+	}
+}
 
 std::string to_string(instr i);
 

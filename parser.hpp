@@ -59,57 +59,57 @@ class field {
 		bool all_outputs_satisfied{true};
 		bool all_outputs_correct{true};
 		for (auto& p : nodes) {
-			std::string log = kblib::concat("node(", p->x, ',', p->y, ") ");
+			auto log = log_debug();
+			log.log_r(
+			    [&] { return kblib::concat("node(", p->x, ',', p->y, ") "); });
 			if (type(p.get()) == node::T21) {
-				kblib::append(
-				    log, "s = ", state_name(static_cast<const T21*>(p.get())->s));
+				log.log("s = ", state_name(static_cast<const T21*>(p.get())->s));
 				//	if (static_cast<const T21*>(p.get())->s == activity::run) {
 				//		r = true;
 				//	}
 			} else if (type(p.get()) == node::in) {
 				auto i = static_cast<const input_node*>(p.get());
-				kblib::append(log, "input ", i->idx, " of ", i->inputs.size());
+				log.log("input ", i->idx, " of ", i->inputs.size());
 				// if (i->idx != i->inputs.size()) {
 				//	 r = true;
 				// }
 			} else if (type(p.get()) == node::out) {
 				auto i = static_cast<const output_node*>(p.get());
-				kblib::append(log, "output ", i->outputs_received.size(), " of ",
-				              i->outputs_expected.size(), "; ");
+				log.log("output ", i->outputs_received.size(), " of ",
+				        i->outputs_expected.size(), "; ");
 				if (i->outputs_received.size() < i->outputs_expected.size()) {
 					r = true;
 					all_outputs_satisfied = false;
-					kblib::append(log, "unfilled");
+					log << "unfilled";
 
 					if (i->outputs_received.size() > i->outputs_expected.size()) {
 						all_outputs_correct = false;
-					} else {
+					}
 // speed up simulator by failing early when an incorrect output is written
 #if RELEASE
-						if (auto k = i->outputs_received.size();
-						    i->outputs_received[k] != i->outputs_expected[k]) {
-							all_outputs_correct = false;
-							kblib::append(log, " incorrect value written for output O",
-							              i->x);
-						}
-#endif
+					else if (auto k = i->outputs_received.size() - 1;
+					         not i->outputs_received.empty()
+					         and i->outputs_received[k] != i->outputs_expected[k]) {
+						all_outputs_correct = false;
+						log << " incorrect value written for output O" << i->x;
 					}
+#endif
+
 				} else {
-					kblib::append(log, "filled");
+					log << "filled";
 				}
 			} else if (type(p.get()) == node::image) {
 				auto i = static_cast<const image_output*>(p.get());
 				if (i->image_expected != i->image_received) {
 					r = true;
 					all_outputs_satisfied = false;
-					kblib::append(log, "unequal");
+					log << "unequal";
 				} else {
-					kblib::append(log, "equal");
+					log << "equal";
 				}
 			} else {
-				kblib::append(log, "inactive");
+				log << "inactive";
 			}
-			log_debug(log);
 		}
 		if (all_outputs_satisfied or not all_outputs_correct) {
 			return false;
@@ -230,10 +230,12 @@ struct score {
 	bool cheat{};
 
 	friend std::ostream& operator<<(std::ostream& os, score sc) {
-		if (not sc.validated) {
+		if (sc.validated) {
+			os << sc.cycles << '/';
+		} else {
 			os << print_color(red) << "-/";
 		}
-		os << sc.cycles << '/' << sc.nodes << '/' << sc.instructions;
+		os << sc.nodes << '/' << sc.instructions;
 		if (sc.validated and (sc.achievement or sc.cheat)) {
 			os << '/';
 		}
@@ -249,13 +251,15 @@ struct score {
 
 	friend std::string to_string(score sc, bool colored = use_color) {
 		std::string ret;
-		if (not sc.validated) {
+		if (sc.validated) {
+			kblib::append(ret, sc.cycles);
+		} else {
 			if (colored) {
 				ret += print_color(red);
 			}
-			ret += "-/";
+			ret += "-";
 		}
-		kblib::append(ret, sc.cycles, '/', sc.nodes, '/', sc.instructions);
+		kblib::append(ret, '/', sc.nodes, '/', sc.instructions);
 		if (sc.validated and (sc.achievement or sc.cheat)) {
 			ret += '/';
 		}

@@ -72,14 +72,16 @@ std::optional<word_t> T21::read(port p, word_t imm) {
 }
 
 bool T21::step() {
-	std::stringstream log;
+	auto log = log_debug();
 	log << "step(" << x << ',' << y << ',' << +pc << "): ";
 	if (code.empty()) {
 		return false;
 	}
 	auto& i = code[kblib::to_unsigned(pc)];
 	auto old_state = s;
-	log << kblib::concat("instruction type: ", i.data.index(), '\n');
+	log << kblib::concat("instruction type: ", i.data.index(), " [",
+	                     to_string(static_cast<instr::op>(i.data.index())),
+	                     "]\n");
 	bool r = kblib::visit_indexed(
 	    std::as_const(i.data),
 	    [&, this](kblib::constant<std::size_t, instr::nop>, seq_instr) {
@@ -111,8 +113,7 @@ bool T21::step() {
 	    },
 	    [&](kblib::constant<std::size_t, instr::hcf>, seq_instr) {
 		    log << "hcf";
-		    log_debug(std::move(log).str());
-		    log_debug("\ts = ", state_name(s));
+		    log << "\n\ts = " << state_name(s);
 		    throw std::runtime_error{"HCF"};
 		    return true;
 	    },
@@ -257,8 +258,7 @@ bool T21::step() {
 			    return s != old_state;
 		    }
 	    });
-	log_debug(std::move(log).str());
-	log_debug("\ts = ", state_name(s));
+	log << "\n\ts = " << state_name(s);
 	return r;
 }
 bool T21::finalize() {
@@ -273,12 +273,13 @@ bool T21::finalize() {
 		    return false;
 	    },
 	    [this](mov_instr i) {
-		    auto log = kblib::concat("finalize(", x, ',', y, ',', +pc, "): mov ");
+		    auto log = log_debug();
+		    log.log("finalize(", x, ',', y, ',', +pc, "): mov ");
 		    bool r{};
 		    if (s == activity::write) {
 			    // if write just started
 			    if (write_port == port::nil) {
-				    log_debug(log, "started");
+				    log << "started";
 				    if (i.dst == port::last) {
 					    write_port = last;
 				    } else {
@@ -287,16 +288,16 @@ bool T21::finalize() {
 				    r = true;
 				    // if write completed
 			    } else if (write_port == port::immediate) {
-				    log_debug(log, "completed");
+				    log << "completed";
 				    write_port = port::nil;
 				    s = activity::run;
 				    next();
 				    r = true;
 			    } else {
-				    log_debug(log, "in progress");
+				    log << "in progress";
 			    }
 		    } else {
-			    log_debug(log, "skipped");
+			    log << "skipped";
 		    }
 		    return r;
 	    });

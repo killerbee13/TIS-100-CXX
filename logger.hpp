@@ -145,29 +145,108 @@ auto log_notice(Strings&&... strings) -> void {
 template <typename... Strings>
 auto log_warn(Strings&&... strings) -> void {
 	if (get_log_level() >= log_level::warn) {
-		detail::log(kblib::concat(print_color(yellow),
-		                          "WARN: ", print_color(reset), strings...));
+		detail::log(kblib::concat("WARN: ", strings...));
 	}
 }
 
 template <typename... Strings>
 auto log_err(Strings&&... strings) -> void {
 	if (get_log_level() >= log_level::err) {
-		detail::log(kblib::concat(print_color(red), "ERROR: ", print_color(reset),
-		                          strings...));
+		detail::log(kblib::concat("ERROR: ", strings...));
 	}
 }
 
-auto log_debug(std::invocable<> auto supplier) -> void {
+auto log_debug_r(std::invocable<> auto supplier) -> void {
 	if (get_log_level() >= log_level::debug) {
 		detail::log(kblib::concat("DEBUG: ", supplier()));
 	}
 }
 
-auto log_info(std::invocable<> auto supplier) -> void {
+auto log_info_r(std::invocable<> auto supplier) -> void {
 	if (get_log_level() >= log_level::info) {
 		detail::log(kblib::concat("INFO: ", supplier()));
 	}
+}
+
+class stringrefbuf : public std::streambuf {
+ public:
+	stringrefbuf(std::string* s)
+	    : str(s) {}
+	stringrefbuf(std::nullptr_t)
+	    : str(nullptr) {}
+
+ protected:
+	std::streamsize xsputn(const char_type* s, std::streamsize count) override {
+		if (str) {
+			str->append(s, kblib::to_unsigned(count));
+		}
+		return count;
+	}
+	int_type overflow(int_type ch = traits_type::eof()) override {
+		if (not traits_type::eq_int_type(ch, traits_type::eof()) and str) {
+			str->push_back(static_cast<char>(ch));
+		}
+		return 0;
+	}
+
+ private:
+	std::string* str;
+};
+
+class logger : public std::ostream {
+ public:
+	logger(std::string prefix, bool do_log)
+	    : std::ostream(&buf_)
+	    , data_(std::move(prefix))
+	    , do_log_(do_log)
+	    , buf_((do_log) ? &data_ : nullptr)
+	    , prefix_len_(data_.size()) {}
+
+	auto log_r(std::invocable<> auto supplier) -> void {
+		if (do_log_) {
+			kblib::append(data_, supplier());
+		}
+	}
+	auto log(const auto&... args) -> void {
+		if (do_log_) {
+			kblib::append(data_, args...);
+		}
+	}
+
+	~logger() {
+		if (do_log_) {
+			data_.push_back('\n');
+			detail::log(data_);
+		}
+	}
+
+ private:
+	std::string data_;
+	bool do_log_;
+	stringrefbuf buf_;
+	// stores the length of the prefix, so that the logger can start a new line
+	// after finalizing
+	std::size_t prefix_len_;
+};
+
+inline auto log_debug() {
+	return logger("DEBUG: ", get_log_level() >= log_level::debug);
+}
+
+inline auto log_info() {
+	return logger("INFO: ", get_log_level() >= log_level::info);
+}
+
+inline auto log_notice() {
+	return logger("INFO: ", get_log_level() >= log_level::notice);
+}
+
+inline auto log_warn() {
+	return logger("WARNING: ", get_log_level() >= log_level::warn);
+}
+
+inline auto log_err() {
+	return logger("ERROR: ", get_log_level() >= log_level::err);
 }
 
 #endif // LOGGER_HPP
