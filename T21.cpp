@@ -79,9 +79,8 @@ bool T21::step() {
 	}
 	auto& i = code[kblib::to_unsigned(pc)];
 	auto old_state = s;
-	log << kblib::concat("instruction type: ", i.data.index(), " [",
-	                     to_string(static_cast<instr::op>(i.data.index())),
-	                     "]\n");
+	log << "instruction type: " << i.data.index()
+		<< " [" << to_string(static_cast<instr::op>(i.data.index())) << "]\n";
 	bool r = kblib::visit_indexed(
 	    std::as_const(i.data),
 	    [&, this](kblib::constant<std::size_t, instr::nop>, seq_instr) {
