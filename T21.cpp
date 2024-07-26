@@ -247,7 +247,7 @@ bool T21::step() {
 		    if (auto r = read(i.src, i.val)) {
 			    log << '(' << +pc << '+' << *r << " -> ";
 			    pc = sat_add(static_cast<word_t>(pc), *r, index_t{},
-			                 static_cast<index_t>(code.size()));
+			                 static_cast<index_t>(code.size() - 1));
 			    log << +pc << ")";
 			    s = activity::run;
 			    return true;
