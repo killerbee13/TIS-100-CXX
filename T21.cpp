@@ -306,6 +306,9 @@ std::optional<word_t> T21::read_(port p) {
 	assert(p >= port::left and p <= port::D6);
 	if (write_port == port::any or write_port == p) {
 		auto r = std::exchange(wrt, word_t{});
+		if (write_port == port::any) {
+			last = p;
+		}
 		// set write port to flag that the write has completed
 		write_port = port::immediate;
 		return r;
