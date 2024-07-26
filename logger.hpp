@@ -158,4 +158,16 @@ auto log_err(Strings&&... strings) -> void {
 	}
 }
 
+auto log_debug(std::invocable<> auto supplier) -> void {
+	if (get_log_level() >= log_level::debug) {
+		detail::log(kblib::concat("DEBUG: ", supplier()));
+	}
+}
+
+auto log_info(std::invocable<> auto supplier) -> void {
+	if (get_log_level() >= log_level::info) {
+		detail::log(kblib::concat("INFO: ", supplier()));
+	}
+}
+
 #endif // LOGGER_HPP
