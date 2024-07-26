@@ -21,7 +21,6 @@
 #include "node.hpp"
 #include "parser.hpp"
 #include "random_levels.hpp"
-#include "tis_random.hpp"
 #include <iostream>
 
 #include <kblib/hash.h>
@@ -94,8 +93,6 @@ score run(field& l, int cycles_limit) {
 
 	return sc;
 }
-
-static_assert(xorshift128_engine(400).next_int(-10, 0) < 0);
 
 template <std::integral T>
 class range_int_constraint : public TCLAP::Constraint<T> {

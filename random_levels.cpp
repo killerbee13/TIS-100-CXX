@@ -21,6 +21,74 @@
 #include "tis_random.hpp"
 #include <kblib/random.h>
 
+static_assert(xorshift128_engine(400).next_int(-10, 0) < 0);
+
+static std::vector<word_t> make_random_array(std::uint32_t seed,
+                                             std::uint32_t size, word_t min,
+                                             word_t max) {
+	xorshift128_engine engine(seed);
+	std::vector<word_t> array(size);
+	std::uint32_t num = 0;
+	while (num < size) {
+		array[num] = static_cast<word_t>(engine.next_int(min, max));
+		num++;
+	}
+	return array;
+}
+static std::vector<word_t> make_random_array(xorshift128_engine& engine,
+                                             std::uint32_t size, word_t min,
+                                             word_t max) {
+	std::vector<word_t> array(size);
+	std::uint32_t num = 0;
+	while (num < size) {
+		array[num] = engine.next_int(min, max);
+		num++;
+	}
+	return array;
+}
+
+static std::vector<word_t> make_composite_array(uint seed, word_t size,
+                                                word_t sublistmin,
+                                                word_t sublistmax,
+                                                word_t valuemin,
+                                                word_t valuemax) {
+	xorshift128_engine engine(seed);
+	std::vector<word_t> list;
+	while (std::cmp_less(list.size(), size)) {
+		int sublistsize = engine.next_int(sublistmin, sublistmax);
+		int i = 0;
+		for (; i < sublistsize; ++i) {
+			list.push_back(engine.next_int(valuemin, valuemax));
+		}
+		list.push_back(0);
+	}
+	if (std::cmp_greater(list.size(), size)) {
+		list.erase(list.begin() + size, list.end());
+	}
+	list.back() = 0;
+	return list;
+}
+static std::vector<word_t> make_composite_array(xorshift128_engine& engine,
+                                                word_t size, word_t sublistmin,
+                                                word_t sublistmax,
+                                                word_t valuemin,
+                                                word_t valuemax) {
+	std::vector<word_t> list;
+	while (std::cmp_less(list.size(), size)) {
+		int sublistsize = engine.next_int(sublistmin, sublistmax);
+		int i = 0;
+		for (; i < sublistsize; ++i) {
+			list.push_back(engine.next_int(valuemin, valuemax));
+		}
+		list.push_back(0);
+	}
+	if (std::cmp_greater(list.size(), size)) {
+		list.erase(list.begin() + size, list.end());
+	}
+	list.back() = 0;
+	return list;
+}
+
 constexpr static word_t image_width = 30;
 constexpr static word_t image_height = 18;
 constexpr static int max_test_length = 39;
@@ -271,7 +339,8 @@ single_test random_test(int id, uint32_t seed) {
 				num5 = engine.next_int(1, image_height - 1 - num3);
 				for (int j = -1; j < num2 + 1; ++j) {
 					for (int k = -1; k < num3 + 1; ++k) {
-						std::size_t index = static_cast<std::size_t>(num4 + j + (num5 + k) * image_width);
+						std::size_t index = static_cast<std::size_t>(
+						    num4 + j + (num5 + k) * image_width);
 						if (ret.i_output.at(index) != 0) {
 							goto IL_0030;
 						}
@@ -284,7 +353,8 @@ single_test random_test(int id, uint32_t seed) {
 			ret.inputs[0].push_back(num3);
 			for (int l = 0; l < num2; ++l) {
 				for (int m = 0; m < num3; ++m) {
-					std::size_t index = static_cast<std::size_t>(num4 + l + (num5 + m) * image_width);
+					std::size_t index = static_cast<std::size_t>(
+					    num4 + l + (num5 + m) * image_width);
 					ret.i_output.at(index) = 3;
 				}
 			}
@@ -301,8 +371,7 @@ single_test random_test(int id, uint32_t seed) {
 				    = std::clamp(static_cast<word_t>(ret.inputs[0][x - 1]
 				                                     + engine.next_int(-2, 3)),
 				                 word_t{1}, word_t{image_height - 1});
-			}
-			else {
+			} else {
 				ret.inputs[0][x] = engine.next_int(3, 14);
 			}
 		}
@@ -555,17 +624,5 @@ single_test random_test(int id, uint32_t seed) {
 	default:
 		throw std::invalid_argument{""};
 	}
-	return ret;
-}
-
-inline auto rng = kblib::seeded<kblib::common_lcgs::rand48>();
-
-std::vector<word_t> random_inputs(word_t low, word_t high,
-                                  std::size_t length = max_test_length) {
-	std::vector<word_t> ret;
-	std::uniform_int_distribution<word_t> i(low, high);
-	auto r = [&] -> word_t { return i(rng); };
-	ret.resize(length);
-	std::ranges::generate(ret, r);
 	return ret;
 }

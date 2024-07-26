@@ -16,4 +16,62 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * ****************************************************************************/
 
-#include "node.hpp"
+#include "image.hpp"
+
+std::error_code extract_comment_from_file(const char* filename,
+                                          std::string& out) {
+	using namespace std::literals;
+	auto pipename
+	    = std::filesystem::temp_directory_path()
+	      / kblib::concat(
+	          kblib::to_string(
+	              std::chrono::system_clock::now().time_since_epoch().count(),
+	              16),
+	          '-', filename);
+	auto status = mkfifo(pipename.c_str(), S_IRUSR | S_IWUSR);
+	if (status) {
+		return pnm::errno_to_error_code();
+	}
+	auto _ = kblib::defer([&] { std::filesystem::remove(pipename); });
+
+	if (auto pid = fork(); pid > 0) {
+		// parent
+		std::ifstream output(pipename);
+		if (not output) {
+			return std::make_error_code(std::errc::io_error);
+		}
+		kblib::get_contents(output, out);
+		if (output) {
+			return {};
+		} else {
+			return std::error_code(std::io_errc::stream);
+		}
+	} else if (pid == 0) {
+		// child
+
+		auto p = pipename.native();
+		char cmd[] = "identify";
+		char format_arg[] = "-format";
+		char format[] = "%[comment]";
+		char* cargs[] = {cmd, format_arg, format, p.data(), nullptr};
+
+		auto [convert_path, ec] = pnm::find_in_path(cmd);
+		if (ec) {
+			std::cerr << "Could not find 'convert'\n";
+			return ec;
+		}
+
+		execv(convert_path.c_str(), cargs);
+		std::cerr << "Exec failure: " << pnm::errno_to_message() << '\n';
+		std::ifstream in(pipename);
+		while (in) {
+			in.ignore(kblib::max);
+		}
+		in.close();
+		abort();
+	} else {
+		// failed to fork()
+		std::cerr << "fork failure: " << pnm::errno_to_message() << '\n';
+		return pnm::errno_to_error_code();
+	}
+}
