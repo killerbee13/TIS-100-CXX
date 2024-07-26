@@ -654,7 +654,9 @@ std::vector<instr> assemble(std::string_view source, int node,
 		kblib::visit2(
 		    i.data,
 		    [&](jmp_instr& j) {
-			    if (std::cmp_greater(j.target, ret.size())) {
+			    if (std::cmp_greater_equal(j.target, ret.size())) {
+				    log_debug("Normalized label ", j.target, "/", ret.size(),
+				              "->0");
 				    j.target = 0;
 			    }
 		    },

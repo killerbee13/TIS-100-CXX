@@ -85,7 +85,7 @@ class field {
 						all_outputs_correct = false;
 					} else {
 // speed up simulator by failing early when an incorrect output is written
-#if not RELEASE
+#if RELEASE
 						if (auto k = i->outputs_received.size();
 						    i->outputs_received[k] != i->outputs_expected[k]) {
 							all_outputs_correct = false;
