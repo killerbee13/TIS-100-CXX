@@ -257,7 +257,7 @@ bool T21::step() {
 			    return s != old_state;
 		    }
 	    });
-	log << "\n\ts = " << state_name(s);
+	log << "\n                    s = " << state_name(s);
 	return r;
 }
 bool T21::finalize() {

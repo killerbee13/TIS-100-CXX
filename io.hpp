@@ -46,9 +46,7 @@ struct input_node : node {
 		return std::exchange(wrt, std::nullopt);
 	}
 	std::string print() const override {
-		std::string ret = kblib::concat("I", x, " NUMERIC {", "}");
-
-		return ret;
+		return kblib::concat("I", x, " NUMERIC { emitted:(", idx, ") }");
 	}
 
 	std::vector<word_t> inputs;
@@ -81,7 +79,7 @@ struct output_node : node {
 		std::ostringstream ret;
 		ret << kblib::concat("O", x, " NUMERIC {\nreceived:");
 		write_list(ret, outputs_received, &outputs_expected, false);
-		ret << "\n}";
+		ret << '}';
 		return std::move(ret).str();
 	}
 	std::vector<word_t> outputs_expected;
