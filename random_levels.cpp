@@ -191,7 +191,6 @@ single_test random_test(int id, uint32_t seed) {
 		ret.n_outputs.resize(1);
 	} break;
 	case "SIGNAL PATTERN DETECTOR"_lvl: {
-		// TODO: wrong
 		xorshift128_engine engine(seed);
 		ret.inputs.push_back(make_random_array(engine, max_test_length, 0, 6));
 		for (std::size_t i = 0; i < 8; ++i) {
@@ -200,9 +199,10 @@ single_test random_test(int id, uint32_t seed) {
 			ret.inputs[0][num + 1] = 0;
 			ret.inputs[0][num + 2] = 0;
 			num = engine.next(0, 35);
-			ret.inputs[0][num] = 0;
+			ret.inputs[0][num] = engine.next_int(1, 6);
 			ret.inputs[0][num + 1] = 0;
-			ret.inputs[0][num + 2] = engine.next_int(1, 6);
+			ret.inputs[0][num + 2] = 0;
+			ret.inputs[0][num + 3] = engine.next_int(1, 6);
 		}
 		ret.n_outputs.push_back(std::vector<word_t>(max_test_length));
 		for (std::size_t j = 0; j < max_test_length; ++j) {
@@ -248,45 +248,44 @@ single_test random_test(int id, uint32_t seed) {
 		ret.n_outputs.resize(1);
 	} break;
 	case "IMAGE TEST PATTERN 1"_lvl: {
-		ret.i_output.reshape(image_width, 18,
+		ret.i_output.reshape(image_width, image_height,
 		                     tis_pixel{tis_pixel::color::C_white});
 	} break;
 	case "IMAGE TEST PATTERN 2"_lvl: {
-		ret.i_output = checkerboard(image_width, 18);
+		ret.i_output = checkerboard(image_width, image_height);
 	} break;
 	case "EXPOSURE MASK VIEWER"_lvl: {
 		xorshift128_engine engine(seed);
 		ret.inputs.resize(1);
-		ret.i_output.reshape(image_width, 18);
+		ret.i_output.reshape(image_width, image_height);
 		for (int i = 0; i < 9; ++i) {
-			std::size_t num2{};
-			std::size_t num3{};
-			std::size_t num4{};
-			std::size_t num5{};
-			while (true) {
+			word_t num2{};
+			word_t num3{};
+			word_t num4{};
+			word_t num5{};
+			{
 			IL_0030:
-				num2 = engine.next(3, 6);
-				num3 = engine.next(3, 6);
-				num4 = engine.next(1, image_width - 1 - num2);
-				num5 = engine.next(1, image_height - 1 - num3);
-				for (int j = -1; std::cmp_less(j, num2); ++j) {
-					for (int k = -1; std::cmp_less(k, num3 + 1); ++k) {
-						if (ret.i_output.at(num4 + j + (num5 + k) * image_width)
-						    != 0) {
+				num2 = engine.next_int(3, 6);
+				num3 = engine.next_int(3, 6);
+				num4 = engine.next_int(1, image_width - 1 - num2);
+				num5 = engine.next_int(1, image_height - 1 - num3);
+				for (int j = -1; j < num2 + 1; ++j) {
+					for (int k = -1; k < num3 + 1; ++k) {
+						std::size_t index = static_cast<std::size_t>(num4 + j + (num5 + k) * image_width);
+						if (ret.i_output.at(index) != 0) {
 							goto IL_0030;
 						}
 					}
 				}
-				break;
 			}
-			ret.inputs[0].push_back(static_cast<word_t>(num4));
-			ret.inputs[0].push_back(static_cast<word_t>(num5));
-			ret.inputs[0].push_back(static_cast<word_t>(num2));
-			ret.inputs[0].push_back(static_cast<word_t>(num3));
-			for (std::size_t l = 0; l < num2; ++l) {
-				for (std::size_t m = 0; m < num3; ++m) {
-					// TODO: wrong image
-					ret.i_output.at(num4 + 1 + (num5 + m) * image_width) = 3;
+			ret.inputs[0].push_back(num4);
+			ret.inputs[0].push_back(num5);
+			ret.inputs[0].push_back(num2);
+			ret.inputs[0].push_back(num3);
+			for (int l = 0; l < num2; ++l) {
+				for (int m = 0; m < num3; ++m) {
+					std::size_t index = static_cast<std::size_t>(num4 + l + (num5 + m) * image_width);
+					ret.i_output.at(index) = 3;
 				}
 			}
 		}
