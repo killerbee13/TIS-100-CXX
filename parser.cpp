@@ -261,20 +261,20 @@ void set_expected(field& f, const single_test& expected) {
 			auto i = static_cast<input_node*>(p);
 			i->inputs = expected.inputs[in_idx++];
 			auto log = log_debug();
-			log << kblib::concat("set expected input I", i->x, ":");
+			log << "set expected input I" << i->x << ":";
 			write_list(log, i->inputs, nullptr, false);
 		} else if (type(p) == node::out) {
 			assert(out_idx < expected.n_outputs.size());
 			auto o = static_cast<output_node*>(p);
 			o->outputs_expected = expected.n_outputs[out_idx++];
 			auto log = log_debug();
-			log << kblib::concat("set expected output O", o->x, ":");
+			log << "set expected output O" << o->x << ":";
 			write_list(log, o->outputs_expected, nullptr, false);
 		} else if (type(p) == node::image) {
 			auto i = static_cast<image_output*>(p);
 			i->image_expected = expected.i_output;
 			auto log = log_debug();
-			log << kblib::concat("set expected image O", i->x, ": {\n");
+			log << "set expected image O" << i->x << ": {\n";
 			i->image_expected.write_text(log);
 			log << '}';
 		}

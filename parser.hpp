@@ -42,7 +42,7 @@ class field {
 				r |= p->step();
 			}
 		}
-		log_debug("step() -> ", r);
+		log_debug("step() -> ", r, '\n');
 		// execute
 		bool f{false};
 		for (auto& p : nodes) {
@@ -50,7 +50,7 @@ class field {
 				f |= p->finalize();
 			}
 		}
-		log_debug("finalize() -> ", f);
+		log_debug("finalize() -> ", f, '\n');
 		return r or f;
 	}
 
@@ -58,8 +58,8 @@ class field {
 		bool r{};
 		bool all_outputs_satisfied{true};
 		bool all_outputs_correct{true};
+		auto log = log_debug();
 		for (auto& p : nodes) {
-			auto log = log_debug();
 			log.log_r(
 			    [&] { return kblib::concat("node(", p->x, ',', p->y, ") "); });
 			if (type(p.get()) == node::T21) {
@@ -110,6 +110,7 @@ class field {
 			} else {
 				log << "inactive";
 			}
+			log << '\n';
 		}
 		if (all_outputs_satisfied or not all_outputs_correct) {
 			return false;

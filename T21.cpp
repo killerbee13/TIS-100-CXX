@@ -75,13 +75,12 @@ bool T21::step() {
 	auto log = log_debug();
 	log << "step(" << x << ',' << y << ',' << +pc << "): ";
 	if (code.empty()) {
+		log << "empty";
 		return false;
 	}
 	auto& i = code[kblib::to_unsigned(pc)];
 	auto old_state = s;
-	log << kblib::concat("instruction type: ", i.data.index(), " [",
-	                     to_string(static_cast<instr::op>(i.data.index())),
-	                     "]\n");
+	log << "instruction type: ";
 	bool r = kblib::visit_indexed(
 	    std::as_const(i.data),
 	    [&, this](kblib::constant<std::size_t, instr::nop>, seq_instr) {
@@ -248,7 +247,7 @@ bool T21::step() {
 		    if (auto r = read(i.src, i.val)) {
 			    log << '(' << +pc << '+' << *r << " -> ";
 			    pc = sat_add(static_cast<word_t>(pc), *r, index_t{},
-			                 static_cast<index_t>(code.size()));
+			                 static_cast<index_t>(code.size() - 1));
 			    log << +pc << ")";
 			    s = activity::run;
 			    return true;
@@ -258,7 +257,7 @@ bool T21::step() {
 			    return s != old_state;
 		    }
 	    });
-	log << "\n\ts = " << state_name(s);
+	log << "\n                    s = " << state_name(s);
 	return r;
 }
 bool T21::finalize() {
@@ -274,7 +273,7 @@ bool T21::finalize() {
 	    },
 	    [this](mov_instr i) {
 		    auto log = log_debug();
-		    log.log("finalize(", x, ',', y, ',', +pc, "): mov ");
+		    log << "finalize(" << x << ',' << y << ',' << +pc << "): mov ";
 		    bool r{};
 		    if (s == activity::write) {
 			    // if write just started
@@ -307,6 +306,9 @@ std::optional<word_t> T21::read_(port p) {
 	assert(p >= port::left and p <= port::D6);
 	if (write_port == port::any or write_port == p) {
 		auto r = std::exchange(wrt, word_t{});
+		if (write_port == port::any) {
+			last = p;
+		}
 		// set write port to flag that the write has completed
 		write_port = port::immediate;
 		return r;
