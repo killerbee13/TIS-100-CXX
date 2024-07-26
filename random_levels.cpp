@@ -291,7 +291,6 @@ single_test random_test(int id, uint32_t seed) {
 		}
 	} break;
 	case "HISTOGRAM VIEWER"_lvl: {
-		// TODO: wrong
 		xorshift128_engine engine(seed);
 		ret.inputs.push_back(std::vector<word_t>(image_width));
 		ret.i_output.reshape(image_width, image_height);
@@ -302,6 +301,9 @@ single_test random_test(int id, uint32_t seed) {
 				    = std::clamp(static_cast<word_t>(ret.inputs[0][x - 1]
 				                                     + engine.next_int(-2, 3)),
 				                 word_t{1}, word_t{image_height - 1});
+			}
+			else {
+				ret.inputs[0][x] = engine.next_int(3, 14);
 			}
 		}
 		for (int y = 0; y < image_height; ++y) {
