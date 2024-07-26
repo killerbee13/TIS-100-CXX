@@ -75,12 +75,12 @@ bool T21::step() {
 	auto log = log_debug();
 	log << "step(" << x << ',' << y << ',' << +pc << "): ";
 	if (code.empty()) {
+		log << "empty";
 		return false;
 	}
 	auto& i = code[kblib::to_unsigned(pc)];
 	auto old_state = s;
-	log << "instruction type: " << i.data.index()
-		<< " [" << to_string(static_cast<instr::op>(i.data.index())) << "]\n";
+	log << "instruction type: ";
 	bool r = kblib::visit_indexed(
 	    std::as_const(i.data),
 	    [&, this](kblib::constant<std::size_t, instr::nop>, seq_instr) {
@@ -273,7 +273,7 @@ bool T21::finalize() {
 	    },
 	    [this](mov_instr i) {
 		    auto log = log_debug();
-		    log.log("finalize(", x, ',', y, ',', +pc, "): mov ");
+		    log << "finalize(" << x << ',' << y << ',' << +pc << "): mov ";
 		    bool r{};
 		    if (s == activity::write) {
 			    // if write just started

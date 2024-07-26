@@ -215,7 +215,6 @@ class logger : public std::ostream {
 
 	~logger() {
 		if (do_log_) {
-			data_.push_back('\n');
 			detail::log(data_);
 		}
 	}
