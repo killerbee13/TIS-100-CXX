@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.9)
 
 if (CMAKE_GENERATOR MATCHES "Ninja")
 file(
@@ -49,6 +49,11 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
 	add_compile_options(-fsanitize=undefined,address)
 	add_link_options(-fsanitize=undefined,address)
 endif()
+
+include(CheckIPOSupported)
+check_ipo_supported()
+
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 
 add_executable(TIS-100-CXX main.cpp parser.hpp node.hpp T21.hpp T30.hpp io.hpp
 	parser.cpp builtin_levels.hpp image.cpp image.hpp T21.cpp logger.hpp
