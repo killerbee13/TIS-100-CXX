@@ -30,12 +30,6 @@
 #define TCLAP_SETBASE_ZERO 1
 #include <tclap/CmdLine.h>
 
-#if NDEBUG
-#	define RELEASE 1
-#else
-#	define RELEASE 0
-#endif
-
 using namespace std::literals;
 
 score run(field& l, int cycles_limit) {

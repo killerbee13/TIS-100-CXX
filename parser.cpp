@@ -648,6 +648,18 @@ std::vector<instr> assemble(std::string_view source, int node,
 			break;
 		}
 	}
+
+	// normalize labels at the end of the code
+	for (auto& i : ret) {
+		kblib::visit2(
+		    i.data,
+		    [&](jmp_instr& j) {
+			    if (std::cmp_greater(j.target, ret.size())) {
+				    j.target = 0;
+			    }
+		    },
+		    [](auto&) {});
+	}
 	return ret;
 }
 

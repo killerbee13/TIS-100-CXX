@@ -21,6 +21,12 @@
 #include "image.hpp"
 #include "logger.hpp"
 
+#if NDEBUG
+#	define RELEASE 1
+#else
+#	define RELEASE 0
+#endif
+
 #include <array>
 #include <cstdint>
 #include <vector>
