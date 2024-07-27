@@ -284,7 +284,7 @@ constexpr std::array<level_layout1, 51> gen_layouts() {
 )";
 		for (auto& l : layouts) {
 			out << "\t{" << std::quoted(l.segment) << ", " << std::quoted(l.name)
-			    << ", ";
+			    << ",\n\t\t";
 			out << parse_layout_guess(l.layout, def_T30_size).machine_layout()
 			    << "},\n";
 		}

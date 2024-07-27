@@ -320,6 +320,7 @@ std::optional<word_t> T21::read_(port p) {
 std::string T21::print() const {
 	return kblib::concat('(', x, ',', y, ") T21 { ", acc, " (", bak, ") ",
 	                     port_name(last), ' ', state_name(s), ' ', pc, " [",
-	                     code.empty() ? "" : to_string(code[pc]), "] ", wrt,
-	                     "->", port_name(write_port), " }");
+	                     code.empty() ? ""
+	                                  : to_string(code[kblib::to_unsigned(pc)]),
+	                     "] ", wrt, "->", port_name(write_port), " }");
 }

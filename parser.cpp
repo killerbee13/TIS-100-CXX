@@ -56,8 +56,8 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 
 	width = 4;
 	io_node_offset = 12;
-	for (std::size_t y = 0; y != 3; ++y) {
-		for (std::size_t x = 0; x != 4; ++x) {
+	for (const auto y : kblib::range(3u)) {
+		for (const auto x : kblib::range(4u)) {
 			switch (spec.nodes[y][x]) {
 			case node::T21:
 				nodes.push_back(std::make_unique<T21>(x, y));
@@ -81,8 +81,8 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 			}
 		}
 	}
-	for (const auto y : kblib::range(3)) {
-		for (const auto x : kblib::range(4)) {
+	for (const auto y : kblib::range(3u)) {
+		for (const auto x : kblib::range(4u)) {
 			if (auto p = node_by_location(x, y); valid(p)) {
 				// safe because node_by_location returns nullptr on OOB
 				p->neighbors[left] = node_by_location(x - 1, y);
@@ -93,12 +93,12 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 		}
 	}
 
-	for (std::size_t x = 0; x != 4; ++x) {
+	for (const auto x : kblib::range(4u)) {
 		auto in = spec.io[0][x];
 		switch (in.type) {
 		case node::in: {
-			auto p = do_insert<input_node>(nodes, x);
-			auto n = node_by_location(static_cast<std::size_t>(x), 0);
+			auto p = do_insert<input_node>(nodes, kblib::to_signed(x));
+			auto n = node_by_location(x, 0);
 			assert(valid(n));
 			p->neighbors[down] = n;
 			n->neighbors[up] = p;
@@ -113,12 +113,12 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 		}
 	}
 
-	for (int x = 0; x != 4; ++x) {
+	for (const auto x : kblib::range(4u)) {
 		auto in = spec.io[1][x];
 		switch (in.type) {
 		case node::out: {
-			auto p = do_insert<output_node>(nodes, x);
-			auto n = node_by_location(static_cast<std::size_t>(x), 2);
+			auto p = do_insert<output_node>(nodes, kblib::to_signed(x));
+			auto n = node_by_location(x, 2);
 			assert(valid(n));
 			p->neighbors[up] = n;
 			n->neighbors[down] = p;
@@ -130,8 +130,8 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 			}
 		} break;
 		case node::image: {
-			auto p = do_insert<image_output>(nodes, x);
-			auto n = node_by_location(static_cast<std::size_t>(x), 2);
+			auto p = do_insert<image_output>(nodes, kblib::to_signed(x));
+			auto n = node_by_location(x, 2);
 			assert(valid(n));
 			p->neighbors[up] = n;
 			n->neighbors[down] = p;
@@ -831,14 +831,14 @@ std::string field::machine_layout() const {
 	{
 		auto it = begin();
 		for (auto y = 0; y != 3; ++y) {
-			ret << "\t\t{";
+			ret << "\t\t\t{";
 			for (auto x = 0; x != 4; ++x, ++it) {
 				ret << type_name(type(it->get())) << ", ";
 			}
 			ret << "},\n";
 		}
 	}
-	ret << "\t}}, .io = {{\n";
+	ret << "\t\t}}, .io = {{\n";
 	std::array<std::array<builtin_layout_spec::io_node_spec, 4>, 2> io;
 	for (auto it = end_regular(); it != end(); ++it) {
 		auto n = it->get();
@@ -853,16 +853,18 @@ std::string field::machine_layout() const {
 		}
 	}
 	for (auto t : io) {
-		ret << "\t\t{{\n";
+		ret << "\t\t\t{{";
 		for (auto n : t) {
-			ret << "\t\t\t{.type = " << type_name(n.type);
+			ret << "{" << type_name(n.type);
 			if (n.image_size) {
-				ret << ", .image_size = {{" << n.image_size.value().first << ", "
+				ret << ", {{" << n.image_size.value().first << ", "
 				    << n.image_size.value().second << "}}";
+			} else {
+				ret << ", {}";
 			}
-			ret << "},\n";
+			ret << "}, ";
 		}
-		ret << "\t\t}},\n";
+		ret << "}},\n";
 	}
 	ret << "\t}}}";
 	return std::move(ret).str();
