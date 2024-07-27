@@ -564,22 +564,22 @@ std::vector<instr> assemble(std::string_view source, int node,
 				const auto& tok = tokens[j];
 				if (tok.empty()) {
 					continue; // ?
-				} else if (tok.contains(':')) {
-					std::string tmp;
-					for (auto c : tok) {
-						if (c == ':') {
-							if (tmp.empty()) {
-								throw std::invalid_argument{""};
-							}
-							push_label(tmp, l, labels);
-							tmp.clear();
-						} else if (not " \t"sv.contains(c)) {
-							tmp.push_back(c);
-						} else {
-							break;
+				}
+				std::string tmp;
+				for (auto c : tok) {
+					if (c == ':') {
+						if (tmp.empty()) {
+							throw std::invalid_argument{""};
 						}
+						push_label(tmp, l, labels);
+						tmp.clear();
+					} else if (not " \t"sv.contains(c)) {
+						tmp.push_back(c);
+					} else {
+						break;
 					}
-				} else {
+				}
+				if (not tmp.empty()) {
 					++l;
 					break;
 				}

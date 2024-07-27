@@ -158,7 +158,7 @@ int main(int argc, char** argv) try {
 	TCLAP::ValueArg<int> random("r", "random", "Random tests to run", false, 0,
 	                            "integer", cmd);
 	TCLAP::ValueArg<std::uint32_t> seed_arg(
-	    "", "seed", "Seed to use for random tests", false, 0, "32-bit integer");
+	    "", "seed", "Seed to use for random tests", false, 0, "32-bit integer", cmd);
 	TCLAP::ValueArg<int> cycles_limit(
 	    "", "limit", "Number of cycles to run test for before timeout", false,
 	    10'000, "integer", cmd);
