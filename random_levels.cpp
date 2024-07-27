@@ -393,12 +393,12 @@ single_test random_test(int id, uint32_t seed) {
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 10, 100));
 		ret.n_outputs.resize(2);
 		for (std::size_t idx = 0; idx < max_test_length; ++idx) {
-			word_t t = ret.inputs[0][idx]
-			           + ((idx >= 1) ? ret.inputs[0][idx - 1] : 0)
-			           + ((idx >= 2) ? ret.inputs[0][idx - 2] : 0);
+			word_t t = ret.inputs[0][idx];
+			t += ((idx >= 1) ? ret.inputs[0][idx - 1] : word_t{});
+			t += ((idx >= 2) ? ret.inputs[0][idx - 2] : word_t{});
 			ret.n_outputs[0].push_back(t);
-			t += ((idx >= 3) ? ret.inputs[0][idx - 3] : 0)
-			     + ((idx >= 4) ? ret.inputs[0][idx - 4] : 0);
+			t += ((idx >= 3) ? ret.inputs[0][idx - 3] : word_t{});
+			t += ((idx >= 4) ? ret.inputs[0][idx - 4] : word_t{});
 			ret.n_outputs[1].push_back(t);
 		}
 	} break;
@@ -465,8 +465,8 @@ single_test random_test(int id, uint32_t seed) {
 			}
 		}
 		for (std::size_t j = 0; j < max_test_length; ++j) {
-			ret.inputs[0][j]
-			    = ret.n_outputs[0][j] * 25 + 12 + engine.next_int(-6, 7);
+			ret.inputs[0][j] = static_cast<word_t>(
+				ret.n_outputs[0][j] * 25 + 12 + engine.next_int(-6, 7));
 		}
 		ret.n_outputs[0].back() = -1;
 		ret.inputs[0].back() = -1;
