@@ -190,6 +190,10 @@ int main(int argc, char** argv) try {
 	                           "Enable colors in the log. (Defaults on if -c is "
 	                           "set and STDERR is a tty.)");
 
+	TCLAP::ValueArg<std::string> write_machine_layout(
+	    "", "write-layouts", "write the C++-parsable layouts to [filename]",
+	    false, "", "filename", cmd);
+
 	cmd.parse(argc, argv);
 	use_color = color.getValue();
 
@@ -220,13 +224,12 @@ int main(int argc, char** argv) try {
 	field f = [&] {
 		if (id_arg.isSet()) {
 			id = level_id(id_arg.getValue());
-			return parse_layout_guess(layouts[static_cast<std::size_t>(id)].layout,
-			                          T30_size.getValue());
+			return field(layouts1.at(static_cast<std::size_t>(id)).layout,
+			             T30_size.getValue());
 		} else if (level_num.isSet()) {
 			id = level_num.getValue();
-			return parse_layout_guess(
-			    layouts.at(static_cast<std::size_t>(id)).layout,
-			    T30_size.getValue());
+			return field(layouts1.at(static_cast<std::size_t>(id)).layout,
+			             T30_size.getValue());
 		} else if (layout_s.isSet()) {
 			id = -1;
 			return parse_layout_guess(layout_s.getValue(), T30_size.getValue());
@@ -251,6 +254,49 @@ int main(int argc, char** argv) try {
 		}
 	}
 
+	if (write_machine_layout.isSet()) {
+		std::ofstream out(write_machine_layout.getValue());
+
+		out << R"(#ifndef LAYOUTSPECS_HPP
+#define LAYOUTSPECS_HPP
+
+#include "node.hpp"
+
+struct builtin_layout_spec {
+	struct io_node_spec {
+		node::type_t type;
+		std::optional<std::pair<word_t, word_t>> image_size;
+	};
+
+	std::array<std::array<node::type_t, 4>, 3> nodes;
+	std::array<std::array<io_node_spec, 4>, 2> io;
+};
+
+struct level_layout1 {
+	std::string_view segment;
+	std::string_view name;
+	builtin_layout_spec layout;
+};
+
+constexpr std::array<level_layout1, 51> gen_layouts() {
+	using enum node::type_t;
+	return {{
+)";
+		for (auto& l : layouts) {
+			out << "\t{" << std::quoted(l.segment) << ", " << std::quoted(l.name)
+			    << ", ";
+			out << parse_layout_guess(l.layout, def_T30_size).machine_layout()
+			    << "},\n";
+		}
+		out << R"(}};
+}
+
+inline constexpr auto layouts1 = gen_layouts();
+
+#endif
+)";
+	}
+
 	std::uint32_t seed;
 	if (random.getValue() > 0) {
 		if (seed_arg.isSet()) {
@@ -260,6 +306,8 @@ int main(int argc, char** argv) try {
 			log_info("random seed: ", seed);
 		}
 	}
+
+	log_debug_r([&] { return f.layout(); });
 
 	score sc;
 	if (fixed.getValue()) {
@@ -389,7 +437,7 @@ int generate(std::uint32_t seed) {
 		log_flush();
 		std::ofstream layout_f(copy(base_path).concat(".tiscfg"),
 		                       std::ios_base::trunc);
-		auto l = parse(lvl.layout, "", "");
+		auto l = parse_layout_guess(lvl.layout, def_T30_size);
 		std::string layout;
 		kblib::search_replace_copy(l.layout(), "@"s,
 		                           std::string(lvl.segment) + "@",

@@ -20,7 +20,6 @@
 
 #include "T30.hpp"
 #include "parser.hpp"
-#include "random_levels.hpp"
 
 #include <array>
 #include <string_view>
@@ -159,7 +158,8 @@ inline image_t checkerboard(std::ptrdiff_t w, std::ptrdiff_t h) {
 
 inline bool check_achievement(int id, const field& solve, score sc) {
 	auto log = log_debug();
-	log << "check_achievement " << layouts[id].name << ": ";
+	log << "check_achievement " << layouts[static_cast<std::size_t>(id)].name
+	    << ": ";
 	// SELF-TEST DIAGNOSTIC
 	if (id == "00150"_lvl) {
 		// BUSY_LOOP

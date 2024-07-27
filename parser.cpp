@@ -19,6 +19,7 @@
 #include "parser.hpp"
 #include "T21.hpp"
 #include "T30.hpp"
+#include "builtin_levels.hpp"
 #include "io.hpp"
 
 #include <kblib/convert.h>
@@ -38,6 +39,116 @@ Node* do_insert(std::vector<std::unique_ptr<node>>& v, int x) {
 	auto p = _.get();
 	v.emplace_back(std::move(_));
 	return p;
+}
+
+field::field(builtin_layout_spec spec, std::size_t T30_size) {
+	nodes.reserve([&] {
+		std::size_t r = 12;
+		for (auto t : spec.io) {
+			for (auto i : t) {
+				if (i.type != node::null) {
+					++r;
+				}
+			}
+		}
+		return r;
+	}());
+
+	width = 4;
+	io_node_offset = 12;
+	for (std::size_t y = 0; y != 3; ++y) {
+		for (std::size_t x = 0; x != 4; ++x) {
+			switch (spec.nodes[y][x]) {
+			case node::T21:
+				nodes.push_back(std::make_unique<T21>(x, y));
+				break;
+			case node::T30: {
+				auto p = std::make_unique<T30>(x, y);
+				p->max_size = T30_size;
+				nodes.push_back(std::move(p));
+			} break;
+			case node::Damaged:
+				nodes.push_back(std::make_unique<damaged>(x, y));
+				break;
+			case node::in:
+			case node::out:
+			case node::image:
+				throw std::invalid_argument{
+				    "invalid layout spec: IO node as regular node"};
+			case node::null:
+				throw std::invalid_argument{
+				    "invalid layout spec: null node as regular node"};
+			}
+		}
+	}
+	for (const auto y : kblib::range(3)) {
+		for (const auto x : kblib::range(4)) {
+			if (auto p = node_by_location(x, y); valid(p)) {
+				// safe because node_by_location returns nullptr on OOB
+				p->neighbors[left] = node_by_location(x - 1, y);
+				p->neighbors[right] = node_by_location(x + 1, y);
+				p->neighbors[up] = node_by_location(x, y - 1);
+				p->neighbors[down] = node_by_location(x, y + 1);
+			}
+		}
+	}
+
+	for (std::size_t x = 0; x != 4; ++x) {
+		auto in = spec.io[0][x];
+		switch (in.type) {
+		case node::in: {
+			auto p = do_insert<input_node>(nodes, x);
+			auto n = node_by_location(static_cast<std::size_t>(x), 0);
+			assert(valid(n));
+			p->neighbors[down] = n;
+			n->neighbors[up] = p;
+			p->filename = kblib::concat('@', x);
+			p->io_type = numeric;
+		} break;
+		case node::null:
+			// pass
+			break;
+		default:
+			throw std::invalid_argument{"invalid layout spec: illegal input node"};
+		}
+	}
+
+	for (int x = 0; x != 4; ++x) {
+		auto in = spec.io[1][x];
+		switch (in.type) {
+		case node::out: {
+			auto p = do_insert<output_node>(nodes, x);
+			auto n = node_by_location(static_cast<std::size_t>(x), 2);
+			assert(valid(n));
+			p->neighbors[up] = n;
+			n->neighbors[down] = p;
+			p->io_type = numeric;
+			p->filename = kblib::concat('@', 4 + x);
+			if (in.image_size) {
+				throw std::invalid_argument{"invalid layout spec: image size "
+				                            "specified for numeric output node"};
+			}
+		} break;
+		case node::image: {
+			auto p = do_insert<image_output>(nodes, x);
+			auto n = node_by_location(static_cast<std::size_t>(x), 2);
+			assert(valid(n));
+			p->neighbors[up] = n;
+			n->neighbors[down] = p;
+			p->filename = kblib::concat('@', 4 + x);
+			if (not in.image_size) {
+				throw std::invalid_argument{
+				    "invalid layout spec: no size specified for image"};
+			}
+			p->reshape(in.image_size.value().first, in.image_size.value().second);
+		} break;
+		case node::null:
+			// pass
+			break;
+		default:
+			throw std::invalid_argument{"invalid layout spec: illegal input node"};
+		}
+	}
 }
 
 template <bool use_nonstandard_rep>
@@ -233,19 +344,6 @@ void parse_code(field& f, std::string_view source, std::size_t T21_size) {
 	}
 }
 
-field parse(std::string_view layout, std::string_view source,
-            std::string_view expected, std::size_t T21_size,
-            std::size_t T30_size) {
-	field ret = parse_layout_guess(layout, T30_size);
-	log_debug_r([&] { return ret.layout(); });
-	log_debug(ret.nodes_avail(), " programmable nodes");
-	parse_code(ret, source, T21_size);
-
-	// parse expected
-	std::abort();
-	return ret;
-}
-
 void set_expected(field& f, const single_test& expected) {
 	auto it = f.begin();
 	std::size_t in_idx{};
@@ -279,16 +377,6 @@ void set_expected(field& f, const single_test& expected) {
 			log << '}';
 		}
 	}
-}
-field parse(std::string_view layout, std::string_view source,
-            const single_test& expected, std::size_t T21_size,
-            std::size_t T30_size) {
-	field ret = parse_layout_guess(layout, T30_size);
-	log_debug(ret.layout());
-	log_debug(ret.nodes_avail(), " programmable nodes");
-	parse_code(ret, source, T21_size);
-	set_expected(ret, expected);
-	return ret;
 }
 
 std::string to_string(port p) {
@@ -720,4 +808,87 @@ std::string field::layout() const {
 	}
 
 	return ret;
+}
+
+constexpr std::string type_name(node::type_t t) {
+	switch (t) {
+	case node::T21:
+		return "T21";
+	case node::T30:
+		return "T30";
+	case node::in:
+		return "in";
+	case node::out:
+		return "out";
+	case node::image:
+		return "image";
+	case node::Damaged:
+		return "Damaged";
+	default:
+		return "null";
+		break;
+	}
+}
+
+std::string field::machine_layout() const {
+	std::ostringstream ret;
+	ret << "{.nodes = {{\n";
+	{
+		auto it = begin();
+		for (auto y = 0; y != 3; ++y) {
+			ret << "\t\t{";
+			for (auto x = 0; x != 4; ++x, ++it) {
+				ret << type_name(type(it->get())) << ", ";
+			}
+			ret << "},\n";
+		}
+	}
+	ret << "\t}}, .io = {{\n";
+	std::array<std::array<builtin_layout_spec::io_node_spec, 4>, 2> io;
+	for (auto it = end_regular(); it != end(); ++it) {
+		auto n = it->get();
+		if (type(n) == node::in) {
+			io[0][static_cast<std::size_t>(n->x)].type = node::in;
+		} else if (type(n) == node::out) {
+			io[1][static_cast<std::size_t>(n->x)].type = node::out;
+		} else if (auto p = dynamic_cast<image_output*>(n)) {
+			io[1][static_cast<std::size_t>(p->x)].type = node::image;
+			io[1][static_cast<std::size_t>(p->x)].image_size
+			    = {p->width, p->height};
+		}
+	}
+	for (auto t : io) {
+		ret << "\t\t{{\n";
+		for (auto n : t) {
+			ret << "\t\t\t{.type = " << type_name(n.type);
+			if (n.image_size) {
+				ret << ", .image_size = {{" << n.image_size.value().first << ", "
+				    << n.image_size.value().second << "}}";
+			}
+			ret << "},\n";
+		}
+		ret << "\t\t}},\n";
+	}
+	ret << "\t}}}";
+	return std::move(ret).str();
+
+	using enum node::type_t;
+	[[maybe_unused]] builtin_layout_spec s = //
+	    {.nodes = {{
+	         {T21, T21, T21, T21},
+	         {T21, T21, T21, T21},
+	         {T21, T21, T21, T21},
+	     }},
+	     .io = {{{{
+	                 {.type = null},
+	                 {.type = in},
+	                 {.type = in},
+	                 {.type = null},
+	             }},
+	             {{
+	                 {.type = out},
+	                 {.type = image, .image_size = {{30, 18}}},
+	                 {.type = null},
+	                 {.type = null},
+	             }}}}};
 }

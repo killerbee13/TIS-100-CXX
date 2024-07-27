@@ -20,6 +20,7 @@
 
 #include "T21.hpp"
 #include "io.hpp"
+#include "layoutspecs.hpp"
 #include "logger.hpp"
 #include "node.hpp"
 
@@ -33,6 +34,9 @@ class field {
 	using const_iterator = data_t::const_iterator;
 
  public:
+	field() = default;
+	field(builtin_layout_spec spec, std::size_t T30_size = def_T30_size);
+
 	bool step() {
 		// set up next step's IO
 		// this is a separate step to ensure a consistent propagation delay
@@ -144,6 +148,7 @@ class field {
 	}
 
 	std::string layout() const;
+	std::string machine_layout() const;
 
 	// returns the node at the (x,y) coordinates
 	node* node_by_location(std::size_t x, std::size_t y) {
@@ -211,13 +216,6 @@ class field {
 	std::size_t io_node_offset{};
 };
 
-field parse(std::string_view layout, std::string_view source,
-            std::string_view expected, std::size_t T21_size = def_T21_size,
-            std::size_t T30_size = def_T30_size);
-
-field parse(std::string_view layout, std::string_view source,
-            const single_test& expected, std::size_t T21_size = def_T21_size,
-            std::size_t T30_size = def_T30_size);
 field parse_layout_guess(std::string_view layout, std::size_t T30_size);
 
 std::vector<instr> assemble(std::string_view source, int node,

@@ -89,7 +89,7 @@ constexpr port invert(port p) {
 
 struct node {
  public:
-	enum type_t { T21 = 1, T30, in, out, image, Damaged = -1 };
+	enum type_t { T21 = 1, T30, in, out, image, Damaged = -1, null = -2 };
 
 	constexpr static std::string_view port_name(port p) {
 		switch (p) {
