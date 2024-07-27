@@ -156,6 +156,8 @@ auto log_err(Strings&&... strings) -> void {
 	}
 }
 
+// Only these are provided because higher priority log messages are rare enough
+// not to impact performance
 auto log_debug_r(std::invocable<> auto supplier) -> void {
 	if (get_log_level() >= log_level::debug) {
 		detail::log(kblib::concat("DEBUG: ", supplier()));
@@ -199,8 +201,15 @@ class logger : public std::ostream {
 	    : std::ostream(&buf_)
 	    , data_(std::move(prefix))
 	    , do_log_(do_log)
-	    , buf_((do_log) ? &data_ : nullptr)
-	    , prefix_len_(data_.size()) {}
+	    , buf_((do_log) ? &data_ : nullptr) {}
+	logger(const logger& o)
+	    : data_(o.data_)
+	    , do_log_(o.do_log_)
+	    , buf_(o.buf_) {}
+	logger(logger&& o)
+	    : data_(std::move(o.data_))
+	    , do_log_(o.do_log_)
+	    , buf_(std::move(o.buf_)) {}
 
 	auto log_r(std::invocable<> auto supplier) -> void {
 		if (do_log_) {
@@ -219,33 +228,39 @@ class logger : public std::ostream {
 		}
 	}
 
+	// std::ostreams are expensive to construct from scratch, so copy a null one
+	// instead
+	static const logger null_log;
+
  private:
 	std::string data_;
 	bool do_log_;
 	stringrefbuf buf_;
-	// stores the length of the prefix, so that the logger can start a new line
-	// after finalizing
-	std::size_t prefix_len_;
 };
 
 inline auto log_debug() {
-	return logger("DEBUG: ", get_log_level() >= log_level::debug);
+	return (get_log_level() >= log_level::debug) ? logger("DEBUG: ", true)
+	                                             : logger::null_log;
 }
 
 inline auto log_info() {
-	return logger("INFO: ", get_log_level() >= log_level::info);
+	return (get_log_level() >= log_level::info) ? logger("INFO: ", true)
+	                                            : logger::null_log;
 }
 
 inline auto log_notice() {
-	return logger("INFO: ", get_log_level() >= log_level::notice);
+	return (get_log_level() >= log_level::notice) ? logger("INFO: ", true)
+	                                              : logger::null_log;
 }
 
 inline auto log_warn() {
-	return logger("WARNING: ", get_log_level() >= log_level::warn);
+	return (get_log_level() >= log_level::warn) ? logger("WARNING: ", true)
+	                                            : logger::null_log;
 }
 
 inline auto log_err() {
-	return logger("ERROR: ", get_log_level() >= log_level::err);
+	return (get_log_level() >= log_level::err) ? logger("ERROR: ", true)
+	                                           : logger::null_log;
 }
 
 #endif // LOGGER_HPP

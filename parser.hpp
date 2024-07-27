@@ -37,9 +37,10 @@ class field {
 	field() = default;
 	field(builtin_layout_spec spec, std::size_t T30_size = def_T30_size);
 
+	/// Advance the field one full cycle (step and finalize), returning true if
+	/// any work done
 	bool step() {
-		// set up next step's IO
-		// this is a separate step to ensure a consistent propagation delay
+		// evaluate code
 		bool r{false};
 		for (auto& p : nodes) {
 			if (p) {
@@ -47,7 +48,8 @@ class field {
 			}
 		}
 		log_debug("step() -> ", r, '\n');
-		// execute
+		// execute writes
+		// this is a separate step to ensure a consistent propagation delay
 		bool f{false};
 		for (auto& p : nodes) {
 			if (p) {
@@ -122,6 +124,8 @@ class field {
 		return r;
 	}
 
+	/// Write the full state of all nodes, similar to what the game displays in
+	/// its debugger but in linear order
 	std::string state() {
 		std::string ret;
 		for (auto& n : nodes) {
@@ -131,10 +135,16 @@ class field {
 		return ret;
 	}
 
+	// Scoring functions
 	std::size_t instructions() const;
 	std::size_t nodes_used() const;
+
+	// Number of T21 nodes for node_by_index
 	std::size_t nodes_avail() const;
+	// Number of regular (grid) nodes
 	std::size_t nodes_total() const { return io_node_offset; }
+	// Whether there are any input nodes attached to the field. Image test
+	// pattern levels do not use inputs so only need a single test run.
 	bool has_inputs() const {
 		for (auto it = begin() + static_cast<std::ptrdiff_t>(nodes_total());
 		     it != end(); ++it) {
@@ -147,7 +157,9 @@ class field {
 		return false;
 	}
 
+	/// Serialize layout as read by parse_layout
 	std::string layout() const;
+	/// Serialize layout as a C++ builtin_layout_spec initializer
 	std::string machine_layout() const;
 
 	// returns the node at the (x,y) coordinates
@@ -198,6 +210,7 @@ class field {
 	friend field parse_layout(std::string_view layout, std::size_t T30_size);
 
 	const_iterator begin() const noexcept { return nodes.begin(); }
+	// Partition between regular and IO nodes
 	const_iterator end_regular() const noexcept {
 		return nodes.begin() + static_cast<std::ptrdiff_t>(io_node_offset);
 	}
@@ -216,11 +229,14 @@ class field {
 	std::size_t io_node_offset{};
 };
 
+/// Parse a layout string, guessing whether to use BSMC or CSMD
 field parse_layout_guess(std::string_view layout, std::size_t T30_size);
-
+/// Assemble a single node's code
 std::vector<instr> assemble(std::string_view source, int node,
                             std::size_t T21_size = def_T21_size);
+/// Read a TIS-100-compatible save file
 void parse_code(field& f, std::string_view source, std::size_t T21_size);
+/// Configure the field with a test case
 void set_expected(field& f, const single_test& expected);
 
 struct score {

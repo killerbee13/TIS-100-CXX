@@ -43,3 +43,5 @@ auto log(std::string_view str) -> void {
 }
 
 } // namespace detail
+
+const logger logger::null_log{{}, false};

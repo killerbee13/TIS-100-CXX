@@ -33,6 +33,7 @@ struct arith_instr {
 	port src{};
 	word_t val;
 };
+// Note that label names are not stored
 struct jmp_instr {
 	index_t target;
 };
@@ -44,12 +45,13 @@ struct jro_instr {
 struct T21;
 
 struct instr {
+	// HCF as opcode 0 makes crashes more likely on OOB code reads
 	enum op {
+		hcf,
 		nop,
 		swp,
 		sav,
-		neg,
-		hcf, // 5
+		neg, // 5
 		mov, // 1
 		add,
 		sub, // 2
@@ -72,6 +74,8 @@ struct instr {
 };
 constexpr std::string to_string(instr::op o) {
 	switch (o) {
+	case instr::hcf:
+		return "HCF";
 	case instr::nop:
 		return "NOP";
 	case instr::swp:
@@ -80,8 +84,6 @@ constexpr std::string to_string(instr::op o) {
 		return "SAV";
 	case instr::neg:
 		return "NEG";
-	case instr::hcf:
-		return "HCF";
 	case instr::mov:
 		return "MOV";
 	case instr::add:
@@ -133,7 +135,11 @@ struct T21 : node {
 	activity s{activity::idle};
 
  private:
+	/// Increment the program counter, wrapping to beginning.
 	void next();
+	/// Attempt to read a value from this node's port p, which may be
+	/// any, last, or immediate, unlike the general do_read and read_
+	/// functions
 	std::optional<word_t> read(port p, word_t imm = 0);
 };
 

@@ -207,14 +207,14 @@ class image {
 	    , data(kblib::to_unsigned(width * height)) {
 		assert(width >= 0 and height >= 0);
 	}
-	image(std::ptrdiff_t width, std::ptrdiff_t height,
+	image(std::ptrdiff_t width, [[maybe_unused]] std::ptrdiff_t height,
 	      std::initializer_list<pixel> contents)
 	    : width_(width)
 	    , data(contents) {
 		assert(width >= 0 and height >= 0);
 		assert(std::cmp_equal(contents.size(), width * height));
 	}
-	image(std::ptrdiff_t width, std::ptrdiff_t height,
+	image(std::ptrdiff_t width, [[maybe_unused]] std::ptrdiff_t height,
 	      std::vector<pixel> contents)
 	    : width_(width)
 	    , data(std::move(contents)) {
@@ -222,6 +222,7 @@ class image {
 		assert(std::cmp_equal(contents.size(), width * height));
 	}
 
+	// Not called resize to emphasize that image geometry is not preserved
 	constexpr void reshape(std::ptrdiff_t w, std::ptrdiff_t h) {
 		if (w < 0 or h < 0) {
 			throw std::invalid_argument{
@@ -438,6 +439,6 @@ std::error_code finalize_to_png(const image<pixel>& img,
 } // namespace pnm
 
 std::error_code extract_comment_from_file(const char* filename,
-                                                 std::string& out);
+                                          std::string& out);
 
 #endif // IMAGE_HPP

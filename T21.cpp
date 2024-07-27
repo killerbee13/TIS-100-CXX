@@ -83,6 +83,12 @@ bool T21::step() {
 	log << "instruction type: ";
 	bool r = kblib::visit_indexed(
 	    std::as_const(i.data),
+	    [&](kblib::constant<std::size_t, instr::hcf>, seq_instr) {
+		    log << "hcf";
+		    log << "\n\ts = " << state_name(s);
+		    throw std::runtime_error{"HCF"};
+		    return true;
+	    },
 	    [&, this](kblib::constant<std::size_t, instr::nop>, seq_instr) {
 		    log << "nop";
 		    next();
@@ -108,12 +114,6 @@ bool T21::step() {
 		    acc = -acc;
 		    s = activity::run;
 		    next();
-		    return true;
-	    },
-	    [&](kblib::constant<std::size_t, instr::hcf>, seq_instr) {
-		    log << "hcf";
-		    log << "\n\ts = " << state_name(s);
-		    throw std::runtime_error{"HCF"};
 		    return true;
 	    },
 	    [&, this](kblib::constant<std::size_t, instr::mov>, mov_instr i) {

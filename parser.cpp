@@ -446,7 +446,9 @@ std::string to_string(instr i) {
 
 instr::op parse_op(std::string_view str) {
 	using enum instr::op;
-	if (str == "NOP") {
+	if (str == "HCF") {
+		return hcf;
+	} else if (str == "NOP") {
 		return nop;
 	} else if (str == "SWP") {
 		return swp;
@@ -454,8 +456,6 @@ instr::op parse_op(std::string_view str) {
 		return sav;
 	} else if (str == "NEG") {
 		return neg;
-	} else if (str == "HCF") {
-		return hcf;
 	} else if (str == "MOV") {
 		return mov;
 	} else if (str == "ADD") {
@@ -480,6 +480,8 @@ instr::op parse_op(std::string_view str) {
 	}
 }
 
+// This is a bit more lax than the game, in accepting L, R, U, and D
+// abbreviations
 port parse_port(std::string_view str) {
 	if (str == "LEFT" or str == "L") {
 		return left;
@@ -498,7 +500,8 @@ port parse_port(std::string_view str) {
 	} else if (str == "LAST") {
 		return last;
 	} else {
-		throw std::invalid_argument{""};
+		throw std::invalid_argument{kblib::quoted(str)
+		                            + " is not a valid port name"};
 	}
 }
 
@@ -530,15 +533,15 @@ void push_label(std::string_view lab, int l,
 }
 
 index_t parse_label(
-    const std::vector<std::string> tokens, std::size_t j,
+    std::string_view label,
     const std::vector<std::pair<std::string, index_t>>& labels) {
-	assert(j < tokens.size());
 	for (const auto& lab : labels) {
-		if (lab.first == tokens[j]) {
+		if (lab.first == label) {
 			return lab.second;
 		}
 	}
-	throw std::invalid_argument{""};
+	throw std::invalid_argument{
+	    kblib::concat("Label ", kblib::quoted(label), " used but not defined")};
 }
 
 std::vector<instr> assemble(std::string_view source, int node,
@@ -584,35 +587,20 @@ std::vector<instr> assemble(std::string_view source, int node,
 		}
 	}
 
-	/*std::cerr << "labels: ";
-	for (auto l : labels) {
-	   std::cerr << std::quoted(l.first) << " on instr " << l.second << '\n';
-	}
-	if (labels.empty()) {
-	   std::cerr << '\n';
-	}*/
-
-	// int l{};
 	for (const auto& line : lines) {
 		bool seen_op{false};
-		// std::cerr << "l: " << std::quoted(line) << '\n';
 		auto tokens
 		    = kblib::split_tokens(line.substr(0, line.find_first_of('#')),
 		                          [](char c) { return " \t,"sv.contains(c); });
-		// std::cerr << "l" << l++ << "(" << tokens.size() << "): ";
-		//	for (const auto& t : tokens) {
-		//		std::cerr << std::quoted(t) << ' ';
-		//	}
-		//	std::cerr << '\n';
 		std::optional<instr> tmp;
 		for (auto j : kblib::range(tokens.size())) {
 			auto& tok = tokens[j];
 			if (tok.contains(':')) {
-				// assert(not tmp);
-				assert(not seen_op);
+				if (seen_op) {
+					throw std::invalid_argument{"Labels must be first on a line"};
+				}
 				tok = tok.substr(tok.find_last_of(':') + 1);
 			}
-			// std::cerr << "t: " << std::quoted(tok) << '\n';
 			if (tok.empty()) {
 				continue;
 			} else {
@@ -620,6 +608,13 @@ std::vector<instr> assemble(std::string_view source, int node,
 			}
 		}
 		std::erase(tokens, "");
+
+		auto assert_last_operand = [&](std::size_t j) {
+			if (tokens.size() > j + 1) {
+				throw std::invalid_argument{kblib::concat(
+				    "Unexpected operand ", kblib::quoted(tokens[j + 1]))};
+			}
+		};
 		for (auto j : kblib::range(tokens.size())) {
 			auto& tok = tokens[j];
 			tok.erase(0, tok.find_first_not_of('!'));
@@ -628,21 +623,21 @@ std::vector<instr> assemble(std::string_view source, int node,
 			}
 			auto& i = tmp.emplace();
 			using enum instr::op;
-			if (tok == "NOP") {
+			if (tok == "HCF") {
+				i.data.emplace<static_cast<std::size_t>(hcf)>();
+				assert_last_operand(j);
+			} else if (tok == "NOP") {
 				i.data.emplace<static_cast<std::size_t>(nop)>();
-				assert(j + 1 == tokens.size() or tokens[j + 1].starts_with('#'));
+				assert_last_operand(j);
 			} else if (tok == "SWP") {
 				i.data.emplace<static_cast<std::size_t>(swp)>();
-				assert(j + 1 == tokens.size() or tokens[j + 1].starts_with('#'));
+				assert_last_operand(j);
 			} else if (tok == "SAV") {
 				i.data.emplace<static_cast<std::size_t>(sav)>();
-				assert(j + 1 == tokens.size() or tokens[j + 1].starts_with('#'));
+				assert_last_operand(j);
 			} else if (tok == "NEG") {
 				i.data.emplace<static_cast<std::size_t>(neg)>();
-				assert(j + 1 == tokens.size() or tokens[j + 1].starts_with('#'));
-			} else if (tok == "HCF") {
-				i.data.emplace<static_cast<std::size_t>(hcf)>();
-				assert(j + 1 == tokens.size() or tokens[j + 1].starts_with('#'));
+				assert_last_operand(j);
 			} else if (tok == "MOV") {
 				auto& d = i.data.emplace<static_cast<std::size_t>(mov)>();
 				assert(j + 2 < tokens.size());
@@ -650,45 +645,45 @@ std::vector<instr> assemble(std::string_view source, int node,
 				d.src = r.first;
 				d.val = r.second;
 				d.dst = parse_port(tokens[j + 2]);
-				assert(j + 3 == tokens.size() or tokens[j + 3].starts_with('#'));
+				assert_last_operand(j + 2);
 			} else if (tok == "ADD") {
 				auto& d = i.data.emplace<static_cast<std::size_t>(add)>();
 				auto r = parse_port_or_immediate(tokens, j + 1);
 				d.src = r.first;
 				d.val = r.second;
-				assert(j + 2 == tokens.size() or tokens[j + 2].starts_with('#'));
+				assert_last_operand(j + 1);
 			} else if (tok == "SUB") {
 				auto& d = i.data.emplace<static_cast<std::size_t>(sub)>();
 				auto r = parse_port_or_immediate(tokens, j + 1);
 				d.src = r.first;
 				d.val = r.second;
-				assert(j + 2 == tokens.size() or tokens[j + 2].starts_with('#'));
+				assert_last_operand(j + 1);
 			} else if (tok == "JMP") {
 				auto& d = i.data.emplace<static_cast<std::size_t>(jmp)>();
-				d.target = parse_label(tokens, j + 1, labels);
-				assert(j + 2 == tokens.size() or tokens[j + 2].starts_with('#'));
+				d.target = parse_label(tokens.at(j + 1), labels);
+				assert_last_operand(j + 1);
 			} else if (tok == "JEZ") {
 				auto& d = i.data.emplace<static_cast<std::size_t>(jez)>();
-				d.target = parse_label(tokens, j + 1, labels);
-				assert(j + 2 == tokens.size() or tokens[j + 2].starts_with('#'));
+				d.target = parse_label(tokens.at(j + 1), labels);
+				assert_last_operand(j + 1);
 			} else if (tok == "JNZ") {
 				auto& d = i.data.emplace<static_cast<std::size_t>(jnz)>();
-				d.target = parse_label(tokens, j + 1, labels);
-				assert(j + 2 == tokens.size() or tokens[j + 2].starts_with('#'));
+				d.target = parse_label(tokens.at(j + 1), labels);
+				assert_last_operand(j + 1);
 			} else if (tok == "JGZ") {
 				auto& d = i.data.emplace<static_cast<std::size_t>(jgz)>();
-				d.target = parse_label(tokens, j + 1, labels);
-				assert(j + 2 == tokens.size() or tokens[j + 2].starts_with('#'));
+				d.target = parse_label(tokens.at(j + 1), labels);
+				assert_last_operand(j + 1);
 			} else if (tok == "JLZ") {
 				auto& d = i.data.emplace<static_cast<std::size_t>(jlz)>();
-				d.target = parse_label(tokens, j + 1, labels);
-				assert(j + 2 == tokens.size() or tokens[j + 2].starts_with('#'));
+				d.target = parse_label(tokens.at(j + 1), labels);
+				assert_last_operand(j + 1);
 			} else if (tok == "JRO") {
 				auto& d = i.data.emplace<static_cast<std::size_t>(jro)>();
 				auto r = parse_port_or_immediate(tokens, j + 1);
 				d.src = r.first;
 				d.val = kblib::saturating_cast<index_t>(r.second);
-				assert(j + 2 == tokens.size() or tokens[j + 2].starts_with('#'));
+				assert_last_operand(j + 1);
 			} else {
 				throw std::invalid_argument{kblib::quoted(tok)
 				                            + " is not a valid instruction opcode"};

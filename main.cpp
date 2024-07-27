@@ -428,6 +428,8 @@ inline constexpr auto layouts1 = gen_layouts();
 	throw;
 }
 
+// this was mostly to check that the parser and serializer (layout())
+// round-tripped correctly
 int generate(std::uint32_t seed) {
 	auto copy = [](auto x) { return x; };
 	for (auto [lvl, i] : kblib::enumerate(layouts)) {

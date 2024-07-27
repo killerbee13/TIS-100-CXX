@@ -29,6 +29,7 @@ struct input_node : node {
 	using node::node;
 	type_t type() const noexcept override { return in; }
 	bool step() override { return false; }
+	// new values become readable at end of each cycle
 	bool finalize() override {
 		if (not wrt and idx != inputs.size()) {
 			log_debug("I: ", not wrt, ',', idx != inputs.size());
@@ -58,6 +59,7 @@ struct input_node : node {
 struct output_node : node {
 	using node::node;
 	type_t type() const noexcept override { return out; }
+	// Attempt to read from neighbor every step
 	bool step() override {
 		if (auto r = do_read(neighbors[port::up], port::down)) {
 			log_debug("O", x, ": read");

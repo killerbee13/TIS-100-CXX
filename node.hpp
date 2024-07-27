@@ -55,12 +55,14 @@ constexpr static std::string_view state_name(activity s) {
 }
 
 enum port : std::int8_t {
+	// The directions are values 0-5, so < and > can be used to compare them
 	left,
 	right,
 	up,
 	down,
 	D5, // 3D expansion
 	D6,
+
 	nil,
 	acc,
 	any,
@@ -116,21 +118,32 @@ struct node {
 		case immediate:
 			return "VAL";
 		default:
-			throw std::invalid_argument{""};
+			throw std::invalid_argument{
+			    kblib::concat("Illegal port ", kblib::etoi(p))};
 		}
 	}
 
+	/// Returns the type of the node
 	virtual type_t type() const noexcept = 0;
+	/// Begin processing a cycle. Do not perform writes.
 	virtual bool step() = 0;
+	/// Finish processing a cycle. Writes are completed here.
 	virtual bool finalize() = 0;
+	/// Reset the node to its default (startup) configuration. Do not erase code
+	/// or expected values.
 	virtual void reset() noexcept = 0;
 
+	/// Attempt to read a value from this node, coming from direction p
 	virtual std::optional<word_t> read_(port p) = 0;
+	/// Generate a string representation of the current state of the node
 	virtual std::string print() const = 0;
 
-	// damaged and stack nodes are always idle, so this default simplifies them
+	// Damaged and stack nodes are always idle, so this default simplifies them.
+	// Used to determine if the field has fully stalled.
 	virtual activity state() const noexcept { return activity::idle; };
 
+	// In theory this may be expanded to a "TIS-3D" simulator which will have 6
+	// neighbors for each node.
 	std::array<node*, 6> neighbors{};
 	int x{};
 	int y{};
@@ -141,15 +154,19 @@ struct node {
 	    , y(y) {}
 	virtual ~node() = default;
 
+	/// nullptr-safe accessor for virtual node::type
 	friend node::type_t type(const node* n) {
 		if (n) {
 			return n->type();
 		} else {
-			return node::Damaged;
+			return node::null;
 		}
 	}
 
-	friend bool valid(const node* n) { return n and n->type() != node::Damaged; }
+	/// null and Damaged are negative. Any positive value is a valid node
+	// (0 is unallocated)
+	friend bool valid(const node* n) { return n and kblib::etoi(n->type()) > 0; }
+	/// Attempt to read a value from n, coming from direction p
 	friend std::optional<word_t> do_read(node* n, port p) {
 		assert(p >= port::left and p <= port::D6);
 		if (not valid(n)) {
@@ -190,6 +207,17 @@ struct tis_pixel {
 	    pnm::color_from_hex("000000"), pnm::color_from_hex("464646"),
 	    pnm::color_from_hex("9C9C9C"), pnm::color_from_hex("FDFDFD"),
 	    pnm::color_from_hex("C10B0B"),
+	    // The game uses floats, {
+	    //    { 0, new Color(0f, 0f, 0f) },
+	    //    { 1, new Color(0.273f, 0.273f, 0.273f) },
+	    //    { 2, new Color(0.547f, 0.547f, 0.547f) },
+	    //    { 3, new Color(0.808f, 0.808f, 0.808f) },
+	    //    { 4, new Color(0.648f, 0.043f, 0.043f) }
+	    // };
+	    // Which I think convert to
+	    // 000000, 464646, 8B8B8B, CECECE, AE0B0B
+	    // but the above colors are picked from screenshots so the game must have
+	    // a shader that darkens them
 	};
 
 	tis_pixel() = default;
@@ -222,6 +250,7 @@ struct tis_pixel {
 	static constexpr std::array<std::uint8_t, 5> values{0, 142, 205, 254, 122};
 	constexpr std::uint8_t value() const noexcept { return values[val]; }
 
+	// PNM doesn't have an indexed version so full RGB is the only option
 	static auto& header(std::ostream& os, std::ptrdiff_t width,
 	                    std::ptrdiff_t height) noexcept {
 		return os << "P6" << ' ' << width << ' ' << height << " 255\n";
@@ -252,20 +281,19 @@ struct image_t : pnm::image<tis_pixel> {
 		assert(contents.size() == size());
 		std::copy(contents.begin(), contents.end(), begin());
 	}
-	image_t(std::initializer_list<std::u16string_view> image) { assign(image); }
-
+	image_t(std::initializer_list<std::u16string_view> image,
+	        std::u16string_view key_ = key) {
+		assign(image, key_);
+	}
+	// char16_t needed to have random access
 	constexpr static std::u16string_view key = u" ░▒█#";
+	// the reverse key needs to separate them instead
 	constexpr static std::array<std::string_view, 5> rkey
 	    = {" ", "░", "▒", "█", "#"};
 
-	void write_line(word_t x, word_t y, const std::vector<word_t>& vals) {
-		x = std::max(x, word_t{});
-		y = std::max(y, word_t{});
-		auto l = std::min(kblib::to_signed(vals.size()), width() - x);
-		std::copy_n(vals.begin(), l, begin() + y * width() + x);
-	}
-
 	using image::assign;
+	// It's a lot more convenient to use single characters for pixels instead of
+	// using the enum values or comma-separated integers
 	constexpr void assign(std::u16string_view image,
 	                      std::u16string_view key_ = key) {
 		assert(image.size() == size());
