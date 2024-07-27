@@ -63,7 +63,7 @@ struct output_node : node {
 			log_debug("O", x, ": read");
 			auto i = outputs_received.size();
 			outputs_received.push_back(*r);
-			if (i > outputs_expected.size()
+			if (i >= outputs_expected.size()
 			    or outputs_received[i] != outputs_expected[i]) {
 				log_debug("incorrect value written");
 			}

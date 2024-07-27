@@ -150,7 +150,7 @@ int main(int argc, char** argv) try {
 	                                      "", "layout");
 	TCLAP::ValueArg<int> level_num("L", "level", "Numeric level ID", false, 0,
 	                               &level_nums_constraint);
-	TCLAP::EitherOf layout(cmd);
+	TCLAP::OneOf layout(cmd);
 	layout.add(id_arg).add(level_num); //.add(layout_s);
 
 	TCLAP::ValueArg<bool> fixed("", "fixed", "Run fixed tests", false, true,
