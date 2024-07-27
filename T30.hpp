@@ -28,6 +28,7 @@ struct T30 : node {
 	std::size_t max_size{def_T30_size};
 	bool read{};
 	bool wrote{};
+	bool used{};
 	type_t type() const noexcept override { return type_t::T30; }
 	bool step() override {
 		read = false;
@@ -37,6 +38,7 @@ struct T30 : node {
 				if (auto r
 				    = do_read(neighbors[static_cast<std::size_t>(p)], invert(p))) {
 					data.push_back(*r);
+					used = true;
 					return true;
 				}
 			}

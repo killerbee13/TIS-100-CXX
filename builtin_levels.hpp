@@ -18,6 +18,7 @@
 #ifndef BUILTIN_LEVELS_HPP
 #define BUILTIN_LEVELS_HPP
 
+#include "T30.hpp"
 #include "parser.hpp"
 #include "random_levels.hpp"
 
@@ -349,60 +350,56 @@ inline tests_t populate_builtins() {
 inline const tests_t tests = populate_builtins();
 
 inline bool check_achievement(int id, const field& solve, score sc) {
+	auto log = log_debug();
+	log << "check_achievement " << layouts[id].name << ": ";
 	// SELF-TEST DIAGNOSTIC
 	if (id == "00150"_lvl) {
 		// BUSY_LOOP
+		log << "BUSY_LOOP: " << sc.cycles << ((sc.cycles > 100000) ? ">" : "<=")
+		    << 100000;
 		return sc.cycles > 100000;
 		// SIGNAL COMPARATOR
 	} else if (id == "21340"_lvl) {
 		// UNCONDITIONAL
-		for (std::size_t i = 0; i < solve.nodes_used(); ++i) {
+		log << "UNCONDITIONAL:\n";
+		for (std::size_t i = 0; i < solve.nodes_avail(); ++i) {
 			if (auto p = solve.node_by_index(i)) {
-				if (std::any_of(p->code.begin(), p->code.end(), [](const instr& i) {
-					    auto op = i.get_op();
-					    return op == instr::jez or op == instr::jnz
-					           or op == instr::jgz or op == instr::jlz;
-				    })) {
+				log << '@' << i << " T20 (" << p->x << ',' << p->y << "): ";
+				if (p->code.empty()) {
+					log << "empty";
+				} else if (std::any_of(
+				               p->code.begin(), p->code.end(), [&](const instr& i) {
+					               auto op = i.get_op();
+					               log << to_string(op) << ';';
+					               return op == instr::jez or op == instr::jnz
+					                      or op == instr::jgz or op == instr::jlz;
+				               })) {
+					log << " conditional found";
 					return false;
 				}
+				log << '\n';
 			}
 		}
+		log << " no conditionals found";
 		return true;
 		// SEQUENCE REVERSER
 	} else if (id == "42656"_lvl) {
 		// NO_MEMORY
+		log << "NO_MEMORY: ";
 
-		// technically this check is wrong, because if you have an instruction
-		// that never runs that would write to a T30, I *think* you should get the
-		// achievement according to the game's description, but nobody pursuing a
-		// record would ever do that so this just checks that no T30 is the
-		// destination of a mov
-		for (std::size_t i = 0; i < solve.nodes_used(); ++i) {
-			if (auto p = solve.node_by_index(i)) {
-				if (std::any_of(
-				        p->code.begin(), p->code.end(), [&](const instr& i) {
-					        if (auto* m = std::get_if<instr::mov>(&i.data);
-					            m and (m->dst <= port::D6)) {
-						        if (type(p->neighbors[static_cast<std::size_t>(
-						                m->dst)])
-						            == node::T30) {
-							        return true;
-						        }
-					        } else if (m and m->dst == port::any) {
-						        for (auto n : p->neighbors) {
-							        if (type(n) == node::T30) {
-								        return true;
-							        }
-						        }
-					        }
-					        return false;
-				        })) {
+		for (auto it = solve.begin(); it != solve.end_regular(); ++it) {
+			if (type(it->get()) == node::T30) {
+				auto n = static_cast<const T30*>(it->get());
+				log << "T30 (" << n->x << ',' << n->y << "): " << n->used << '\n';
+				if (n->used) {
 					return false;
 				}
 			}
 		}
+		log << "no stacks used";
 		return true;
 	} else {
+		log << "no achievement";
 		return false;
 	}
 }

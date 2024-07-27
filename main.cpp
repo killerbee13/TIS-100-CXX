@@ -44,8 +44,7 @@ score run(field& l, int cycles_limit) {
 	sc.validated = true;
 
 	log_flush();
-	for (auto it = l.begin() + static_cast<std::ptrdiff_t>(l.nodes_total());
-	     it != l.end(); ++it) {
+	for (auto it = l.end_regular(); it != l.end(); ++it) {
 		auto n = it->get();
 		if (type(n) == node::out) {
 			auto p = static_cast<output_node*>(n);
@@ -61,8 +60,7 @@ score run(field& l, int cycles_limit) {
 	}
 
 	if (not sc.validated) {
-		for (auto it = l.begin() + static_cast<std::ptrdiff_t>(l.nodes_total());
-		     it != l.end(); ++it) {
+		for (auto it = l.end_regular(); it != l.end(); ++it) {
 			auto n = it->get();
 			if (type(n) == node::in) {
 				auto p = static_cast<input_node*>(n);
@@ -401,8 +399,7 @@ int generate(std::uint32_t seed) {
 		auto r = random_test(static_cast<int>(i), seed);
 		std::size_t i_idx = 0;
 		std::size_t o_idx = 0;
-		for (auto it = l.begin() + static_cast<std::ptrdiff_t>(l.nodes_total());
-		     it != l.end(); ++it) {
+		for (auto it = l.end_regular(); it != l.end(); ++it) {
 			auto n = it->get();
 			if (type(n) == node::in) {
 				auto p = static_cast<input_node*>(n);

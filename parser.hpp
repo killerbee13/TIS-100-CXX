@@ -193,6 +193,9 @@ class field {
 	friend field parse_layout(std::string_view layout, std::size_t T30_size);
 
 	const_iterator begin() const noexcept { return nodes.begin(); }
+	const_iterator end_regular() const noexcept {
+		return nodes.begin() + static_cast<std::ptrdiff_t>(io_node_offset);
+	}
 	const_iterator end() const noexcept { return nodes.end(); }
 
  private:
