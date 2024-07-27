@@ -6,7 +6,7 @@
 struct builtin_layout_spec {
 	struct io_node_spec {
 		node::type_t type;
-		std::optional<std::pair<word_t, word_t>> image_size;
+		std::optional<std::pair<word_t, word_t>> image_size{};
 	};
 
 	std::array<std::array<node::type_t, 4>, 3> nodes;
