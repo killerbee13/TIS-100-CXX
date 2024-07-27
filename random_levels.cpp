@@ -23,18 +23,6 @@
 
 static_assert(xorshift128_engine(400).next_int(-10, 0) < 0);
 
-static std::vector<word_t> make_random_array(std::uint32_t seed,
-                                             std::uint32_t size, word_t min,
-                                             word_t max) {
-	xorshift128_engine engine(seed);
-	std::vector<word_t> array(size);
-	std::uint32_t num = 0;
-	while (num < size) {
-		array[num] = static_cast<word_t>(engine.next_int(min, max));
-		num++;
-	}
-	return array;
-}
 static std::vector<word_t> make_random_array(xorshift128_engine& engine,
                                              std::uint32_t size, word_t min,
                                              word_t max) {
@@ -46,28 +34,13 @@ static std::vector<word_t> make_random_array(xorshift128_engine& engine,
 	}
 	return array;
 }
-
-static std::vector<word_t> make_composite_array(uint seed, word_t size,
-                                                word_t sublistmin,
-                                                word_t sublistmax,
-                                                word_t valuemin,
-                                                word_t valuemax) {
+static std::vector<word_t> make_random_array(std::uint32_t seed,
+                                             std::uint32_t size, word_t min,
+                                             word_t max) {
 	xorshift128_engine engine(seed);
-	std::vector<word_t> list;
-	while (std::cmp_less(list.size(), size)) {
-		int sublistsize = engine.next_int(sublistmin, sublistmax);
-		int i = 0;
-		for (; i < sublistsize; ++i) {
-			list.push_back(engine.next_int(valuemin, valuemax));
-		}
-		list.push_back(0);
-	}
-	if (std::cmp_greater(list.size(), size)) {
-		list.erase(list.begin() + size, list.end());
-	}
-	list.back() = 0;
-	return list;
+	return make_random_array(engine, size, min, max);
 }
+
 static std::vector<word_t> make_composite_array(xorshift128_engine& engine,
                                                 word_t size, word_t sublistmin,
                                                 word_t sublistmax,
@@ -87,6 +60,14 @@ static std::vector<word_t> make_composite_array(xorshift128_engine& engine,
 	}
 	list.back() = 0;
 	return list;
+}
+static std::vector<word_t> make_composite_array(uint seed, word_t size,
+                                                word_t sublistmin,
+                                                word_t sublistmax,
+                                                word_t valuemin,
+                                                word_t valuemax) {
+	xorshift128_engine engine(seed);
+	return make_composite_array(engine, size, sublistmin, sublistmax, valuemin, valuemax);
 }
 
 constexpr static word_t image_width = 30;
