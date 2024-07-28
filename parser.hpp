@@ -88,10 +88,8 @@ class field {
 					         not i->outputs_received.empty()
 					         and i->outputs_received[k] != i->outputs_expected[k]) {
 						all_outputs_correct = false;
-						log << " incorrect value written for output O" << i->x;
 					}
 #endif
-
 				}
 			} else if (type(p.get()) == node::image) {
 				auto i = static_cast<const image_output*>(p.get());

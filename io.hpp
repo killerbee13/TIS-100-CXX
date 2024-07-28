@@ -47,7 +47,8 @@ struct input_node : node {
 		return std::exchange(wrt, std::nullopt);
 	}
 	std::string print() const override {
-		return kblib::concat("I", x, " NUMERIC { emitted:(", idx, "/", inputs.size(), ") }");
+		return kblib::concat("I", x, " NUMERIC { emitted:(", idx, "/",
+		                     inputs.size(), ") }");
 	}
 
 	std::vector<word_t> inputs;
@@ -61,12 +62,14 @@ struct output_node : node {
 	type_t type() const noexcept override { return out; }
 	// Attempt to read from neighbor every step
 	bool step() override {
+		if (outputs_expected.size() == outputs_received.size()) {
+			return false;
+		}
 		if (auto r = do_read(neighbors[port::up], port::down)) {
 			log_debug("O", x, ": read");
 			auto i = outputs_received.size();
 			outputs_received.push_back(*r);
-			if (i >= outputs_expected.size()
-			    or outputs_received[i] != outputs_expected[i]) {
+			if (outputs_received[i] != outputs_expected[i]) {
 				log_debug("incorrect value written");
 			}
 			return true;

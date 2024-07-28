@@ -361,14 +361,15 @@ inline constexpr auto layouts1 = gen_layouts();
 			auto test = random_test(id, seed++);
 			set_expected(f, test);
 			last = run(f, cycles_limit.getValue());
-			if (not last.validated) {
-				worst.cheat = true;
-			}
 			worst.cycles = std::max(worst.cycles, last.cycles);
 			worst.instructions = last.instructions;
 			worst.nodes = last.nodes;
 			// for random tests, only one validation is needed
 			worst.validated = worst.validated or last.validated;
+			if (not last.validated) {
+				worst.cheat = true;
+				break;
+			}
 		}
 		sc.cheat = worst.cheat;
 		if (not fixed.getValue()) {

@@ -5,7 +5,7 @@ function exists
 	or return
 end
 
-argparse --name=test_saves.sh 'i/interactive' 'd/save-dir=!exists' 's/success-file=?' 'f/fail-file=?' 'w/wrong-file=?' 'q/quiet' 'r/random=' 'n' 'loglevel=' 'limit=!_validate_int --min 0' -- $argv
+argparse --ignore-unknown --name=test_saves.sh 'i/interactive' 'd/save-dir=!exists' 's/success-file=?' 'f/fail-file=?' 'w/wrong-file=?' 'n' -- $argv
 or return
 
 set -l save_dir $_flag_d
@@ -23,21 +23,8 @@ if not set -q _flag_w
 end
 set -l wrong_file $_flag_w
 
-if set -q _flag_r
-	set _flag_r -r $_flag_r
-end
 if set -q _flag_n
 	set _flag_n --fixed false
-end
-if set -q _flag_loglevel
-	set loglevel --loglevel $_flag_loglevel
-else
-	set loglevel
-end
-if set -q _flag_limit
-	set limit --limit $_flag_limit
-else
-	set limit
 end
 
 
@@ -70,8 +57,8 @@ for id in $saves
 		set -l RE "s@$id\.([0-9]+)-([0-9]+)-([0-9]+)-?(a?c?).txt@\1/\2/\3/\4@"
 		set -l expected (basename $file | sed -Ee $RE -e 's@/$@@')
 		
-		echo ./TIS-100-CXX $_flag_q $_flag_r $_flag_n $loglevel $limit -c (basename $file) $id
-		./TIS-100-CXX $_flag_q $_flag_r $_flag_n $loglevel $limit -c $file $id | tee $tmp_result
+		echo ./TIS-100-CXX $_flag_n $argv -c (basename $file) $id
+		./TIS-100-CXX $_flag_n $argv -c $file $id | tee $tmp_result
 		if test $pipestatus[1] -eq 0
 			set -l result (filter_result)
 			if test $result = $expected

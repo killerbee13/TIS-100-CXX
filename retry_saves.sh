@@ -5,7 +5,7 @@ function exists
 	or return
 end
 
-argparse --name=retry_saves.sh 'l/retry-list=!test -f $_flag_value' 'i/interactive' 'd/save-dir=!exists' 's/success-file=?' 'f/fail-file=?' 'q/quiet' 'r/random=' 'n' -- $argv
+argparse --ignore-unknown --name=retry_saves.sh 'l/retry-list=!test -f $_flag_value' 'i/interactive' 'd/save-dir=!exists' 's/success-file=?' 'f/fail-file=?' 'n' -- $argv
 or return
 
 set -l save_dir $_flag_d
@@ -17,9 +17,6 @@ if not set -q _flag_f
 	set _flag_f /dev/null
 end
 set -l fail_file $_flag_f
-if set -q _flag_r
-	set _flag_r -r $_flag_r
-end
 if set -q _flag_n
 	set _flag_n --fixed false
 end
@@ -40,8 +37,8 @@ cat $_flag_l | while read -l s
 		set files_count (math $files_count + 1)
 		# echo ./TIS-100-CXX $id $s
 		# ./TIS-100-CXX $id $s
-		echo ./TIS-100-CXX $_flag_q $_flag_r $_flag_n -c (basename $file) $id
-		if ./TIS-100-CXX $_flag_q $_flag_r $_flag_n -c $file $id
+		echo ./TIS-100-CXX $argv $_flag_n -c (basename $file) $id
+		if ./TIS-100-CXX $argv $_flag_n -c $file $id
 			echo $s >> $success_file
 			set success_count (math $success_count + 1)
 		else 
