@@ -32,6 +32,9 @@
 #include <vector>
 
 using word_t = std::int16_t;
+constexpr inline word_t word_min = -999;
+constexpr inline word_t word_max = 999;
+static_assert(word_min == -word_max);
 
 constexpr inline int def_T21_size = 15;
 constexpr inline int def_T30_size = 15;
@@ -384,11 +387,11 @@ constexpr U sat_add(T a, T b, U l, U h) {
 	    std::clamp(static_cast<I>(a + b), static_cast<I>(l), static_cast<I>(h)));
 }
 
-template <auto l = word_t{-999}, auto h = word_t{999}, typename T>
+template <auto l = word_min, auto h = word_max, typename T>
 constexpr auto sat_add(T a, T b) {
 	return sat_add<T, std::common_type_t<decltype(l), decltype(h)>>(a, b, l, h);
 }
-template <auto l = word_t{-999}, auto h = word_t{999}, typename T>
+template <auto l = word_min, auto h = word_max, typename T>
 constexpr auto sat_sub(T a, T b) {
 	return sat_add<T, std::common_type_t<decltype(l), decltype(h)>>(a, -b, l, h);
 }

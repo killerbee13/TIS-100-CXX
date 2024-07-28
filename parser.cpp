@@ -512,7 +512,7 @@ std::pair<port, word_t> parse_port_or_immediate(
 	if ("-0123456789"sv.contains(tokens[j].front())) {
 		ret.first = port::immediate;
 		ret.second = kblib::parse_integer<word_t>(tokens[j]);
-		if (ret.second < -999 or ret.second > 999) {
+		if (ret.second < word_min or ret.second > word_max) {
 			throw std::invalid_argument{""};
 		}
 	} else {
