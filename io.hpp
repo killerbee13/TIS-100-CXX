@@ -43,7 +43,7 @@ struct input_node : node {
 		idx = 0;
 		wrt.reset();
 	}
-	std::optional<word_t> read_(port) override {
+	std::optional<word_t> emit(port) override {
 		return std::exchange(wrt, std::nullopt);
 	}
 	std::string print() const override {
@@ -76,7 +76,7 @@ struct output_node : node {
 	}
 	bool finalize() override { return false; }
 	void reset() noexcept override { outputs_received.clear(); }
-	std::optional<word_t> read_(port) override { return std::nullopt; }
+	std::optional<word_t> emit(port) override { return std::nullopt; }
 	std::string print() const override {
 		std::ostringstream ret;
 		ret << kblib::concat("O", x, " NUMERIC {\nreceived:");
@@ -127,7 +127,7 @@ struct image_output : node {
 		c_x.reset();
 		c_y.reset();
 	}
-	std::optional<word_t> read_(port) override { return std::nullopt; }
+	std::optional<word_t> emit(port) override { return std::nullopt; }
 	std::string print() const override {
 		return kblib::concat("O", x, " IMAGE {\n", image_received.write_text(),
 		                     "}");

@@ -25,37 +25,39 @@
 struct T30 : node {
 	using node::node;
 	std::vector<word_t> data;
+	std::vector<word_t> buffer;
 	std::size_t max_size{def_T30_size};
-	bool read{};
 	bool wrote{};
 	bool used{};
 	type_t type() const noexcept override { return type_t::T30; }
 	bool step() override {
-		read = false;
+		bool read = false;
 		if (not wrote and data.size() < max_size) {
 			for (auto p : {port::left, port::right, port::up, port::down, port::D5,
 			               port::D6}) {
 				if (auto r
 				    = do_read(neighbors[static_cast<std::size_t>(p)], invert(p))) {
-					data.push_back(*r);
-					used = true;
-					return true;
+					buffer.push_back(*r);
+					read = true;
 				}
 			}
 		}
-		return false;
+		used |= read;
+		return read;
 	}
 	bool finalize() override {
+		data.insert(data.end(), buffer.begin(), buffer.end());
+		buffer.clear();
 		wrote = false;
 		return false;
 	}
 	void reset() noexcept override {
 		data.clear();
-		read = false;
+		buffer.clear();
 		wrote = false;
 	}
-	std::optional<word_t> read_(port) override {
-		if (not read and not data.empty()) {
+	std::optional<word_t> emit(port) override {
+		if (not wrote and not data.empty()) {
 			auto v = data.back();
 			data.pop_back();
 			wrote = true;

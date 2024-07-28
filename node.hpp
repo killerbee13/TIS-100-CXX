@@ -133,8 +133,8 @@ struct node {
 	/// or expected values.
 	virtual void reset() noexcept = 0;
 
-	/// Attempt to read a value from this node, coming from direction p
-	virtual std::optional<word_t> read_(port p) = 0;
+	/// Attempt to answer a read from this node, coming from direction p
+	virtual std::optional<word_t> emit(port p) = 0;
 	/// Generate a string representation of the current state of the node
 	virtual std::string print() const = 0;
 
@@ -172,7 +172,7 @@ struct node {
 		if (not valid(n)) {
 			return std::nullopt;
 		} else {
-			return n->read_(p);
+			return n->emit(p);
 		}
 	}
 
@@ -189,7 +189,7 @@ struct damaged : node {
 	bool step() override { return false; }
 	bool finalize() override { return false; }
 	void reset() noexcept override {}
-	std::optional<word_t> read_(port) override { return std::nullopt; }
+	std::optional<word_t> emit(port) override { return std::nullopt; }
 	std::string print() const override {
 		return kblib::concat("(", x, ',', y, ") {Damaged}");
 	}
