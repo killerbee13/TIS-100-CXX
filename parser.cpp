@@ -373,7 +373,7 @@ void set_expected(field& f, const single_test& expected) {
 			i->image_expected = expected.i_output;
 			auto log = log_debug();
 			log << "set expected image O" << i->x << ": {\n";
-			i->image_expected.write_text(log);
+			log.log_r([&] { return i->image_expected.write_text(); });
 			log << '}';
 		}
 	}

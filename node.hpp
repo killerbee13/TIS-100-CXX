@@ -319,9 +319,11 @@ struct image_t : pnm::image<tis_pixel> {
 			reshape(0, 0);
 		}
 		std::size_t w{image.begin()[0].size()};
+#if not RELEASE
 		for (auto line : image) {
 			assert(line.size() == w);
 		}
+#endif
 		reshape(kblib::to_signed(w), kblib::to_signed(image.size()));
 		auto it = begin();
 		for (auto line : image) {

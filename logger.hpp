@@ -19,9 +19,13 @@
 #define LOGGER_HPP
 
 #include "kblib/stringops.h"
+#include <sstream>
 
 namespace detail {
 auto log(std::string_view str) -> void;
+struct stringbuf_container {
+	std::unique_ptr<std::stringbuf> data_;
+};
 } // namespace detail
 
 enum class log_level {
@@ -170,97 +174,80 @@ auto log_info_r(std::invocable<> auto supplier) -> void {
 	}
 }
 
-class stringrefbuf : public std::streambuf {
- public:
-	stringrefbuf(std::string* s)
-	    : str(s) {}
-	stringrefbuf(std::nullptr_t)
-	    : str(nullptr) {}
-
- protected:
-	std::streamsize xsputn(const char_type* s, std::streamsize count) override {
-		if (str) {
-			str->append(s, kblib::to_unsigned(count));
-		}
-		return count;
-	}
-	int_type overflow(int_type ch = traits_type::eof()) override {
-		if (not traits_type::eq_int_type(ch, traits_type::eof()) and str) {
-			str->push_back(static_cast<char>(ch));
-		}
-		return 0;
-	}
-
- private:
-	std::string* str;
+template <typename T>
+concept streamable_out = requires(std::ostream& os, const T& v) {
+	os << v;
 };
 
-class logger : public std::ostream {
+class logger
+    : private detail::stringbuf_container
+    , public std::ostream {
  public:
-	logger(std::string prefix, bool do_log)
-	    : std::ostream(&buf_)
-	    , data_(std::move(prefix))
-	    , do_log_(do_log)
-	    , buf_((do_log) ? &data_ : nullptr) {}
-	logger(const logger& o)
-	    : data_(o.data_)
-	    , do_log_(o.do_log_)
-	    , buf_(o.buf_) {}
+	logger(std::string_view prefix);
+	logger(std::nullptr_t)
+	    : detail::stringbuf_container{}
+	    , std::ostream(nullptr)
+	    , log_(nullptr) {}
 	logger(logger&& o)
-	    : data_(std::move(o.data_))
-	    , do_log_(o.do_log_)
-	    , buf_(std::move(o.buf_)) {}
+	    : detail::stringbuf_container{std::move(o)}
+	    , log_(o.log_) {}
 
 	auto log_r(std::invocable<> auto supplier) -> void {
-		if (do_log_) {
-			kblib::append(data_, supplier());
+		if (data_) {
+			auto s = supplier();
+			do_write(s);
 		}
 	}
-	auto log(const auto&... args) -> void {
-		if (do_log_) {
-			kblib::append(data_, args...);
+	auto log(auto&&... args) -> void {
+		if (data_) {
+			auto s = kblib::concat(std::forward<decltype(args)>(args)...);
+			do_write(s);
 		}
+	}
+	auto operator<<(const streamable_out auto& v) -> logger& {
+		if (data_) {
+			static_cast<std::ostream&>(*this) << v;
+		}
+		return *this;
 	}
 
 	~logger() {
-		if (do_log_) {
-			detail::log(data_);
+		if (data_) {
+			(*log_) << data_.get() << '\n';
 		}
 	}
 
-	// std::ostreams are expensive to construct from scratch, so copy a null one
-	// instead
-	static const logger null_log;
-
  private:
-	std::string data_;
-	bool do_log_;
-	stringrefbuf buf_;
+	std::ostream* log_;
+
+	void do_write(std::string_view s) {
+		data_->sputn(s.data(), static_cast<std::streamsize>(s.size()));
+	}
 };
 
 inline auto log_debug() {
-	return (get_log_level() >= log_level::debug) ? logger("DEBUG: ", true)
-	                                             : logger::null_log;
+	return (get_log_level() >= log_level::debug) ? logger("DEBUG: ")
+	                                             : logger(nullptr);
 }
 
 inline auto log_info() {
-	return (get_log_level() >= log_level::info) ? logger("INFO: ", true)
-	                                            : logger::null_log;
+	return (get_log_level() >= log_level::info) ? logger("INFO: ")
+	                                            : logger(nullptr);
 }
 
 inline auto log_notice() {
-	return (get_log_level() >= log_level::notice) ? logger("INFO: ", true)
-	                                              : logger::null_log;
+	return (get_log_level() >= log_level::notice) ? logger("INFO: ")
+	                                              : logger(nullptr);
 }
 
 inline auto log_warn() {
-	return (get_log_level() >= log_level::warn) ? logger("WARNING: ", true)
-	                                            : logger::null_log;
+	return (get_log_level() >= log_level::warn) ? logger("WARNING: ")
+	                                            : logger(nullptr);
 }
 
 inline auto log_err() {
-	return (get_log_level() >= log_level::err) ? logger("ERROR: ", true)
-	                                           : logger::null_log;
+	return (get_log_level() >= log_level::err) ? logger("ERROR: ")
+	                                           : logger(nullptr);
 }
 
 #endif // LOGGER_HPP

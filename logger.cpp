@@ -44,4 +44,9 @@ auto log(std::string_view str) -> void {
 
 } // namespace detail
 
-const logger logger::null_log{{}, false};
+logger::logger(std::string_view prefix)
+    : detail::stringbuf_container{std::make_unique<std::stringbuf>()}
+    , std::ostream{data_.get()}
+    , log_{output} {
+	do_write(prefix);
+}
