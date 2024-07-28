@@ -124,7 +124,7 @@ struct T21 : node {
 		last = port::nil;
 		s = activity::idle;
 	}
-	std::optional<word_t> read_(port) override;
+	std::optional<word_t> emit(port) override;
 	activity state() const noexcept override { return s; }
 	std::string print() const override;
 

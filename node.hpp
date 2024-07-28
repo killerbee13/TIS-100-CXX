@@ -133,8 +133,8 @@ struct node {
 	/// or expected values.
 	virtual void reset() noexcept = 0;
 
-	/// Attempt to read a value from this node, coming from direction p
-	virtual std::optional<word_t> read_(port p) = 0;
+	/// Attempt to answer a read from this node, coming from direction p
+	virtual std::optional<word_t> emit(port p) = 0;
 	/// Generate a string representation of the current state of the node
 	virtual std::string print() const = 0;
 
@@ -172,7 +172,7 @@ struct node {
 		if (not valid(n)) {
 			return std::nullopt;
 		} else {
-			return n->read_(p);
+			return n->emit(p);
 		}
 	}
 
@@ -189,7 +189,7 @@ struct damaged : node {
 	bool step() override { return false; }
 	bool finalize() override { return false; }
 	void reset() noexcept override {}
-	std::optional<word_t> read_(port) override { return std::nullopt; }
+	std::optional<word_t> emit(port) override { return std::nullopt; }
 	std::string print() const override {
 		return kblib::concat("(", x, ',', y, ") {Damaged}");
 	}
@@ -394,6 +394,12 @@ constexpr auto sat_sub(T a, T b) {
 	return sat_add<T, std::common_type_t<decltype(l), decltype(h)>>(a, -b, l, h);
 }
 
+// returns a new string, padded
+inline std::string pad(std::string_view input, std::size_t final_size, char padding = ' ') {
+	assert(final_size >= input.length());
+	return std::string(input).append(final_size - input.length(), padding);
+}
+
 inline std::ostream& write_list(std::ostream& os, const std::vector<word_t>& v,
                                 const std::vector<word_t>* expected = nullptr,
                                 bool colored = use_color) {
@@ -402,7 +408,11 @@ inline std::ostream& write_list(std::ostream& os, const std::vector<word_t>& v,
 		os << print_color(bright_red);
 	}
 	os << '(';
-	os << v.size() << ')';
+	os << v.size();
+	if (expected) {
+		os << '/' << expected->size();
+	}
+	os << ')';
 	if (colored) {
 		os << print_color(reset);
 	}

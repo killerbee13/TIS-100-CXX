@@ -64,29 +64,20 @@ class field {
 		bool r{};
 		bool all_outputs_satisfied{true};
 		bool all_outputs_correct{true};
-		auto log = log_debug();
 		for (auto& p : nodes) {
-			log.log_r(
-			    [&] { return kblib::concat("node(", p->x, ',', p->y, ") "); });
 			if (type(p.get()) == node::T21) {
-				log.log("s = ", state_name(static_cast<const T21*>(p.get())->s));
 				//	if (static_cast<const T21*>(p.get())->s == activity::run) {
 				//		r = true;
 				//	}
 			} else if (type(p.get()) == node::in) {
-				auto i = static_cast<const input_node*>(p.get());
-				log.log("input ", i->idx, " of ", i->inputs.size());
 				// if (i->idx != i->inputs.size()) {
 				//	 r = true;
 				// }
 			} else if (type(p.get()) == node::out) {
 				auto i = static_cast<const output_node*>(p.get());
-				log.log("output ", i->outputs_received.size(), " of ",
-				        i->outputs_expected.size(), "; ");
 				if (i->outputs_received.size() < i->outputs_expected.size()) {
 					r = true;
 					all_outputs_satisfied = false;
-					log << "unfilled";
 
 					if (i->outputs_received.size() > i->outputs_expected.size()) {
 						all_outputs_correct = false;
@@ -101,22 +92,14 @@ class field {
 					}
 #endif
 
-				} else {
-					log << "filled";
 				}
 			} else if (type(p.get()) == node::image) {
 				auto i = static_cast<const image_output*>(p.get());
 				if (i->image_expected != i->image_received) {
 					r = true;
 					all_outputs_satisfied = false;
-					log << "unequal";
-				} else {
-					log << "equal";
 				}
-			} else {
-				log << "inactive";
 			}
-			log << '\n';
 		}
 		if (all_outputs_satisfied or not all_outputs_correct) {
 			return false;
