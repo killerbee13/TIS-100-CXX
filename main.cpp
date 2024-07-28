@@ -158,7 +158,7 @@ int main(int argc, char** argv) try {
 	TCLAP::ValueArg<int> random("r", "random", "Random tests to run", false, 0,
 	                            "integer", cmd);
 	TCLAP::ValueArg<std::uint32_t> seed_arg(
-	    "", "seed", "Seed to use for random tests", false, 0, "32-bit integer", cmd);
+	    "", "seed", "Seed to use for random tests", false, 0, "uint32_t", cmd);
 	TCLAP::ValueArg<int> cycles_limit(
 	    "", "limit", "Number of cycles to run test for before timeout", false,
 	    10'000, "integer", cmd);
@@ -166,13 +166,14 @@ int main(int argc, char** argv) try {
 	TCLAP::ValueArg<std::string> set_test("t", "test", "Manually set test cases",
 	                                      false, "", "test case");
 
-	range_int_constraint<unsigned> size_constraint(0, kblib::max.of<index_t>());
+	// Size constraint of 999 guarantees that JRO can reach every instruction
+	range_int_constraint<unsigned> size_constraint(0, 999);
 	TCLAP::ValueArg<unsigned> T21_size(
 	    "", "T21_size", "Number of instructions allowed per T21 node", false,
 	    def_T21_size, &size_constraint, cmd);
 	TCLAP::ValueArg<unsigned> T30_size("", "T30_size",
 	                                   "Memory capacity of T30 nodes", false,
-	                                   def_T30_size, &size_constraint, cmd);
+	                                   def_T30_size, "integer", cmd);
 
 	std::vector<std::string> loglevels_allowed{"none",   "err",  "error", "warn",
 	                                           "notice", "info", "debug"};

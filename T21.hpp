@@ -35,11 +35,11 @@ struct arith_instr {
 };
 // Note that label names are not stored
 struct jmp_instr {
-	index_t target;
+	word_t target;
 };
 struct jro_instr {
 	port src{};
-	index_t val;
+	word_t val;
 };
 
 struct T21;
@@ -129,7 +129,7 @@ struct T21 : node {
 	std::string print() const override;
 
 	word_t acc{}, bak{}, wrt{};
-	index_t pc{};
+	word_t pc{};
 	port write_port{port::nil}, last{port::nil};
 	std::vector<instr> code;
 	activity s{activity::idle};

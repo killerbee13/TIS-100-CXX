@@ -36,7 +36,7 @@ static_assert(15 % 15 == 0);
 static_assert(wrap_add(15, 1, 0, 16) == 0);
 
 void T21::next() {
-	pc = wrap_add(pc, index_t{1}, index_t{0}, index_t(code.size()));
+	pc = wrap_add(pc, word_t{1}, word_t{0}, word_t(code.size()));
 	return;
 }
 
@@ -246,8 +246,8 @@ bool T21::step() {
 		    log << "jro ";
 		    if (auto r = read(i.src, i.val)) {
 			    log << '(' << +pc << '+' << *r << " -> ";
-			    pc = sat_add(static_cast<word_t>(pc), *r, index_t{},
-			                 static_cast<index_t>(code.size() - 1));
+			    pc = sat_add(static_cast<word_t>(pc), *r, word_t{},
+			                 static_cast<word_t>(code.size() - 1));
 			    log << +pc << ")";
 			    s = activity::run;
 			    return true;
@@ -318,9 +318,9 @@ std::optional<word_t> T21::emit(port p) {
 }
 
 std::string T21::print() const {
-	return kblib::concat('(', x, ',', y, ") T21 { ", acc, " (", bak, ") ",
-	                     pad(port_name(last), 5), ' ', pad(state_name(s), 4), ' ', pc, " [",
-	                     code.empty() ? ""
-	                                  : to_string(code[kblib::to_unsigned(pc)]),
-	                     "] ", wrt, "->", port_name(write_port), " }");
+	return kblib::concat(
+	    '(', x, ',', y, ") T21 { ", acc, " (", bak, ") ",
+	    pad(port_name(last), 5), ' ', pad(state_name(s), 4), ' ', pc, " [",
+	    code.empty() ? "" : to_string(code[kblib::to_unsigned(pc)]), "] ", wrt,
+	    "->", port_name(write_port), " }");
 }

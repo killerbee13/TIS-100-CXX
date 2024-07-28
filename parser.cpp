@@ -522,7 +522,7 @@ std::pair<port, word_t> parse_port_or_immediate(
 }
 
 void push_label(std::string_view lab, int l,
-                std::vector<std::pair<std::string, index_t>>& labels) {
+                std::vector<std::pair<std::string, word_t>>& labels) {
 	for (const auto& o : labels) {
 		if (o.first == lab) {
 			throw std::invalid_argument{""};
@@ -532,9 +532,8 @@ void push_label(std::string_view lab, int l,
 	labels.emplace_back(lab, l);
 }
 
-index_t parse_label(
-    std::string_view label,
-    const std::vector<std::pair<std::string, index_t>>& labels) {
+word_t parse_label(std::string_view label,
+                   const std::vector<std::pair<std::string, word_t>>& labels) {
 	for (const auto& lab : labels) {
 		if (lab.first == label) {
 			return lab.second;
@@ -552,7 +551,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 		    kblib::concat("too many lines of asm for node ", node)};
 	}
 	std::vector<instr> ret;
-	std::vector<std::pair<std::string, index_t>> labels;
+	std::vector<std::pair<std::string, word_t>> labels;
 
 	{
 		int l{};
@@ -682,7 +681,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 				auto& d = i.data.emplace<static_cast<std::size_t>(jro)>();
 				auto r = parse_port_or_immediate(tokens, j + 1);
 				d.src = r.first;
-				d.val = kblib::saturating_cast<index_t>(r.second);
+				d.val = r.second;
 				assert_last_operand(j + 1);
 			} else {
 				throw std::invalid_argument{kblib::quoted(tok)

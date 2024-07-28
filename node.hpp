@@ -32,7 +32,6 @@
 #include <vector>
 
 using word_t = std::int16_t;
-using index_t = std::int16_t;
 
 constexpr inline int def_T21_size = 15;
 constexpr inline int def_T30_size = 15;
@@ -395,7 +394,8 @@ constexpr auto sat_sub(T a, T b) {
 }
 
 // returns a new string, padded
-inline std::string pad(std::string_view input, std::size_t final_size, char padding = ' ') {
+inline std::string pad(std::string_view input, std::size_t final_size,
+                       char padding = ' ') {
 	assert(final_size >= input.length());
 	return std::string(input).append(final_size - input.length(), padding);
 }
