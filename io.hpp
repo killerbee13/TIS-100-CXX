@@ -47,7 +47,7 @@ struct input_node : node {
 		return std::exchange(wrt, std::nullopt);
 	}
 	std::string print() const override {
-		return kblib::concat("I", x, " NUMERIC { emitted:(", idx, ") }");
+		return kblib::concat("I", x, " NUMERIC { emitted:(", idx, "/", inputs.size(), ") }");
 	}
 
 	std::vector<word_t> inputs;

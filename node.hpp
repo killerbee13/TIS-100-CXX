@@ -392,6 +392,12 @@ constexpr auto sat_sub(T a, T b) {
 	return sat_add<T, std::common_type_t<decltype(l), decltype(h)>>(a, -b, l, h);
 }
 
+// returns a new string, padded
+inline std::string pad(std::string_view input, std::size_t final_size, char padding = ' ') {
+	assert(final_size >= input.length());
+	return std::string(input).append(final_size - input.length(), padding);
+}
+
 inline std::ostream& write_list(std::ostream& os, const std::vector<word_t>& v,
                                 const std::vector<word_t>* expected = nullptr,
                                 bool colored = use_color) {
@@ -400,7 +406,11 @@ inline std::ostream& write_list(std::ostream& os, const std::vector<word_t>& v,
 		os << print_color(bright_red);
 	}
 	os << '(';
-	os << v.size() << ')';
+	os << v.size();
+	if (expected) {
+		os << '/' << expected->size();
+	}
+	os << ')';
 	if (colored) {
 		os << print_color(reset);
 	}

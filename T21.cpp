@@ -319,7 +319,7 @@ std::optional<word_t> T21::emit(port p) {
 
 std::string T21::print() const {
 	return kblib::concat('(', x, ',', y, ") T21 { ", acc, " (", bak, ") ",
-	                     port_name(last), ' ', state_name(s), ' ', pc, " [",
+	                     pad(port_name(last), 5), ' ', pad(state_name(s), 4), ' ', pc, " [",
 	                     code.empty() ? ""
 	                                  : to_string(code[kblib::to_unsigned(pc)]),
 	                     "] ", wrt, "->", port_name(write_port), " }");
