@@ -400,9 +400,11 @@ inline std::string pad(std::string_view input, std::size_t final_size,
 	return std::string(input).append(final_size - input.length(), padding);
 }
 
-inline std::ostream& write_list(std::ostream& os, const std::vector<word_t>& v,
-                                const std::vector<word_t>* expected = nullptr,
-                                bool colored = use_color) {
+template<typename Stream>
+requires requires(Stream s) { { s << "" << 1 }; }
+inline Stream& write_list(Stream& os, const std::vector<word_t>& v,
+                          const std::vector<word_t>* expected = nullptr,
+                          bool colored = use_color) {
 
 	if (colored and expected and v.size() != expected->size()) {
 		os << print_color(bright_red);

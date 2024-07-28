@@ -23,9 +23,6 @@
 
 namespace detail {
 auto log(std::string_view str) -> void;
-struct stringbuf_container {
-	std::unique_ptr<std::stringbuf> data_;
-};
 } // namespace detail
 
 enum class log_level {
@@ -179,50 +176,43 @@ concept streamable_out = requires(std::ostream& os, const T& v) {
 	os << v;
 };
 
-class logger
-    : private detail::stringbuf_container
-    , public std::ostream {
+class logger {
  public:
 	logger(std::string_view prefix);
 	logger(std::nullptr_t)
-	    : detail::stringbuf_container{}
-	    , std::ostream(nullptr)
+	    : formatter_{}
 	    , log_(nullptr) {}
 	logger(logger&& o)
-	    : detail::stringbuf_container{std::move(o)}
+	    : formatter_{std::move(o.formatter_)}
 	    , log_(o.log_) {}
 
 	auto log_r(std::invocable<> auto supplier) -> void {
-		if (data_) {
+		if (formatter_) {
 			auto s = supplier();
-			do_write(s);
+			(*formatter_) << s;
 		}
 	}
 	auto log(auto&&... args) -> void {
-		if (data_) {
-			auto s = kblib::concat(std::forward<decltype(args)>(args)...);
-			do_write(s);
+		if (formatter_) {
+			((*formatter_) << ... << args);
 		}
 	}
 	auto operator<<(const streamable_out auto& v) -> logger& {
-		if (data_) {
-			static_cast<std::ostream&>(*this) << v;
+		if (formatter_) {
+			(*formatter_) << v;
 		}
 		return *this;
 	}
 
 	~logger() {
-		if (data_) {
-			(*log_) << data_.get() << '\n';
+		if (formatter_) {
+			(*log_) << formatter_->view() << '\n';
 		}
 	}
 
  private:
+	std::unique_ptr<std::ostringstream> formatter_;
 	std::ostream* log_;
-
-	void do_write(std::string_view s) {
-		data_->sputn(s.data(), static_cast<std::streamsize>(s.size()));
-	}
 };
 
 inline auto log_debug() {
