@@ -31,19 +31,21 @@ struct T30 : node {
 	bool used{};
 	type_t type() const noexcept override { return type_t::T30; }
 	bool step() override {
-		bool read = false;
-		if (not wrote and data.size() < max_size) {
-			for (auto p : {port::left, port::right, port::up, port::down, port::D5,
-			               port::D6}) {
-				if (auto r
-				    = do_read(neighbors[static_cast<std::size_t>(p)], invert(p))) {
-					buffer.push_back(*r);
-					read = true;
+		if (data.size() == max_size) {
+			return false;
+		}
+		for (auto p : {port::left, port::right, port::up, port::down, port::D5,
+			           port::D6}) {
+			if (auto r
+				= do_read(neighbors[static_cast<std::size_t>(p)], invert(p))) {
+				buffer.push_back(*r);
+				used = true;
+				if (data.size() + buffer.size() == max_size) {
+					break;
 				}
 			}
 		}
-		used |= read;
-		return read;
+		return !buffer.empty();
 	}
 	bool finalize() override {
 		data.insert(data.end(), buffer.begin(), buffer.end());

@@ -23,9 +23,9 @@
 
 using namespace std::literals;
 
-static_assert(sat_add(999, 999) == 999);
-static_assert(sat_add(-999, 999) == 0);
-static_assert(sat_add(-999, -999) == -999);
+static_assert(sat_add(word_max, word_max) == word_max);
+static_assert(sat_add(word_min, word_max) == 0);
+static_assert(sat_add(word_min, word_min) == word_min);
 
 constexpr auto wrap_add(auto a, auto b, auto l, auto h) {
 	return static_cast<std::common_type_t<decltype(l), decltype(h)>>(

@@ -45,8 +45,7 @@ auto log(std::string_view str) -> void {
 } // namespace detail
 
 logger::logger(std::string_view prefix)
-    : detail::stringbuf_container{std::make_unique<std::stringbuf>()}
-    , std::ostream{data_.get()}
+    : formatter_{std::make_unique<std::ostringstream>()}
     , log_{output} {
-	do_write(prefix);
+	(*formatter_) << prefix;
 }

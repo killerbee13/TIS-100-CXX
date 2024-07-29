@@ -29,26 +29,35 @@ struct input_node : node {
 	using node::node;
 	type_t type() const noexcept override { return in; }
 	bool step() override { return false; }
-	// new values become readable at end of each cycle
 	bool finalize() override {
-		if (not wrt and idx != inputs.size()) {
-			log_debug("I: ", not wrt, ',', idx != inputs.size());
-			wrt.emplace(inputs[idx++]);
+		if (writing) {
+			// writing this turn
+			s = activity::write;
+			writing = false;
 			return true;
 		} else {
+			s = activity::idle;
+			// ready a value if we don't have one
+			if (not wrt and idx != inputs.size()) {
+				log_debug("I: ", not wrt, ',', idx != inputs.size());
+				wrt.emplace(inputs[idx++]);
+				return true;
+			}
 			return false;
 		}
 	}
 	void reset() noexcept override {
 		idx = 0;
 		wrt.reset();
+		s = activity::idle;
 	}
 	std::optional<word_t> emit(port) override {
+		writing = bool(wrt);
 		return std::exchange(wrt, std::nullopt);
 	}
 	std::string print() const override {
-		return kblib::concat("I", x, " NUMERIC { emitted:(", idx, "/",
-		                     inputs.size(), ") }");
+		return kblib::concat("I", x, " NUMERIC { ", state_name(s),
+		                     " emitted:(", idx, "/", inputs.size(), ") }");
 	}
 
 	std::vector<word_t> inputs;
@@ -56,6 +65,9 @@ struct input_node : node {
 	std::string filename{};
 	io_type_t io_type{};
 	std::optional<word_t> wrt;
+	activity s{activity::idle};
+ private:
+	bool writing{};
 };
 struct output_node : node {
 	using node::node;

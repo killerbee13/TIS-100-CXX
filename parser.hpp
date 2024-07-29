@@ -184,9 +184,6 @@ class field {
 		return nullptr;
 	}
 
-	friend field parse(std::string_view layout, std::string_view source,
-	                   std::string_view expected, std::size_t T21_size,
-	                   std::size_t T30_size);
 	template <bool use_nonstandard_rep>
 	friend field parse_layout(std::string_view layout, std::size_t T30_size);
 

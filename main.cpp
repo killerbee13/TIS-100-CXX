@@ -166,8 +166,8 @@ int main(int argc, char** argv) try {
 	TCLAP::ValueArg<std::string> set_test("t", "test", "Manually set test cases",
 	                                      false, "", "test case");
 
-	// Size constraint of 999 guarantees that JRO can reach every instruction
-	range_int_constraint<unsigned> size_constraint(0, 999);
+	// Size constraint of word_max guarantees that JRO can reach every instruction
+	range_int_constraint<unsigned> size_constraint(0, word_max);
 	TCLAP::ValueArg<unsigned> T21_size(
 	    "", "T21_size", "Number of instructions allowed per T21 node", false,
 	    def_T21_size, &size_constraint, cmd);
