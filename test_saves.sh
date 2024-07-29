@@ -48,7 +48,7 @@ echo > $wrong_file
 set tmp_result (mktemp)
 
 function filter_result
-	tail -n 1 $tmp_result | sed -Ee 's/^score: //' | sed "s,\x1B\[[0-9;]*[a-zA-Z],,g"
+	tail -n 1 $tmp_result | sed -Ee 's/^score: //' | sed "s,\x1B\[[0-9;]*[a-zA-Z],,g" | tr z c
 end
 
 for id in $saves

@@ -1,0 +1,35 @@
+---
+AlignEscapedNewlines: Left
+AlignTrailingComments: 'true'
+AllowAllParametersOfDeclarationOnNextLine: 'false'
+AllowShortBlocksOnASingleLine: 'false'
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: 'false'
+AlwaysBreakAfterReturnType: None
+AlwaysBreakTemplateDeclarations: 'Yes'
+BreakBeforeBinaryOperators: All
+BreakBeforeBraces: Attach
+BreakBeforeTernaryOperators: 'true'
+BreakConstructorInitializers: BeforeComma
+BreakInheritanceList: BeforeComma
+ColumnLimit: '80'
+CommentPragmas: ^ \$
+Cpp11BracedListStyle: 'true'
+FixNamespaceComments: 'true'
+IndentPPDirectives: AfterHash
+IndentWidth: '3'
+Language: Cpp
+NamespaceIndentation: Inner
+PenaltyExcessCharacter: '1000'
+PenaltyReturnTypeOnItsOwnLine: '1000'
+PointerAlignment: Left
+SortIncludes: 'true'
+SortUsingDeclarations: 'true'
+SpaceAfterLogicalNot: 'true'
+SpaceBeforeParens: ControlStatements
+Standard: Cpp11
+TabWidth: '3'
+UseTab: ForIndentation
+
+...
