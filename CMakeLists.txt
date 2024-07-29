@@ -48,6 +48,7 @@ endif()
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
 	add_compile_options(-fsanitize=undefined,address)
 	add_link_options(-fsanitize=undefined,address)
+	add_compile_options(-Og)
 endif()
 
 include(CheckIPOSupported)

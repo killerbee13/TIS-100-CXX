@@ -397,14 +397,38 @@ constexpr auto sat_sub(T a, T b) {
 }
 
 // returns a new string, padded
-inline std::string pad(std::string_view input, std::size_t final_size,
-                       char padding = ' ') {
-	assert(final_size >= input.length());
-	return std::string(input).append(final_size - input.length(), padding);
+inline std::string pad_right(std::string input, std::size_t size,
+                             char padding = ' ') {
+	input.resize(std::max(input.size(), size), padding);
+	return input;
+}
+inline std::string pad_right(std::string_view input, std::size_t size,
+                             char padding = ' ') {
+	return pad_right(std::string(input), size, padding);
+}
+inline std::string pad_right(std::integral auto input, std::size_t size,
+                             char padding = ' ') {
+	return pad_right(std::to_string(input), size, padding);
 }
 
-template<typename Stream>
-requires requires(Stream s) { { s << "" << 1 }; }
+inline std::string pad_left(std::string input, std::size_t size,
+                            char padding = ' ') {
+	input.insert(0, std::max(0uz, size - input.size()), padding);
+	return input;
+}
+inline std::string pad_left(std::string_view input, std::size_t size,
+                            char padding = ' ') {
+	return pad_left(std::string(input), size, padding);
+}
+inline std::string pad_left(std::integral auto input, std::size_t size,
+                            char padding = ' ') {
+	return pad_left(std::to_string(input), size, padding);
+}
+
+template <typename Stream>
+requires requires(Stream s) {
+	{s << "" << 1};
+}
 inline Stream& write_list(Stream& os, const std::vector<word_t>& v,
                           const std::vector<word_t>* expected = nullptr,
                           bool colored = use_color) {

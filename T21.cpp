@@ -168,7 +168,7 @@ bool T21::step() {
 	    [&, this](kblib::constant<std::size_t, instr::add>, arith_instr i) {
 		    log << "add (" << acc << ") ";
 		    if (auto r = read(i.src, i.val)) {
-			    log << *r << '\n';
+			    log << *r;
 			    acc = sat_add(acc, *r);
 			    s = activity::run;
 			    next();
@@ -319,8 +319,9 @@ std::optional<word_t> T21::emit(port p) {
 
 std::string T21::print() const {
 	return kblib::concat(
-	    '(', x, ',', y, ") T21 { ", acc, " (", bak, ") ",
-	    pad(port_name(last), 5), ' ', pad(state_name(s), 4), ' ', pc, " [",
+	    '(', x, ',', y, ") T21 { ", pad_right(acc, 4), " (", pad_right(bak, 4),
+	    ") ", pad_right(port_name(last), 5), ' ', pad_right(state_name(s), 4),
+	    ' ', pad_left(pc, 2), " [",
 	    code.empty() ? "" : to_string(code[kblib::to_unsigned(pc)]), "] ", wrt,
 	    "->", port_name(write_port), " }");
 }
