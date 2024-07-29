@@ -389,6 +389,10 @@ inline constexpr auto layouts1 = gen_layouts();
 					break;
 				}
 			}
+			if (not f.has_inputs()) {
+				log_info("Secondary random tests skipped for invariant level");
+				break;
+			}
 		}
 		log_info("Random test results: ", valid_count, " passed out of ", count,
 		         " total");
