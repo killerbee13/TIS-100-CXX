@@ -120,8 +120,7 @@ struct node {
 		case immediate:
 			return "VAL";
 		default:
-			throw std::invalid_argument{
-			    kblib::concat("Illegal port ", kblib::etoi(p))};
+			throw std::invalid_argument{concat("Illegal port ", etoi(p))};
 		}
 	}
 
@@ -167,7 +166,7 @@ struct node {
 
 	/// null and Damaged are negative. Any positive value is a valid node
 	// (0 is unallocated)
-	friend bool valid(const node* n) { return n and kblib::etoi(n->type()) > 0; }
+	friend bool valid(const node* n) { return n and etoi(n->type()) > 0; }
 	/// Attempt to read a value from n, coming from direction p
 	friend std::optional<word_t> do_read(node* n, port p) {
 		assert(p >= port::left and p <= port::D6);
@@ -193,7 +192,7 @@ struct damaged : node {
 	void reset() noexcept override {}
 	std::optional<word_t> emit(port) override { return std::nullopt; }
 	std::string print() const override {
-		return kblib::concat("(", x, ',', y, ") {Damaged}");
+		return concat("(", x, ',', y, ") {Damaged}");
 	}
 };
 
@@ -326,7 +325,7 @@ struct image_t : pnm::image<tis_pixel> {
 			assert(line.size() == w);
 		}
 #endif
-		reshape(kblib::to_signed(w), kblib::to_signed(image.size()));
+		reshape(to_signed(w), to_signed(image.size()));
 		auto it = begin();
 		for (auto line : image) {
 			for (auto px : line) {
@@ -348,9 +347,9 @@ struct image_t : pnm::image<tis_pixel> {
 	constexpr std::ostream& write_text(
 	    std::ostream& os,
 	    const std::array<std::string_view, 5>& rkey_ = rkey) const {
-		for (const auto y : kblib::range(height())) {
-			for (const auto x : kblib::range(width())) {
-				os << rkey_[kblib::etoi(at(x, y).val)];
+		for (const auto y : range(height())) {
+			for (const auto x : range(width())) {
+				os << rkey_[etoi(at(x, y).val)];
 			}
 			os << '\n';
 		}
@@ -360,9 +359,9 @@ struct image_t : pnm::image<tis_pixel> {
 	constexpr std::string write_text(const std::array<std::string_view, 5>& rkey_
 	                                 = rkey) const {
 		std::string ret;
-		for (const auto y : kblib::range(height())) {
-			for (const auto x : kblib::range(width())) {
-				ret += rkey_[kblib::etoi(at(x, y).val)];
+		for (const auto y : range(height())) {
+			for (const auto x : range(width())) {
+				ret += rkey_[etoi(at(x, y).val)];
 			}
 			ret += '\n';
 		}
@@ -370,10 +369,10 @@ struct image_t : pnm::image<tis_pixel> {
 	}
 
 	constexpr std::string write_text(bool colored) const {
-		return write_text({" ", "░", "▒", "█",
-		                   colored ? kblib::concat(print_escape(red), "▓",
-		                                           print_escape(reset_color))
-		                           : "#"});
+		return write_text(
+		    {" ", "░", "▒", "█",
+		     colored ? concat(print_escape(red), "▓", print_escape(reset_color))
+		             : "#"});
 	}
 };
 

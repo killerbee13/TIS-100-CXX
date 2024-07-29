@@ -73,7 +73,8 @@ class xorshift128_engine {
 	}
 };
 
-// based on https://github.com/microsoft/referencesource/blob/master/mscorlib/system/random.cs
+// based on
+// https://github.com/microsoft/referencesource/blob/master/mscorlib/system/random.cs
 // but with inextp = 31 instead of 21, matching the old mono version in the game
 class lua_random {
  private:
@@ -90,7 +91,7 @@ class lua_random {
 
  public:
 	lua_random(int32_t random_seed) {
-		assert(inextp >= 0 and kblib::to_unsigned(inextp) < seed_array.size());
+		assert(inextp >= 0 and to_unsigned(inextp) < seed_array.size());
 
 		int32_t subtraction
 		    = (random_seed == kblib::min) ? kblib::max : std::abs(random_seed);
@@ -98,18 +99,18 @@ class lua_random {
 		seed_array.back() = mj;
 		int32_t mk = 1;
 		std::size_t ii;
-		for (const auto i : kblib::range(1u, 55u)) {
+		for (const auto i : range(1u, 55u)) {
 			ii = (21u * i) % 55u;
 			seed_array[ii] = mk;
 			mk = map_negative(mj - mk);
 			mj = seed_array[ii];
 		}
 		for (int k = 1; k < 5; ++k) {
-			for (const auto i : kblib::range(1u, 56u)) {
+			for (const auto i : range(1u, 56u)) {
 				// Do the subtraction in unsigned because it can overflow
-				seed_array[i] = map_negative(kblib::to_signed(
-				    kblib::to_unsigned(seed_array[i])
-				    - kblib::to_unsigned(seed_array[1u + (i + 30u) % 55u])));
+				seed_array[i] = map_negative(
+				    to_signed(to_unsigned(seed_array[i])
+				              - to_unsigned(seed_array[1u + (i + 30u) % 55u])));
 			}
 		}
 	}
@@ -124,8 +125,8 @@ class lua_random {
 			inextp = 1;
 		}
 
-		int32_t ret = seed_array[kblib::to_unsigned(inext)]
-		              - seed_array[kblib::to_unsigned(inextp)];
+		int32_t ret
+		    = seed_array[to_unsigned(inext)] - seed_array[to_unsigned(inextp)];
 
 		if (ret == kblib::max) {
 			--ret;
@@ -133,14 +134,15 @@ class lua_random {
 		if (ret < 0) {
 			ret += kblib::max.of<int32_t>();
 		}
-		seed_array[kblib::to_unsigned(inext)] = ret;
+		seed_array[to_unsigned(inext)] = ret;
 
 		double sample = ret * (1.0 / kblib::max.of<int32_t>());
 		return static_cast<int32_t>(sample * (max - min) + min);
 	}
 
 	word_t next(word_t min, word_t max) {
-		return static_cast<word_t>(next_int(static_cast<int32_t>(min), static_cast<int32_t>(max) + 1));
+		return static_cast<word_t>(
+		    next_int(static_cast<int32_t>(min), static_cast<int32_t>(max) + 1));
 	}
 };
 

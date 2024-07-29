@@ -33,6 +33,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+using kblib::append, kblib::concat, kblib::constant, kblib::etoi, kblib::range,
+    kblib::to_signed, kblib::to_unsigned;
+
 namespace pnm {
 
 struct rgba_pixel {
@@ -199,12 +202,12 @@ class image {
 	constexpr image() = default;
 	image(std::ptrdiff_t width, std::ptrdiff_t height, pixel value)
 	    : width_{width}
-	    , data(kblib::to_unsigned(width * height), value) {
+	    , data(to_unsigned(width * height), value) {
 		assert(width >= 0 and height >= 0);
 	}
 	image(std::ptrdiff_t width, std::ptrdiff_t height)
 	    : width_{width}
-	    , data(kblib::to_unsigned(width * height)) {
+	    , data(to_unsigned(width * height)) {
 		assert(width >= 0 and height >= 0);
 	}
 	image(std::ptrdiff_t width, [[maybe_unused]] std::ptrdiff_t height,
@@ -273,7 +276,7 @@ class image {
 		if (data.size() == 0) {
 			return 0;
 		} else {
-			return kblib::to_signed(data.size()) / width_;
+			return to_signed(data.size()) / width_;
 		}
 	}
 	constexpr std::ptrdiff_t width() const noexcept { return width_; }
@@ -302,10 +305,10 @@ class image {
 	void write(std::ostream& os, std::ptrdiff_t scale_w,
 	           std::ptrdiff_t scale_h) const {
 		pixel::header(os, width_ * scale_w, height() * scale_h);
-		for (const auto y : kblib::range(height())) {
-			for ([[maybe_unused]] const auto _ : kblib::range(scale_h)) {
-				for (const auto x : kblib::range(width_)) {
-					for ([[maybe_unused]] const auto _1 : kblib::range(scale_w)) {
+		for (const auto y : range(height())) {
+			for ([[maybe_unused]] const auto _ : range(scale_h)) {
+				for (const auto x : range(width_)) {
+					for ([[maybe_unused]] const auto _1 : range(scale_w)) {
 						os << at(x, y);
 					}
 				}
@@ -326,9 +329,9 @@ class image {
 		std::size_t r = static_cast<std::size_t>(y * width_ + x);
 		if constexpr (safe) {
 			if (x < 0 or y < 0 or x > width_ or r > data.size()) {
-				throw std::out_of_range{kblib::concat("position (", x, ',', y,
-				                                      ") out of range (", width_,
-				                                      ',', height(), ")")};
+				throw std::out_of_range{concat("position (", x, ',', y,
+				                               ") out of range (", width_, ',',
+				                               height(), ")")};
 			}
 		}
 		return r;
@@ -368,7 +371,7 @@ std::error_code finalize_to_png(const image<pixel>& img,
 	using namespace std::literals;
 	auto pipename
 	    = std::filesystem::temp_directory_path()
-	      / kblib::concat(
+	      / concat(
 	          dest.filename().native(), '-',
 	          kblib::to_string(
 	              std::chrono::system_clock::now().time_since_epoch().count(),
@@ -394,7 +397,7 @@ std::error_code finalize_to_png(const image<pixel>& img,
 					return dest.native();
 				}
 			} else {
-				return kblib::concat(format.native(), ':', dest.native());
+				return concat(format.native(), ':', dest.native());
 			}
 		}();
 		auto p = pipename.native();
@@ -410,11 +413,10 @@ std::error_code finalize_to_png(const image<pixel>& img,
 		}
 
 #if 0
-		std::cerr << kblib::concat("Calling:\n\t",
-		                           kblib::quoted(convert_path.native()), ' ',
-		                           kblib::quoted(std::string_view(comment_arg)),
-		                           ' ', kblib::quoted(comments), ' ',
-		                           kblib::quoted(p), ' ', kblib::quoted(d), '\n');
+		std::cerr << concat("Calling:\n\t", kblib::quoted(convert_path.native()),
+		                    ' ', kblib::quoted(std::string_view(comment_arg)),
+		                    ' ', kblib::quoted(comments), ' ', kblib::quoted(p),
+		                    ' ', kblib::quoted(d), '\n');
 #endif
 
 		execv(convert_path.c_str(), cargs);

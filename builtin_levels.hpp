@@ -132,13 +132,12 @@ inline constexpr std::array<level_layout, 51> layouts{{
 }};
 
 constexpr int level_id(std::string_view s) {
-	for (auto i : kblib::range(layouts.size())) {
+	for (auto i : range(layouts.size())) {
 		if (s == layouts[i].segment or s == layouts[i].name) {
 			return static_cast<int>(i);
 		}
 	}
-	throw std::invalid_argument{
-	    kblib::concat("invalid level ID ", kblib::quoted(s))};
+	throw std::invalid_argument{concat("invalid level ID ", kblib::quoted(s))};
 }
 
 consteval int operator""_lvl(const char* s, std::size_t size) {
@@ -147,8 +146,8 @@ consteval int operator""_lvl(const char* s, std::size_t size) {
 
 inline image_t checkerboard(std::ptrdiff_t w, std::ptrdiff_t h) {
 	image_t ret(w, h);
-	for (const auto y : kblib::range(h)) {
-		for (const auto x : kblib::range(w)) {
+	for (const auto y : range(h)) {
+		for (const auto x : range(w)) {
 			ret.at(x, y)
 			    = ((x + y % 2) % 2) ? tis_pixel::C_black : tis_pixel::C_white;
 		}

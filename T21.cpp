@@ -48,7 +48,7 @@ std::optional<word_t> T21::read(port p, word_t imm) {
 	case port::up:
 	case port::D5:
 	case port::D6:
-		return do_read(neighbors[kblib::to_unsigned(kblib::etoi(p))], invert(p));
+		return do_read(neighbors[to_unsigned(etoi(p))], invert(p));
 	case port::nil:
 		return word_t{};
 	case port::acc:
@@ -78,45 +78,45 @@ bool T21::step() {
 		log << "empty";
 		return false;
 	}
-	auto& i = code[kblib::to_unsigned(pc)];
+	auto& i = code[to_unsigned(pc)];
 	auto old_state = s;
 	log << "instruction type: ";
 	bool r = kblib::visit_indexed(
 	    std::as_const(i.data),
-	    [&](kblib::constant<std::size_t, instr::hcf>, seq_instr) {
+	    [&](constant<std::size_t, instr::hcf>, seq_instr) {
 		    log << "hcf";
 		    log << "\n\ts = " << state_name(s);
 		    throw std::runtime_error{"HCF"};
 		    return true;
 	    },
-	    [&, this](kblib::constant<std::size_t, instr::nop>, seq_instr) {
+	    [&, this](constant<std::size_t, instr::nop>, seq_instr) {
 		    log << "nop";
 		    next();
 		    s = activity::run;
 		    return true;
 	    },
-	    [&, this](kblib::constant<std::size_t, instr::swp>, seq_instr) {
+	    [&, this](constant<std::size_t, instr::swp>, seq_instr) {
 		    log << "swp (" << acc << "<->" << bak << ')';
 		    std::swap(acc, bak);
 		    s = activity::run;
 		    next();
 		    return true;
 	    },
-	    [&, this](kblib::constant<std::size_t, instr::sav>, seq_instr) {
+	    [&, this](constant<std::size_t, instr::sav>, seq_instr) {
 		    log << "sav (" << acc << "->" << bak << ')';
 		    bak = acc;
 		    s = activity::run;
 		    next();
 		    return true;
 	    },
-	    [&, this](kblib::constant<std::size_t, instr::neg>, seq_instr) {
+	    [&, this](constant<std::size_t, instr::neg>, seq_instr) {
 		    log << "neg (" << acc << ')';
 		    acc = -acc;
 		    s = activity::run;
 		    next();
 		    return true;
 	    },
-	    [&, this](kblib::constant<std::size_t, instr::mov>, mov_instr i) {
+	    [&, this](constant<std::size_t, instr::mov>, mov_instr i) {
 		    log << "mov ";
 		    if (s == activity::write) {
 			    log << "stalled[W]";
@@ -165,7 +165,7 @@ bool T21::step() {
 			    return s != old_state;
 		    }
 	    },
-	    [&, this](kblib::constant<std::size_t, instr::add>, arith_instr i) {
+	    [&, this](constant<std::size_t, instr::add>, arith_instr i) {
 		    log << "add (" << acc << ") ";
 		    if (auto r = read(i.src, i.val)) {
 			    log << *r;
@@ -179,7 +179,7 @@ bool T21::step() {
 			    return s != old_state;
 		    }
 	    },
-	    [&, this](kblib::constant<std::size_t, instr::sub>, arith_instr i) {
+	    [&, this](constant<std::size_t, instr::sub>, arith_instr i) {
 		    log << "sub (" << acc << ") ";
 		    if (auto r = read(i.src, i.val)) {
 			    log << *r;
@@ -193,12 +193,12 @@ bool T21::step() {
 			    return s != old_state;
 		    }
 	    },
-	    [&, this](kblib::constant<std::size_t, instr::jmp>, jmp_instr i) {
+	    [&, this](constant<std::size_t, instr::jmp>, jmp_instr i) {
 		    log << "jmp " << +i.target;
 		    pc = i.target;
 		    return true;
 	    },
-	    [&, this](kblib::constant<std::size_t, instr::jez>, jmp_instr i) {
+	    [&, this](constant<std::size_t, instr::jez>, jmp_instr i) {
 		    log << "jez (" << (acc == 0 ? "taken" : "not taken") << ") "
 		        << +i.target;
 		    if (acc == 0) {
@@ -209,7 +209,7 @@ bool T21::step() {
 		    s = activity::run;
 		    return true;
 	    },
-	    [&, this](kblib::constant<std::size_t, instr::jnz>, jmp_instr i) {
+	    [&, this](constant<std::size_t, instr::jnz>, jmp_instr i) {
 		    log << "jnz (" << (acc != 0 ? "taken" : "not taken") << ") "
 		        << +i.target;
 		    if (acc != 0) {
@@ -220,7 +220,7 @@ bool T21::step() {
 		    s = activity::run;
 		    return true;
 	    },
-	    [&, this](kblib::constant<std::size_t, instr::jgz>, jmp_instr i) {
+	    [&, this](constant<std::size_t, instr::jgz>, jmp_instr i) {
 		    log << "jgz (" << (acc > 0 ? "taken" : "not taken") << ") "
 		        << +i.target;
 		    if (acc > 0) {
@@ -231,7 +231,7 @@ bool T21::step() {
 		    s = activity::run;
 		    return true;
 	    },
-	    [&, this](kblib::constant<std::size_t, instr::jlz>, jmp_instr i) {
+	    [&, this](constant<std::size_t, instr::jlz>, jmp_instr i) {
 		    log << "jlz (" << (acc < 0 ? "taken" : "not taken") << ") "
 		        << +i.target;
 		    if (acc < 0) {
@@ -242,7 +242,7 @@ bool T21::step() {
 		    s = activity::run;
 		    return true;
 	    },
-	    [&, this](kblib::constant<std::size_t, instr::jro>, jro_instr i) {
+	    [&, this](constant<std::size_t, instr::jro>, jro_instr i) {
 		    log << "jro ";
 		    if (auto r = read(i.src, i.val)) {
 			    log << '(' << +pc << '+' << *r << " -> ";
@@ -264,7 +264,7 @@ bool T21::finalize() {
 	if (code.empty()) {
 		return false;
 	}
-	auto& i = code[kblib::to_unsigned(pc)];
+	auto& i = code[to_unsigned(pc)];
 	return kblib::visit2(
 	    i.data,
 	    [this](auto) {
@@ -318,10 +318,9 @@ std::optional<word_t> T21::emit(port p) {
 }
 
 std::string T21::print() const {
-	return kblib::concat(
-	    '(', x, ',', y, ") T21 { ", pad_right(acc, 4), " (", pad_right(bak, 4),
-	    ") ", pad_right(port_name(last), 5), ' ', pad_right(state_name(s), 4),
-	    ' ', pad_left(pc, 2), " [",
-	    code.empty() ? "" : to_string(code[kblib::to_unsigned(pc)]), "] ", wrt,
-	    "->", port_name(write_port), " }");
+	return concat('(', x, ',', y, ") T21 { ", pad_right(acc, 4), " (",
+	              pad_right(bak, 4), ") ", pad_right(port_name(last), 5), ' ',
+	              pad_right(state_name(s), 4), ' ', pad_left(pc, 2), " [",
+	              code.empty() ? "" : to_string(code[to_unsigned(pc)]), "] ",
+	              wrt, "->", port_name(write_port), " }");
 }

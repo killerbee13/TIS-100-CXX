@@ -253,14 +253,14 @@ struct score {
 	friend std::string to_string(score sc, bool colored = use_color) {
 		std::string ret;
 		if (sc.validated) {
-			kblib::append(ret, sc.cycles);
+			append(ret, sc.cycles);
 		} else {
 			if (colored) {
 				ret += print_escape(red);
 			}
 			ret += "-";
 		}
-		kblib::append(ret, '/', sc.nodes, '/', sc.instructions);
+		append(ret, '/', sc.nodes, '/', sc.instructions);
 		if (sc.validated and (sc.achievement or sc.cheat)) {
 			ret += '/';
 		}

@@ -56,8 +56,8 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 
 	width = 4;
 	io_node_offset = 12;
-	for (const auto y : kblib::range(3u)) {
-		for (const auto x : kblib::range(4u)) {
+	for (const auto y : range(3u)) {
+		for (const auto x : range(4u)) {
 			switch (spec.nodes[y][x]) {
 			case node::T21:
 				nodes.push_back(std::make_unique<T21>(x, y));
@@ -81,8 +81,8 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 			}
 		}
 	}
-	for (const auto y : kblib::range(3u)) {
-		for (const auto x : kblib::range(4u)) {
+	for (const auto y : range(3u)) {
+		for (const auto x : range(4u)) {
 			if (auto p = node_by_location(x, y); valid(p)) {
 				// safe because node_by_location returns nullptr on OOB
 				p->neighbors[left] = node_by_location(x - 1, y);
@@ -93,16 +93,16 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 		}
 	}
 
-	for (const auto x : kblib::range(4u)) {
+	for (const auto x : range(4u)) {
 		auto in = spec.io[0][x];
 		switch (in.type) {
 		case node::in: {
-			auto p = do_insert<input_node>(nodes, kblib::to_signed(x));
+			auto p = do_insert<input_node>(nodes, to_signed(x));
 			auto n = node_by_location(x, 0);
 			assert(valid(n));
 			p->neighbors[down] = n;
 			n->neighbors[up] = p;
-			p->filename = kblib::concat('@', x);
+			p->filename = concat('@', x);
 			p->io_type = numeric;
 		} break;
 		case node::null:
@@ -113,29 +113,29 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 		}
 	}
 
-	for (const auto x : kblib::range(4u)) {
+	for (const auto x : range(4u)) {
 		auto in = spec.io[1][x];
 		switch (in.type) {
 		case node::out: {
-			auto p = do_insert<output_node>(nodes, kblib::to_signed(x));
+			auto p = do_insert<output_node>(nodes, to_signed(x));
 			auto n = node_by_location(x, 2);
 			assert(valid(n));
 			p->neighbors[up] = n;
 			n->neighbors[down] = p;
 			p->io_type = numeric;
-			p->filename = kblib::concat('@', 4 + x);
+			p->filename = concat('@', 4 + x);
 			if (in.image_size) {
 				throw std::invalid_argument{"invalid layout spec: image size "
 				                            "specified for numeric output node"};
 			}
 		} break;
 		case node::image: {
-			auto p = do_insert<image_output>(nodes, kblib::to_signed(x));
+			auto p = do_insert<image_output>(nodes, to_signed(x));
 			auto n = node_by_location(x, 2);
 			assert(valid(n));
 			p->neighbors[up] = n;
 			n->neighbors[down] = p;
-			p->filename = kblib::concat('@', 4 + x);
+			p->filename = concat('@', 4 + x);
 			if (not in.image_size) {
 				throw std::invalid_argument{
 				    "invalid layout spec: no size specified for image"};
@@ -182,7 +182,7 @@ field parse_layout(std::string_view layout, std::size_t T30_size) {
 	{
 		int x{};
 		int y{};
-		for (const auto i : kblib::range(ret.io_node_offset)) {
+		for (const auto i : range(ret.io_node_offset)) {
 			char c{};
 			ss >> std::ws >> c;
 			switch (c) {
@@ -212,8 +212,8 @@ field parse_layout(std::string_view layout, std::size_t T30_size) {
 			}
 		}
 	}
-	for (const auto y : kblib::range(ret.height())) {
-		for (const auto x : kblib::range(ret.width)) {
+	for (const auto y : range(ret.height())) {
+		for (const auto x : range(ret.width)) {
 			if (auto p = ret.node_by_location(x, y); valid(p)) {
 				// safe because node_by_location returns nullptr on OOB
 				p->neighbors[left] = ret.node_by_location(x - 1, y);
@@ -290,7 +290,7 @@ field parse_layout(std::string_view layout, std::size_t T30_size) {
 			}
 		} else {
 			throw std::invalid_argument{
-			    kblib::concat("invalid layout id=", kblib::quoted(id))};
+			    concat("invalid layout id=", kblib::quoted(id))};
 		}
 	}
 
@@ -326,7 +326,7 @@ void parse_code(field& f, std::string_view source, std::size_t T21_size) {
 		auto i = kblib::parse_integer<int>(header);
 		auto section = pop(source, source.find_first_of('@'));
 		if (not nodes_seen.insert(i).second) {
-			throw std::invalid_argument{kblib::concat("duplicate node label ", i)};
+			throw std::invalid_argument{concat("duplicate node label ", i)};
 		}
 		if (section.empty()) {
 			continue;
@@ -337,8 +337,7 @@ void parse_code(field& f, std::string_view source, std::size_t T21_size) {
 		log_debug("index ", i, " of ", f.nodes_avail());
 		auto p = f.node_by_index(static_cast<std::size_t>(i));
 		if (not p) {
-			throw std::invalid_argument{
-			    kblib::concat("node label ", i, " out of range")};
+			throw std::invalid_argument{concat("node label ", i, " out of range")};
 		}
 		p->code = assemble(section, i, T21_size);
 	}
@@ -405,17 +404,16 @@ std::string to_string(port p) {
 	case last:
 		return "LAST";
 	default:
-		throw std::invalid_argument{
-		    kblib::concat("invalid port number ", kblib::etoi(p))};
+		throw std::invalid_argument{concat("invalid port number ", etoi(p))};
 	}
 }
 
 std::string to_string(seq_instr) { return {}; }
 std::string to_string(mov_instr i) {
 	if (i.src == immediate) {
-		return kblib::concat(i.val, ',', to_string(i.dst));
+		return concat(i.val, ',', to_string(i.dst));
 	} else {
-		return kblib::concat(to_string(i.src), ',', to_string(i.dst));
+		return concat(to_string(i.src), ',', to_string(i.dst));
 	}
 }
 std::string to_string(arith_instr i) {
@@ -425,7 +423,7 @@ std::string to_string(arith_instr i) {
 		return to_string(i.src);
 	}
 }
-std::string to_string(jmp_instr i) { return kblib::concat('L', i.target); }
+std::string to_string(jmp_instr i) { return concat('L', i.target); }
 std::string to_string(jro_instr i) {
 	if (i.src == immediate) {
 		return std::to_string(i.val);
@@ -441,9 +439,8 @@ std::string to_string(instr i) {
 		    return to_string(static_cast<instr::op>(i.data.index()));
 	    },
 	    [&](auto d) {
-		    return kblib::concat(
-		        to_string(static_cast<instr::op>(i.data.index())), ' ',
-		        to_string(d));
+		    return concat(to_string(static_cast<instr::op>(i.data.index())), ' ',
+		                  to_string(d));
 	    });
 }
 
@@ -543,7 +540,7 @@ word_t parse_label(std::string_view label,
 		}
 	}
 	throw std::invalid_argument{
-	    kblib::concat("Label ", kblib::quoted(label), " used but not defined")};
+	    concat("Label ", kblib::quoted(label), " used but not defined")};
 }
 
 std::vector<instr> assemble(std::string_view source, int node,
@@ -551,7 +548,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 	auto lines = kblib::split_dsv(source, '\n');
 	if (lines.size() > T21_size) {
 		throw std::invalid_argument{
-		    kblib::concat("too many lines of asm for node ", node)};
+		    concat("too many lines of asm for node ", node)};
 	}
 	std::vector<instr> ret;
 	std::vector<std::pair<std::string, word_t>> labels;
@@ -562,7 +559,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 			auto tokens
 			    = kblib::split_tokens(line.substr(0, line.find_first_of('#')),
 			                          [](char c) { return " \t,"sv.contains(c); });
-			for (auto j : kblib::range(tokens.size())) {
+			for (auto j : range(tokens.size())) {
 				const auto& tok = tokens[j];
 				if (tok.empty()) {
 					continue; // ?
@@ -595,7 +592,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 		    = kblib::split_tokens(line.substr(0, line.find_first_of('#')),
 		                          [](char c) { return " \t,"sv.contains(c); });
 		std::optional<instr> tmp;
-		for (auto j : kblib::range(tokens.size())) {
+		for (auto j : range(tokens.size())) {
 			auto& tok = tokens[j];
 			if (tok.contains(':')) {
 				if (seen_op) {
@@ -613,11 +610,11 @@ std::vector<instr> assemble(std::string_view source, int node,
 
 		auto assert_last_operand = [&](std::size_t j) {
 			if (tokens.size() > j + 1) {
-				throw std::invalid_argument{kblib::concat(
-				    "Unexpected operand ", kblib::quoted(tokens[j + 1]))};
+				throw std::invalid_argument{
+				    concat("Unexpected operand ", kblib::quoted(tokens[j + 1]))};
 			}
 		};
-		for (auto j : kblib::range(tokens.size())) {
+		for (auto j : range(tokens.size())) {
 			auto& tok = tokens[j];
 			tok.erase(0, tok.find_first_not_of('!'));
 			if (tok.empty()) {
@@ -745,9 +742,9 @@ std::size_t field::nodes_avail() const {
 std::string field::layout() const {
 
 	auto h = height();
-	std::string ret = kblib::concat(h, ' ', width, '\n');
-	for (const auto y : kblib::range(h)) {
-		for (const auto x : kblib::range(width)) {
+	std::string ret = concat(h, ' ', width, '\n');
+	for (const auto y : range(h)) {
+		for (const auto x : range(width)) {
 			auto p = node_by_location(x, y);
 			if (not valid(p)) {
 				ret += 'D';
@@ -760,7 +757,7 @@ std::string field::layout() const {
 		ret += '\n';
 	}
 
-	for (const auto i : kblib::range(io_node_offset, nodes.size())) {
+	for (const auto i : range(io_node_offset, nodes.size())) {
 		auto p = nodes[i].get();
 
 		constexpr std::array<std::string_view, 3> io_labels{" NUMERIC ",
@@ -770,35 +767,35 @@ std::string field::layout() const {
 			continue;
 		} else if (type(p) == node::in) {
 			auto in = static_cast<input_node*>(p);
-			kblib::append(ret, 'I', p->x, io_labels[in->io_type]);
+			append(ret, 'I', p->x, io_labels[in->io_type]);
 			if (in->filename.empty()) {
-				kblib::append(ret, "[");
+				append(ret, "[");
 				for (auto v : in->inputs) {
-					kblib::append(ret, v, ", ");
+					append(ret, v, ", ");
 				}
-				kblib::append(ret, "]\n");
+				append(ret, "]\n");
 			} else {
-				kblib::append(ret, in->filename, '\n');
+				append(ret, in->filename, '\n');
 			}
 		} else if (type(p) == node::out) {
 			auto on = static_cast<output_node*>(p);
-			kblib::append(ret, 'O', p->x, io_labels[on->io_type]);
+			append(ret, 'O', p->x, io_labels[on->io_type]);
 			if (on->filename.empty()) {
-				kblib::append(ret, "[");
+				append(ret, "[");
 				for (auto v : on->outputs_expected) {
-					kblib::append(ret, v, ", ");
+					append(ret, v, ", ");
 				}
-				kblib::append(ret, "]\n");
+				append(ret, "]\n");
 			} else {
-				kblib::append(ret, on->filename);
+				append(ret, on->filename);
 				if (on->d != ' ') {
-					kblib::append(ret, ' ', +on->d);
+					append(ret, ' ', +on->d);
 				}
-				kblib::append(ret, '\n');
+				append(ret, '\n');
 			}
 		} else if (type(p) == node::image) {
 			auto im = static_cast<image_output*>(p);
-			kblib::append(ret, 'O', p->x, " IMAGE ", im->width, im->height);
+			append(ret, 'O', p->x, " IMAGE ", im->width, im->height);
 			if (not im->image_expected.empty()) {
 			}
 		}

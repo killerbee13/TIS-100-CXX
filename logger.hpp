@@ -115,37 +115,37 @@ std::string log_print_escape(SGR_code first,
 template <typename... Strings>
 auto log_debug(Strings&&... strings) -> void {
 	if (get_log_level() >= log_level::debug) {
-		detail::log(kblib::concat("DEBUG: ", strings...));
+		detail::log(concat("DEBUG: ", strings...));
 	}
 }
 
 template <typename... Strings>
 auto log_info(Strings&&... strings) -> void {
 	if (get_log_level() >= log_level::info) {
-		detail::log(kblib::concat("INFO: ", strings...));
+		detail::log(concat("INFO: ", strings...));
 	}
 }
 
 template <typename... Strings>
 auto log_notice(Strings&&... strings) -> void {
 	if (get_log_level() >= log_level::notice) {
-		detail::log(kblib::concat("NOTICE: ", strings...));
+		detail::log(concat("NOTICE: ", strings...));
 	}
 }
 
 template <typename... Strings>
 auto log_warn(Strings&&... strings) -> void {
 	if (get_log_level() >= log_level::warn) {
-		detail::log(kblib::concat(log_print_escape(yellow),
-		                          "WARN: ", log_print_escape(none), strings...));
+		detail::log(concat(log_print_escape(yellow),
+		                   "WARN: ", log_print_escape(none), strings...));
 	}
 }
 
 template <typename... Strings>
 auto log_err(Strings&&... strings) -> void {
 	if (get_log_level() >= log_level::err) {
-		detail::log(kblib::concat(log_print_escape(red),
-		                          "ERROR: ", log_print_escape(none), strings...));
+		detail::log(concat(log_print_escape(red),
+		                   "ERROR: ", log_print_escape(none), strings...));
 	}
 }
 
@@ -153,13 +153,13 @@ auto log_err(Strings&&... strings) -> void {
 // not to impact performance
 auto log_debug_r(std::invocable<> auto supplier) -> void {
 	if (get_log_level() >= log_level::debug) {
-		detail::log(kblib::concat("DEBUG: ", supplier()));
+		detail::log(concat("DEBUG: ", supplier()));
 	}
 }
 
 auto log_info_r(std::invocable<> auto supplier) -> void {
 	if (get_log_level() >= log_level::info) {
-		detail::log(kblib::concat("INFO: ", supplier()));
+		detail::log(concat("INFO: ", supplier()));
 	}
 }
 

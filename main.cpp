@@ -107,7 +107,7 @@ class range_int_constraint : public TCLAP::Constraint<T> {
 	}
 
 	std::string description() const override {
-		return kblib::concat('[', low, '-', high, ']');
+		return concat('[', low, '-', high, ']');
 	}
 
 	std::string shortID() const override { return description(); }
@@ -176,14 +176,13 @@ int main(int argc, char** argv) try {
 	range_int_constraint<unsigned> size_constraint(0, word_max);
 	TCLAP::ValueArg<unsigned> T21_size(
 	    "", "T21_size",
-	    kblib::concat("Number of instructions allowed per T21 node. (Default ",
-	                  def_T21_size, ")"),
+	    concat("Number of instructions allowed per T21 node. (Default ",
+	           def_T21_size, ")"),
 	    false, def_T21_size, &size_constraint, cmd);
 	// No technical reason to limit T30 capacity, as they are not addressable
 	TCLAP::ValueArg<unsigned> T30_size(
 	    "", "T30_size",
-	    kblib::concat("Memory capacity of T30 nodes. (Default ", def_T30_size,
-	                  ")"),
+	    concat("Memory capacity of T30 nodes. (Default ", def_T30_size, ")"),
 	    false, def_T30_size, "integer", cmd);
 
 	std::vector<std::string> loglevels_allowed{"none",   "err",  "error", "warn",

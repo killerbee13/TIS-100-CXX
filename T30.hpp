@@ -35,9 +35,9 @@ struct T30 : node {
 			return false;
 		}
 		for (auto p : {port::left, port::right, port::up, port::down, port::D5,
-			           port::D6}) {
+		               port::D6}) {
 			if (auto r
-				= do_read(neighbors[static_cast<std::size_t>(p)], invert(p))) {
+			    = do_read(neighbors[static_cast<std::size_t>(p)], invert(p))) {
 				buffer.push_back(*r);
 				used = true;
 				if (data.size() + buffer.size() == max_size) {
@@ -45,7 +45,7 @@ struct T30 : node {
 				}
 			}
 		}
-		return !buffer.empty();
+		return not buffer.empty();
 	}
 	bool finalize() override {
 		data.insert(data.end(), buffer.begin(), buffer.end());
@@ -69,11 +69,11 @@ struct T30 : node {
 		}
 	}
 	std::string print() const override {
-		std::string ret = kblib::concat('(', x, ',', y, ") T30 {");
+		std::string ret = concat('(', x, ',', y, ") T30 {");
 		for (auto w : data) {
-			kblib::append(ret, w, ", ");
+			append(ret, w, ", ");
 		}
-		kblib::append(ret, '}');
+		append(ret, '}');
 		return ret;
 	}
 };

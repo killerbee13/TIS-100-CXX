@@ -23,7 +23,7 @@ std::error_code extract_comment_from_file(const char* filename,
 	using namespace std::literals;
 	auto pipename
 	    = std::filesystem::temp_directory_path()
-	      / kblib::concat(
+	      / concat(
 	          kblib::to_string(
 	              std::chrono::system_clock::now().time_since_epoch().count(),
 	              16),

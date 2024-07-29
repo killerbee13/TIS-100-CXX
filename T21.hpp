@@ -103,8 +103,7 @@ constexpr std::string to_string(instr::op o) {
 	case instr::jro:
 		return "JRO";
 	default:
-		throw std::invalid_argument{
-		    kblib::concat("Unknown instr::op ", kblib::etoi(o))};
+		throw std::invalid_argument{concat("Unknown instr::op ", etoi(o))};
 	}
 }
 

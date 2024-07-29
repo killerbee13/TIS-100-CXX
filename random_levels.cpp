@@ -167,7 +167,7 @@ single_test random_test(int id, uint32_t seed) {
 		ret.inputs.push_back(make_random_array(seed, 13, 10, 100));
 		ret.inputs.push_back(make_random_array(seed + 1, 13, 10, 100));
 		ret.n_outputs.resize(1);
-		for (const auto i : kblib::range(13u)) {
+		for (const auto i : range(13u)) {
 			auto v = std::minmax(ret.inputs[0][i], ret.inputs[1][i]);
 			ret.n_outputs[0].push_back(v.first);
 			ret.n_outputs[0].push_back(v.second);
@@ -360,7 +360,7 @@ single_test random_test(int id, uint32_t seed) {
 		for (int y = 0; y < image_height; ++y) {
 			for (int x = 0; x < image_width; ++x) {
 				ret.i_output.at(x, y)
-				    = (kblib::to_signed(image_height - y)
+				    = (to_signed(image_height - y)
 				       <= ret.inputs[0][static_cast<std::size_t>(x)])
 				          ? 3
 				          : 0;
@@ -399,8 +399,7 @@ single_test random_test(int id, uint32_t seed) {
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 0, 10));
 		ret.n_outputs.resize(1, std::vector<word_t>(max_test_length));
 		for (std::size_t i = 0; i < max_test_length; ++i) {
-			ret.n_outputs[0][i]
-			    = ret.inputs[0][kblib::to_unsigned(ret.inputs[1][i])];
+			ret.n_outputs[0][i] = ret.inputs[0][to_unsigned(ret.inputs[1][i])];
 		}
 	} break;
 	case "SEQUENCE SORTER"_lvl: {
@@ -428,7 +427,7 @@ single_test random_test(int id, uint32_t seed) {
 			word_t num2 = engine.next_int(0, 4);
 			ret.inputs[0].push_back(num);
 			ret.inputs[0].push_back(num2);
-			image.insert(image.end(), kblib::to_unsigned(num), tis_pixel(num2));
+			image.insert(image.end(), to_unsigned(num), tis_pixel(num2));
 		}
 		image.resize(ret.i_output.size());
 		ret.i_output.assign(std::move(image));
@@ -580,7 +579,7 @@ single_test random_test(int id, uint32_t seed) {
 		ret.n_outputs.resize(1);
 	} break;
 	case "PROLONGED SEQUENCE SORTER"_lvl: {
-		lua_random engine(kblib::to_signed(seed));
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1, std::vector<word_t>(max_test_length));
 		ret.n_outputs.resize(1, std::vector<word_t>(max_test_length));
 		std::array<int, 10> counts{};
@@ -589,14 +588,13 @@ single_test random_test(int id, uint32_t seed) {
 			do {
 				ret.inputs[0][i] = engine.next(0, 9);
 				ret.n_outputs[0][i] = ret.inputs[0][i];
-			} while (
-			    not (zeros > 1
-			         or (zeros == 1
-			             and counts[kblib::to_unsigned(ret.inputs[0][i])] > 0)));
-			if (counts[kblib::to_unsigned(ret.inputs[0][i])] == 0) {
+			} while (not (
+			    zeros > 1
+			    or (zeros == 1 and counts[to_unsigned(ret.inputs[0][i])] > 0)));
+			if (counts[to_unsigned(ret.inputs[0][i])] == 0) {
 				--zeros;
 			}
-			++counts[kblib::to_unsigned(ret.inputs[0][i])];
+			++counts[to_unsigned(ret.inputs[0][i])];
 		}
 		ret.inputs[0].back() = -1;
 		std::ranges::sort(ret.n_outputs[0].begin(), ret.n_outputs[0].end() - 1);
