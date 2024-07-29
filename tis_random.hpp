@@ -73,10 +73,12 @@ class xorshift128_engine {
 	}
 };
 
+// based on https://github.com/microsoft/referencesource/blob/master/mscorlib/system/random.cs
+// but with inextp = 31 instead of 21, matching the old mono version in the game
 class lua_random {
  private:
 	int32_t inext{};
-	int32_t inextp{};
+	int32_t inextp{31};
 	std::array<int32_t, 56> seed_array{};
 
 	int32_t map_negative(int32_t x) {
@@ -86,12 +88,9 @@ class lua_random {
 		return x;
 	}
 
- protected:
-	lua_random(int32_t random_seed, int32_t initial_inextp)
-	    : inext{}
-	    , inextp{initial_inextp} {
-		assert(initial_inextp >= 0
-		       and kblib::to_unsigned(initial_inextp) < seed_array.size());
+ public:
+	lua_random(int32_t random_seed) {
+		assert(inextp >= 0 and kblib::to_unsigned(inextp) < seed_array.size());
 
 		int32_t subtraction
 		    = (random_seed == kblib::min) ? kblib::max : std::abs(random_seed);
@@ -115,14 +114,8 @@ class lua_random {
 		}
 	}
 
- public:
-	lua_random(int32_t seed)
-	    : lua_random(seed, 31) {}
-
-	int32_t next(int32_t max) {
-		if (max <= 1) {
-			return 0;
-		}
+	int32_t next_int(int32_t min, int32_t max) {
+		assert(min <= max); // all our calls are static, no need to throw
 
 		if (++inext >= 56) {
 			inext = 1;
@@ -142,10 +135,12 @@ class lua_random {
 		}
 		seed_array[kblib::to_unsigned(inext)] = ret;
 
-		return static_cast<int32_t>(ret * (1.0 / kblib::max.of<int32_t>()) * max);
+		double sample = ret * (1.0 / kblib::max.of<int32_t>());
+		return static_cast<int32_t>(sample * (max - min) + min);
 	}
-	word_t next(word_t max) {
-		return static_cast<word_t>(next(static_cast<int32_t>(max)));
+
+	word_t next(word_t min, word_t max) {
+		return static_cast<word_t>(next_int(static_cast<int32_t>(min), static_cast<int32_t>(max) + 1));
 	}
 };
 
