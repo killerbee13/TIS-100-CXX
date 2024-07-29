@@ -45,8 +45,12 @@ auto log_flush(bool do_flush) -> void;
 
 inline bool use_color{false};
 
-enum color {
+enum SGR_code {
 	none,
+	bold = 1,
+	underline = 4,
+	reverse = 7,
+	normal = 22,
 	black = 30,
 	red,
 	green,
@@ -55,7 +59,16 @@ enum color {
 	magenta,
 	cyan,
 	white,
-	reset = 39,
+	reset_color = 39,
+	bg_black = 40,
+	bg_red,
+	bg_green,
+	bg_yellow,
+	bg_blue,
+	bg_magenta,
+	bg_cyan,
+	bg_white,
+	reset_bg_color = 49,
 	bright_black = 90,
 	bright_red,
 	bright_green,
@@ -64,60 +77,28 @@ enum color {
 	bright_magenta,
 	bright_cyan,
 	bright_white,
+	// bright black, also known as grey
+	bg_bright_black = 90,
+	bg_bright_red,
+	bg_bright_green,
+	bg_bright_yellow,
+	bg_bright_blue,
+	bg_bright_magenta,
+	bg_bright_cyan,
+	bg_bright_white,
 };
 
-inline std::string print_color(color fg, color bg = none) {
+inline std::string print_escape(SGR_code first,
+                               std::same_as<SGR_code> auto... colors) {
 	if (not use_color) {
 		return {};
 	}
-	std::string ret = "\033[";
-	switch (fg) {
-	case none:
-		break;
-	case black:
-	case red:
-	case green:
-	case yellow:
-	case blue:
-	case magenta:
-	case cyan:
-	case white:
-	case reset:
-	case bright_black:
-	case bright_red:
-	case bright_green:
-	case bright_yellow:
-	case bright_blue:
-	case bright_magenta:
-	case bright_cyan:
-	case bright_white:
-		ret += std::to_string(static_cast<int>(fg));
-		break;
+	if (first == none and sizeof...(colors) == 0) {
+		return "\033[m";
 	}
-	switch (bg) {
-	case none:
-		break;
-	case black:
-	case red:
-	case green:
-	case yellow:
-	case blue:
-	case magenta:
-	case cyan:
-	case white:
-	case reset:
-	case bright_black:
-	case bright_red:
-	case bright_green:
-	case bright_yellow:
-	case bright_blue:
-	case bright_magenta:
-	case bright_cyan:
-	case bright_white:
-		ret += ';';
-		ret += std::to_string(static_cast<int>(fg) + 10);
-		break;
-	}
+	std::string ret = "\033["
+	                  + (std::to_string(static_cast<int>(first)) + ...
+	                     + (';' + std::to_string(static_cast<int>(colors))));
 	ret += 'm';
 	return ret;
 }

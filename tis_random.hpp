@@ -79,6 +79,13 @@ class lua_random {
 	int32_t inextp;
 	std::vector<int32_t> seed_array;
 
+	int32_t map_negative(int32_t x) {
+		if (x < 0) {
+			x += kblib::max.of<int32_t>();
+		}
+		return x;
+	}
+
  protected:
 	lua_random(int32_t random_seed, int32_t initial_inextp) {
 		int32_t subtraction
@@ -91,18 +98,14 @@ class lua_random {
 		for (int i = 1; i < 55; ++i) {
 			ii = (21 * i) % 55;
 			seed_array[ii] = mk;
-			mk = mj - mk;
-			if (mk < 0) {
-				mk += kblib::max.of<int32_t>();
-			}
+			mk = map_negative(mj - mk);
 			mj = seed_array[ii];
 		}
 		for (int k = 1; k < 5; ++k) {
 			for (int i = 1; i < 56; ++i) {
-				seed_array[i] -= seed_array[1 + (i + 30) % 55];
-				if (seed_array[i] < 0) {
-					seed_array[i] += kblib::max.of<int32_t>();
-				}
+				seed_array[i] = map_negative(
+				    kblib::to_unsigned(seed_array[i])
+				    - kblib::to_unsigned(seed_array[1 + (i + 30) % 55]));
 			}
 		}
 		inext = 0;

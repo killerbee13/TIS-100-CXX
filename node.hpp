@@ -434,7 +434,7 @@ inline Stream& write_list(Stream& os, const std::vector<word_t>& v,
                           bool colored = use_color) {
 
 	if (colored and expected and v.size() != expected->size()) {
-		os << print_color(bright_red);
+		os << print_escape(bright_red);
 	}
 	os << '(';
 	os << v.size();
@@ -443,17 +443,17 @@ inline Stream& write_list(Stream& os, const std::vector<word_t>& v,
 	}
 	os << ')';
 	if (colored) {
-		os << print_color(reset);
+		os << print_escape(none);
 	}
 	os << " [\n\t";
 	for (std::size_t i = 0; i < v.size(); ++i) {
 		if (colored and expected
 		    and (i >= expected->size() or v[i] != (*expected)[i])) {
-			os << print_color(bright_red);
+			os << print_escape(bright_red);
 		}
 		os << v[i] << ' ';
 		if (colored) {
-			os << print_color(reset);
+			os << print_escape(none);
 		}
 	}
 	os << "\n]";

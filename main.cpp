@@ -31,7 +31,7 @@
 
 using namespace std::literals;
 
-score run(field& l, int cycles_limit) {
+score run(field& l, int cycles_limit, bool print_err) {
 	score sc{};
 	sc.instructions = l.instructions();
 	sc.nodes = l.nodes_used();
@@ -59,7 +59,7 @@ score run(field& l, int cycles_limit) {
 		}
 	}
 
-	if (not sc.validated) {
+	if (print_err and not sc.validated) {
 		for (auto it = l.end_regular(); it != l.end(); ++it) {
 			auto n = it->get();
 			if (type(n) == node::in) {
@@ -155,10 +155,13 @@ int main(int argc, char** argv) try {
 
 	TCLAP::ValueArg<bool> fixed("", "fixed", "Run fixed tests", false, true,
 	                            "bool", cmd);
-	TCLAP::ValueArg<int> random("r", "random", "Random tests to run", false, 0,
+	TCLAP::ValueArg<int> random("r", "random",
+	                            "Random tests to run (upper bound)", false, 0,
 	                            "integer", cmd);
 	TCLAP::ValueArg<std::uint32_t> seed_arg(
 	    "", "seed", "Seed to use for random tests", false, 0, "uint32_t", cmd);
+	TCLAP::SwitchArg stats(
+	    "S", "stats", "Run all random tests requested and show pass rate", cmd);
 	TCLAP::ValueArg<int> cycles_limit(
 	    "", "limit", "Number of cycles to run test for before timeout", false,
 	    10'000, "integer", cmd);
@@ -318,7 +321,7 @@ inline constexpr auto layouts1 = gen_layouts();
 		int succeeded{1};
 		for (auto test : static_suite(id)) {
 			set_expected(f, test);
-			last = run(f, cycles_limit.getValue());
+			last = run(f, cycles_limit.getValue(), true);
 			sc.cycles = std::max(sc.cycles, last.cycles);
 			sc.instructions = last.instructions;
 			sc.nodes = last.nodes;
@@ -341,12 +344,12 @@ inline constexpr auto layouts1 = gen_layouts();
 
 		if (sc.validated) {
 			if (not quiet.getValue()) {
-				std::cout << print_color(bright_blue) << "validation successful"
-				          << print_color(reset) << "\n";
+				std::cout << print_escape(bright_blue, bold)
+				          << "validation successful" << print_escape(none) << "\n";
 			}
 		} else {
-			std::cout << print_color(red) << "validation failed"
-			          << print_color(reset) << " for fixed test " << succeeded
+			std::cout << print_escape(red) << "validation failed"
+			          << print_escape(none) << " for fixed test " << succeeded
 			          << " after " << last.cycles << " cycles ";
 			if (std::cmp_equal(sc.cycles, cycles_limit.getValue())) {
 				std::cout << "[timeout]";
@@ -354,7 +357,7 @@ inline constexpr auto layouts1 = gen_layouts();
 			std::cout << '\n';
 		}
 	}
-	if (random.getValue() > 0) {
+	if ((sc.validated or fixed.getValue() == 0) and random.getValue() > 0) {
 		score last{};
 		score worst{};
 		int count = 0;
@@ -362,14 +365,23 @@ inline constexpr auto layouts1 = gen_layouts();
 		for (; count < random.getValue(); ++count) {
 			auto test = random_test(id, seed++);
 			set_expected(f, test);
-			last = run(f, cycles_limit.getValue());
+			last = run(f, cycles_limit.getValue(),
+			           not quiet.isSet() and valid_count == count);
 			worst.cycles = std::max(worst.cycles, last.cycles);
 			worst.instructions = last.instructions;
 			worst.nodes = last.nodes;
 			// for random tests, only one validation is needed
 			worst.validated = worst.validated or last.validated;
 			valid_count += last.validated ? 1 : 0;
+			if (not stats.isSet()) {
+				// at least one pass and at least one fail
+				if (valid_count > 0 and valid_count < count) {
+					break;
+				}
+			}
 		}
+		log_info("Random test results: ", valid_count, " passed out of ", count,
+		         " total");
 		sc.cheat = (count != valid_count);
 		sc.zero_random = (valid_count == 0);
 		if (not fixed.getValue()) {
@@ -377,21 +389,26 @@ inline constexpr auto layouts1 = gen_layouts();
 
 			if (sc.validated and not quiet.getValue()) {
 				if (not quiet.getValue()) {
-					std::cout << print_color(bright_blue) << "validation successful"
-					          << print_color(reset) << "\n";
+					std::cout << print_escape(bright_blue, bold)
+					          << "validation successful" << print_escape(none)
+					          << "\n";
 				}
 			} else if (quiet.getValue() < 2) {
-				std::cout << print_color(red) << "validation failed"
-				          << print_color(reset);
+				std::cout << print_escape(red) << "validation failed"
+				          << print_escape(none);
 				if (std::cmp_equal(sc.cycles, cycles_limit.getValue())) {
 					std::cout << " [timeout]";
 				}
 				std::cout << '\n';
 			}
 		}
-		if (not quiet.getValue()) {
+		if (stats.isSet()) {
 			std::cout << 100. * valid_count / count << "% (" << valid_count << '/'
-			          << count << ") of random tests passed.\n";
+			          << count << ")";
+			if (not quiet.isSet()) {
+				std::cout << " of random tests passed.";
+			}
+			std::cout << "\n";
 		}
 	}
 	if (not quiet.getValue()) {

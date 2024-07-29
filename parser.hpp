@@ -230,7 +230,7 @@ struct score {
 		if (sc.validated) {
 			os << sc.cycles << '/';
 		} else {
-			os << print_color(red) << "-/";
+			os << print_escape(red) << "-/";
 		}
 		os << sc.nodes << '/' << sc.instructions;
 		if (sc.validated) {
@@ -238,15 +238,15 @@ struct score {
 				os << '/';
 			}
 			if (sc.achievement) {
-				os << print_color(bright_blue) << 'a';
+				os << print_escape(bright_blue, bold) << 'a' << print_escape(none);
 			}
 			if (sc.zero_random) {
-				os << print_color(red) << 'z';
+				os << print_escape(red) << 'z';
 			} else if (sc.cheat) {
-				os << print_color(yellow) << 'c';
+				os << print_escape(yellow) << 'c';
 			}
 		}
-		os << print_color(reset);
+		os << print_escape(none);
 		return os;
 	}
 
@@ -256,7 +256,7 @@ struct score {
 			kblib::append(ret, sc.cycles);
 		} else {
 			if (colored) {
-				ret += print_color(red);
+				ret += print_escape(red);
 			}
 			ret += "-";
 		}
@@ -266,18 +266,21 @@ struct score {
 		}
 		if (sc.validated and sc.achievement) {
 			if (colored) {
-				ret += print_color(bright_blue);
+				ret += print_escape(bright_blue, bold);
 			}
 			ret += 'a';
+			if (colored) {
+				ret += print_escape(none);
+			}
 		}
 		if (sc.validated and sc.cheat) {
 			if (colored) {
-				ret += print_color(yellow);
+				ret += print_escape(yellow);
 			}
 			ret += 'c';
 		}
 		if (colored) {
-			ret += print_color(reset);
+			ret += print_escape(none);
 		}
 		return ret;
 	}
