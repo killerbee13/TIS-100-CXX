@@ -27,7 +27,16 @@ auto set_log_level(log_level new_level) -> void { current = new_level; }
 
 auto get_log_level() -> log_level { return current; }
 
-auto set_log_output(std::ostream& os) -> void { output = &os; }
+auto set_log_output(std::ostream& os) -> void {
+	output = &os;
+	// This is kinda hacky but should generally work.
+	// This function is never used anyway.
+	if (&os == &std::cout) {
+		log_is_tty = isatty(STDOUT_FILENO);
+	} else if (&os == &std::cerr or &os == &std::clog) {
+		log_is_tty = isatty(STDERR_FILENO);
+	}
+}
 
 auto log_flush() -> void { output->flush(); }
 

@@ -368,6 +368,13 @@ struct image_t : pnm::image<tis_pixel> {
 		}
 		return ret;
 	}
+
+	constexpr std::string write_text(bool colored) const {
+		return write_text({" ", "░", "▒", "█",
+		                   colored ? kblib::concat(print_escape(red), "▓",
+		                                           print_escape(reset_color))
+		                           : "#"});
+	}
 };
 
 struct single_test {

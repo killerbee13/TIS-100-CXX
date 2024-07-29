@@ -580,21 +580,23 @@ single_test random_test(int id, uint32_t seed) {
 		ret.n_outputs.resize(1);
 	} break;
 	case "PROLONGED SEQUENCE SORTER"_lvl: {
-		lua_random engine(seed);
+		lua_random engine(kblib::to_signed(seed));
 		ret.inputs.resize(1, std::vector<word_t>(max_test_length));
 		ret.n_outputs.resize(1, std::vector<word_t>(max_test_length));
 		std::vector<int> counts(10);
 		int zeros = 10;
-		for (int i = 1; i != 38; ++i) {
+		for (std::size_t i = 1; i != max_test_length - 1; ++i) {
 			do {
-				ret.inputs[0][i] = engine.next(9);
+				ret.inputs[0][i] = engine.next(word_t(9));
 				ret.n_outputs[0][i] = ret.inputs[0][i];
 			} while (
-			    not (zeros > 1 or (zeros == 1 and counts[ret.inputs[0][i]] > 0)));
-			if (counts[ret.inputs[0][i]] == 0) {
+			    not (zeros > 1
+			         or (zeros == 1
+			             and counts[kblib::to_unsigned(ret.inputs[0][i])] > 0)));
+			if (counts[kblib::to_unsigned(ret.inputs[0][i])] == 0) {
 				--zeros;
 			}
-			counts[ret.inputs[0][i]] = counts[ret.inputs[0][i]] + 1;
+			++counts[kblib::to_unsigned(ret.inputs[0][i])];
 		}
 		ret.inputs[0].back() = -1;
 		std::ranges::sort(ret.n_outputs[0].begin(), ret.n_outputs[0].end() - 1);

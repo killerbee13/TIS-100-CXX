@@ -56,8 +56,8 @@ struct input_node : node {
 		return std::exchange(wrt, std::nullopt);
 	}
 	std::string print() const override {
-		return kblib::concat("I", x, " NUMERIC { ", state_name(s),
-		                     " emitted:(", idx, "/", inputs.size(), ") }");
+		return kblib::concat("I", x, " NUMERIC { ", state_name(s), " emitted:(",
+		                     idx, "/", inputs.size(), ") }");
 	}
 
 	std::vector<word_t> inputs;
@@ -66,6 +66,7 @@ struct input_node : node {
 	io_type_t io_type{};
 	std::optional<word_t> wrt;
 	activity s{activity::idle};
+
  private:
 	bool writing{};
 };
@@ -95,7 +96,8 @@ struct output_node : node {
 	std::string print() const override {
 		std::ostringstream ret;
 		ret << kblib::concat("O", x, " NUMERIC {\nreceived:");
-		write_list(ret, outputs_received, &outputs_expected, false);
+		write_list(ret, outputs_received, &outputs_expected,
+		           use_color and log_is_tty);
 		ret << '}';
 		return std::move(ret).str();
 	}

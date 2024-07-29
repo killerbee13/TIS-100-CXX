@@ -75,9 +75,9 @@ class xorshift128_engine {
 
 class lua_random {
  private:
-	int32_t inext;
-	int32_t inextp;
-	std::vector<int32_t> seed_array;
+	int32_t inext{};
+	int32_t inextp{};
+	std::array<int32_t, 56> seed_array{};
 
 	int32_t map_negative(int32_t x) {
 		if (x < 0) {
@@ -87,29 +87,32 @@ class lua_random {
 	}
 
  protected:
-	lua_random(int32_t random_seed, int32_t initial_inextp) {
+	lua_random(int32_t random_seed, int32_t initial_inextp)
+	    : inext{}
+	    , inextp{initial_inextp} {
+		assert(initial_inextp >= 0
+		       and kblib::to_unsigned(initial_inextp) < seed_array.size());
+
 		int32_t subtraction
 		    = (random_seed == kblib::min) ? kblib::max : std::abs(random_seed);
 		int32_t mj = 161803398 - subtraction;
-		seed_array.resize(56);
 		seed_array.back() = mj;
 		int32_t mk = 1;
-		int32_t ii;
-		for (int i = 1; i < 55; ++i) {
-			ii = (21 * i) % 55;
+		std::size_t ii;
+		for (const auto i : kblib::range(1u, 55u)) {
+			ii = (21u * i) % 55u;
 			seed_array[ii] = mk;
 			mk = map_negative(mj - mk);
 			mj = seed_array[ii];
 		}
 		for (int k = 1; k < 5; ++k) {
-			for (int i = 1; i < 56; ++i) {
-				seed_array[i] = map_negative(
+			for (const auto i : kblib::range(1u, 56u)) {
+				// Do the subtraction in unsigned because it can overflow
+				seed_array[i] = map_negative(kblib::to_signed(
 				    kblib::to_unsigned(seed_array[i])
-				    - kblib::to_unsigned(seed_array[1 + (i + 30) % 55]));
+				    - kblib::to_unsigned(seed_array[1u + (i + 30u) % 55u])));
 			}
 		}
-		inext = 0;
-		inextp = initial_inextp;
 	}
 
  public:
@@ -128,7 +131,8 @@ class lua_random {
 			inextp = 1;
 		}
 
-		int32_t ret = seed_array[inext] - seed_array[inextp];
+		int32_t ret = seed_array[kblib::to_unsigned(inext)]
+		              - seed_array[kblib::to_unsigned(inextp)];
 
 		if (ret == kblib::max) {
 			--ret;
@@ -136,9 +140,12 @@ class lua_random {
 		if (ret < 0) {
 			ret += kblib::max.of<int32_t>();
 		}
-		seed_array[inext] = ret;
+		seed_array[kblib::to_unsigned(inext)] = ret;
 
 		return static_cast<int32_t>(ret * (1.0 / kblib::max.of<int32_t>()) * max);
+	}
+	word_t next(word_t max) {
+		return static_cast<word_t>(next(static_cast<int32_t>(max)));
 	}
 };
 

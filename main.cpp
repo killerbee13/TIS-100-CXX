@@ -81,9 +81,9 @@ score run(field& l, int cycles_limit, bool print_err) {
 				if (p->image_expected != p->image_received) {
 					std::cout << "validation failure for output " << p->x
 					          << "\noutput:\n"
-					          << p->image_received.write_text() //
+					          << p->image_received.write_text(use_color) //
 					          << "expected:\n"
-					          << p->image_expected.write_text();
+					          << p->image_expected.write_text(use_color);
 				}
 			}
 		}
@@ -139,10 +139,11 @@ int main(int argc, char** argv) try {
 	}
 
 	TCLAP::UnlabeledValueArg<std::string> solution(
-	    "Solution", "path to solution file", true, "-", "path", cmd);
+	    "Solution", "Path to solution file. ('-' for stdin)", true, "-", "path",
+	    cmd);
 	TCLAP::ValuesConstraint<std::string> ids_c(ids_v);
-	TCLAP::UnlabeledValueArg<std::string> id_arg("ID", "Level ID", false, "",
-	                                             &ids_c);
+	TCLAP::UnlabeledValueArg<std::string> id_arg(
+	    "ID", "Level ID (Segment or name).", false, "", &ids_c);
 
 	range_int_constraint<int> level_nums_constraint(0, layouts.size() - 1);
 	// unused because the test case parser is not implemented
@@ -153,15 +154,16 @@ int main(int argc, char** argv) try {
 	TCLAP::OneOf layout(cmd);
 	layout.add(id_arg).add(level_num); //.add(layout_s);
 
-	TCLAP::ValueArg<bool> fixed("", "fixed", "Run fixed tests", false, true,
-	                            "bool", cmd);
+	TCLAP::ValueArg<bool> fixed("", "fixed", "Run fixed tests. (Default 1)",
+	                            false, true, "[0-1]", cmd);
 	TCLAP::ValueArg<int> random("r", "random",
 	                            "Random tests to run (upper bound)", false, 0,
 	                            "integer", cmd);
 	TCLAP::ValueArg<std::uint32_t> seed_arg(
 	    "", "seed", "Seed to use for random tests", false, 0, "uint32_t", cmd);
 	TCLAP::SwitchArg stats(
-	    "S", "stats", "Run all random tests requested and show pass rate", cmd);
+	    "S", "stats", "Run all random tests requested and calculate pass rate",
+	    cmd);
 	TCLAP::ValueArg<int> cycles_limit(
 	    "", "limit", "Number of cycles to run test for before timeout", false,
 	    10'000, "integer", cmd);
@@ -173,34 +175,42 @@ int main(int argc, char** argv) try {
 	// instruction
 	range_int_constraint<unsigned> size_constraint(0, word_max);
 	TCLAP::ValueArg<unsigned> T21_size(
-	    "", "T21_size", "Number of instructions allowed per T21 node", false,
-	    def_T21_size, &size_constraint, cmd);
-	TCLAP::ValueArg<unsigned> T30_size("", "T30_size",
-	                                   "Memory capacity of T30 nodes", false,
-	                                   def_T30_size, "integer", cmd);
+	    "", "T21_size",
+	    kblib::concat("Number of instructions allowed per T21 node. (Default ",
+	                  def_T21_size, ")"),
+	    false, def_T21_size, &size_constraint, cmd);
+	// No technical reason to limit T30 capacity, as they are not addressable
+	TCLAP::ValueArg<unsigned> T30_size(
+	    "", "T30_size",
+	    kblib::concat("Memory capacity of T30 nodes. (Default ", def_T30_size,
+	                  ")"),
+	    false, def_T30_size, "integer", cmd);
 
 	std::vector<std::string> loglevels_allowed{"none",   "err",  "error", "warn",
 	                                           "notice", "info", "debug"};
 	TCLAP::ValuesConstraint<std::string> loglevels(loglevels_allowed);
 	const TCLAP::ValueArg<std::string> loglevel(
-	    "", "loglevel", "Set the logging level. Defaults to 'notice'.", false,
+	    "", "loglevel", "Set the logging level. (Default 'notice')", false,
 	    "notice", &loglevels, cmd);
 	TCLAP::MultiSwitchArg quiet("q", "quiet",
 	                            "Suppress printing anything but score and "
 	                            "errors. A second flag suppresses errors.",
 	                            cmd);
-	TCLAP::SwitchArg color("c", "color", "Print in color", cmd);
+	TCLAP::SwitchArg color("c", "color", "Print in color.", cmd);
 	// TODO: implement log coloring detection
 	TCLAP::SwitchArg log_color("C", "log-color",
-	                           "Enable colors in the log. (Defaults on if -c is "
-	                           "set and STDERR is a tty.)");
+	                           "In combination with -c, enable colors in the "
+	                           "log. (Defaults on if STDERR is a tty.)",
+	                           cmd);
 
 	TCLAP::ValueArg<std::string> write_machine_layout(
 	    "", "write-layouts", "write the C++-parsable layouts to [filename]",
 	    false, "", "filename", cmd);
 
 	cmd.parse(argc, argv);
-	use_color = color.getValue();
+	use_color = color.isSet();
+	// Check if the log is being redirected
+	log_is_tty = log_color.isSet() or isatty(STDERR_FILENO);
 
 	set_log_level([&] {
 		using namespace kblib::literals;

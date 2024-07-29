@@ -44,6 +44,7 @@ auto log_flush() -> void;
 auto log_flush(bool do_flush) -> void;
 
 inline bool use_color{false};
+inline bool log_is_tty{false};
 
 enum SGR_code {
 	none,
@@ -88,8 +89,8 @@ enum SGR_code {
 	bg_bright_white,
 };
 
-inline std::string print_escape(SGR_code first,
-                               std::same_as<SGR_code> auto... colors) {
+std::string print_escape(SGR_code first,
+                         std::same_as<SGR_code> auto... colors) {
 	if (not use_color) {
 		return {};
 	}
@@ -101,6 +102,14 @@ inline std::string print_escape(SGR_code first,
 	                     + (';' + std::to_string(static_cast<int>(colors))));
 	ret += 'm';
 	return ret;
+}
+std::string log_print_escape(SGR_code first,
+                             std::same_as<SGR_code> auto... colors) {
+	if (log_is_tty) {
+		return print_escape(first, colors...);
+	} else {
+		return {};
+	}
 }
 
 template <typename... Strings>
@@ -127,14 +136,16 @@ auto log_notice(Strings&&... strings) -> void {
 template <typename... Strings>
 auto log_warn(Strings&&... strings) -> void {
 	if (get_log_level() >= log_level::warn) {
-		detail::log(kblib::concat("WARN: ", strings...));
+		detail::log(kblib::concat(log_print_escape(yellow),
+		                          "WARN: ", log_print_escape(none), strings...));
 	}
 }
 
 template <typename... Strings>
 auto log_err(Strings&&... strings) -> void {
 	if (get_log_level() >= log_level::err) {
-		detail::log(kblib::concat("ERROR: ", strings...));
+		detail::log(kblib::concat(log_print_escape(red),
+		                          "ERROR: ", log_print_escape(none), strings...));
 	}
 }
 
@@ -212,12 +223,14 @@ inline auto log_notice() {
 }
 
 inline auto log_warn() {
-	return (get_log_level() >= log_level::warn) ? logger("WARNING: ")
+	return (get_log_level() >= log_level::warn) ? logger(
+	           log_print_escape(yellow) + "WARNING: " + log_print_escape(none))
 	                                            : logger(nullptr);
 }
 
 inline auto log_err() {
-	return (get_log_level() >= log_level::err) ? logger("ERROR: ")
+	return (get_log_level() >= log_level::err) ? logger(
+	           log_print_escape(yellow) + "ERROR: " + log_print_escape(none))
 	                                           : logger(nullptr);
 }
 
