@@ -145,7 +145,7 @@ class lua_random {
 		return static_cast<int32_t>(ret * (1.0 / kblib::max.of<int32_t>()) * max);
 	}
 	word_t next(word_t max) {
-		return static_cast<word_t>(next(static_cast<int32_t>(max)));
+		return static_cast<word_t>(next(static_cast<int32_t>(max) + 1));
 	}
 };
 

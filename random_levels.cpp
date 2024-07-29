@@ -585,7 +585,7 @@ single_test random_test(int id, uint32_t seed) {
 		ret.n_outputs.resize(1, std::vector<word_t>(max_test_length));
 		std::vector<int> counts(10);
 		int zeros = 10;
-		for (std::size_t i = 1; i != max_test_length - 1; ++i) {
+		for (std::size_t i = 0; i < max_test_length - 1; ++i) {
 			do {
 				ret.inputs[0][i] = engine.next(word_t(9));
 				ret.n_outputs[0][i] = ret.inputs[0][i];
