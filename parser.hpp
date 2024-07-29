@@ -224,6 +224,7 @@ struct score {
 	bool validated{};
 	bool achievement{};
 	bool cheat{};
+	bool zero_random{};
 
 	friend std::ostream& operator<<(std::ostream& os, score sc) {
 		if (sc.validated) {
@@ -232,14 +233,18 @@ struct score {
 			os << print_color(red) << "-/";
 		}
 		os << sc.nodes << '/' << sc.instructions;
-		if (sc.validated and (sc.achievement or sc.cheat)) {
-			os << '/';
-		}
-		if (sc.validated and sc.achievement) {
-			os << print_color(bright_blue) << 'a';
-		}
-		if (sc.validated and sc.cheat) {
-			os << print_color(yellow) << 'c';
+		if (sc.validated) {
+			if ((sc.achievement or sc.cheat)) {
+				os << '/';
+			}
+			if (sc.achievement) {
+				os << print_color(bright_blue) << 'a';
+			}
+			if (sc.zero_random) {
+				os << print_color(red) << 'z';
+			} else if (sc.cheat) {
+				os << print_color(yellow) << 'c';
+			}
 		}
 		os << print_color(reset);
 		return os;

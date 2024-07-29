@@ -166,7 +166,8 @@ int main(int argc, char** argv) try {
 	TCLAP::ValueArg<std::string> set_test("t", "test", "Manually set test cases",
 	                                      false, "", "test case");
 
-	// Size constraint of word_max guarantees that JRO can reach every instruction
+	// Size constraint of word_max guarantees that JRO can reach every
+	// instruction
 	range_int_constraint<unsigned> size_constraint(0, word_max);
 	TCLAP::ValueArg<unsigned> T21_size(
 	    "", "T21_size", "Number of instructions allowed per T21 node", false,
@@ -357,6 +358,7 @@ inline constexpr auto layouts1 = gen_layouts();
 		score last{};
 		score worst{};
 		int count = 0;
+		int valid_count = 0;
 		for (; count < random.getValue(); ++count) {
 			auto test = random_test(id, seed++);
 			set_expected(f, test);
@@ -366,12 +368,10 @@ inline constexpr auto layouts1 = gen_layouts();
 			worst.nodes = last.nodes;
 			// for random tests, only one validation is needed
 			worst.validated = worst.validated or last.validated;
-			if (not last.validated) {
-				worst.cheat = true;
-				break;
-			}
+			valid_count += last.validated ? 1 : 0;
 		}
-		sc.cheat = worst.cheat;
+		sc.cheat = (count != valid_count);
+		sc.zero_random = (valid_count == 0);
 		if (not fixed.getValue()) {
 			sc = worst;
 
@@ -388,6 +388,10 @@ inline constexpr auto layouts1 = gen_layouts();
 				}
 				std::cout << '\n';
 			}
+		}
+		if (not quiet.getValue()) {
+			std::cout << 100. * valid_count / count << "% (" << valid_count << '/'
+			          << count << ") of random tests passed.\n";
 		}
 	}
 	if (not quiet.getValue()) {
