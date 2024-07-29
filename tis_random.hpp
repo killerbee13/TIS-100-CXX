@@ -73,4 +73,70 @@ class xorshift128_engine {
 	}
 };
 
+class lua_random {
+ private:
+	int32_t inext;
+	int32_t inextp;
+	std::vector<int32_t> seed_array;
+
+ protected:
+	lua_random(int32_t random_seed, int32_t initial_inextp) {
+		int32_t subtraction
+		    = (random_seed == kblib::min) ? kblib::max : std::abs(random_seed);
+		int32_t mj = 161803398 - subtraction;
+		seed_array.resize(56);
+		seed_array.back() = mj;
+		int32_t mk = 1;
+		int32_t ii;
+		for (int i = 1; i < 55; ++i) {
+			ii = (21 * i) % 55;
+			seed_array[ii] = mk;
+			mk = mj - mk;
+			if (mk < 0) {
+				mk += kblib::max.of<int32_t>();
+			}
+			mj = seed_array[ii];
+		}
+		for (int k = 1; k < 5; ++k) {
+			for (int i = 1; i < 56; ++i) {
+				seed_array[i] -= seed_array[1 + (i + 30) % 55];
+				if (seed_array[i] < 0) {
+					seed_array[i] += kblib::max.of<int32_t>();
+				}
+			}
+		}
+		inext = 0;
+		inextp = initial_inextp;
+	}
+
+ public:
+	lua_random(int32_t seed)
+	    : lua_random(seed, 31) {}
+
+	int32_t next(int32_t max) {
+		if (max <= 1) {
+			return 0;
+		}
+
+		if (++inext >= 56) {
+			inext = 1;
+		}
+		if (++inextp >= 56) {
+			inextp = 1;
+		}
+
+		int32_t ret = seed_array[inext] - seed_array[inextp];
+
+		if (ret == kblib::max) {
+			--ret;
+		}
+		if (ret < 0) {
+			ret += kblib::max.of<int32_t>();
+		}
+		seed_array[inext] = ret;
+
+		return static_cast<int32_t>(ret * (1.0 / kblib::max.of<int32_t>()) * max);
+	}
+};
+
 #endif // TIS_RANDOM_HPP

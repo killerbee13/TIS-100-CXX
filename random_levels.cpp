@@ -67,7 +67,8 @@ static std::vector<word_t> make_composite_array(uint seed, word_t size,
                                                 word_t valuemin,
                                                 word_t valuemax) {
 	xorshift128_engine engine(seed);
-	return make_composite_array(engine, size, sublistmin, sublistmax, valuemin, valuemax);
+	return make_composite_array(engine, size, sublistmin, sublistmax, valuemin,
+	                            valuemax);
 }
 
 constexpr static word_t image_width = 30;
@@ -446,8 +447,8 @@ single_test random_test(int id, uint32_t seed) {
 			}
 		}
 		for (std::size_t j = 0; j < max_test_length; ++j) {
-			ret.inputs[0][j] = static_cast<word_t>(
-				ret.n_outputs[0][j] * 25 + 12 + engine.next_int(-6, 7));
+			ret.inputs[0][j] = static_cast<word_t>(ret.n_outputs[0][j] * 25 + 12
+			                                       + engine.next_int(-6, 7));
 		}
 		ret.n_outputs[0].back() = -1;
 		ret.inputs[0].back() = -1;
@@ -579,8 +580,25 @@ single_test random_test(int id, uint32_t seed) {
 		ret.n_outputs.resize(1);
 	} break;
 	case "PROLONGED SEQUENCE SORTER"_lvl: {
-		ret.inputs.resize(1);
-		ret.n_outputs.resize(1);
+		lua_random engine(seed);
+		ret.inputs.resize(1, std::vector<word_t>(max_test_length));
+		ret.n_outputs.resize(1, std::vector<word_t>(max_test_length));
+		std::vector<int> counts(10);
+		int zeros = 10;
+		for (int i = 1; i != 38; ++i) {
+			do {
+				ret.inputs[0][i] = engine.next(9);
+				ret.n_outputs[0][i] = ret.inputs[0][i];
+			} while (
+			    not (zeros > 1 or (zeros == 1 and counts[ret.inputs[0][i]] > 0)));
+			if (counts[ret.inputs[0][i]] == 0) {
+				--zeros;
+			}
+			counts[ret.inputs[0][i]] = counts[ret.inputs[0][i]] + 1;
+		}
+		ret.inputs[0].back() = -1;
+		std::ranges::sort(ret.n_outputs[0].begin(), ret.n_outputs[0].end() - 1);
+		ret.n_outputs[0].back() = -1;
 	} break;
 	case "PRIME FACTOR CALCULATOR"_lvl: {
 		ret.inputs.resize(1);
