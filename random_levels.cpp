@@ -389,8 +389,8 @@ single_test random_test(int id, uint32_t seed) {
 		ret.inputs.push_back(make_random_array(seed + 1, 39, 1, 10));
 		ret.n_outputs.resize(2, std::vector<word_t>(max_test_length));
 		for (std::size_t i = 0; i < max_test_length; ++i) {
-			ret.n_outputs[0][i] = ret.inputs[0][i] / ret.inputs[1][i];
-			ret.n_outputs[1][i] = ret.inputs[0][i] % ret.inputs[1][i];
+			ret.n_outputs[0][i] = static_cast<word_t>(ret.inputs[0][i] / ret.inputs[1][i]);
+			ret.n_outputs[1][i] = static_cast<word_t>(ret.inputs[0][i] % ret.inputs[1][i]);
 		}
 	} break;
 	case "SEQUENCE INDEXER"_lvl: {
@@ -467,8 +467,77 @@ single_test random_test(int id, uint32_t seed) {
 		}
 	} break;
 	case "SEQUENCE MERGER"_lvl: {
+		lua_random engine(kblib::to_signed(seed));
 		ret.inputs.resize(2);
 		ret.n_outputs.resize(1);
+		std::vector<word_t>& out = ret.n_outputs[0];
+		bool prevempty = true;
+		bool canzero = true;
+		do {
+			std::size_t maxmax;
+			if (out.size() == 26) {
+				maxmax = 10;
+			} else if (out.size() < 28) {
+				maxmax = 11;
+			} else {
+				maxmax = 38 - out.size();
+			}
+			
+			std::size_t maxout;
+			if (maxmax < 10) {
+				maxout = maxmax;
+			} else {
+				do {
+					maxout = static_cast<std::size_t>(engine.next(0, static_cast<word_t>(maxmax)));
+				} while (!canzero and maxout == 0);
+			}
+			
+			std::size_t count1;
+			if (prevempty and maxout >= 2) {
+				count1 = static_cast<std::size_t>(engine.next(1, static_cast<word_t>(maxout - 1)));
+			} else {
+				count1 = static_cast<std::size_t>(engine.next(0, static_cast<word_t>(maxout)));
+			}
+			if (maxout == 0) {
+				canzero = false;
+			}
+			
+			prevempty = (count1 == 0 or count1 == maxout);
+			std::vector<word_t> outseq(maxout);
+			std::vector<word_t> in1seq(count1);
+			std::vector<word_t> in2seq(maxout - count1);
+			if (maxout > 0) {
+				for (std::size_t i = 0; i < maxout; i++) {
+					word_t val;
+					while (true) {
+						val = engine.next(10, 99);
+						if (std::find(outseq.begin(), outseq.end(), val) == outseq.end()) {
+							break;
+						}
+					}
+					outseq[i] = val;
+					if (i < count1) {
+						in1seq[i] = val;
+					} else {
+						in2seq[i - count1] = val;
+					}
+				}
+			}
+			std::ranges::sort(outseq.begin(), outseq.end());
+			std::ranges::sort(in1seq.begin(), in1seq.end());
+			std::ranges::sort(in2seq.begin(), in2seq.end());
+			for (std::size_t i = 0; i < maxout; i++) {
+				out.push_back(outseq[i]);
+				if (i < count1) {
+					ret.inputs[0].push_back(in1seq[i]);
+				} else {
+					ret.inputs[1].push_back(in2seq[i - count1]);
+				}
+			}
+			out.push_back(0);
+			ret.inputs[0].push_back(0);
+			ret.inputs[1].push_back(0);
+		} while (out.size() < max_test_length);
 	} break;
 	case "INTEGER SERIES CALCULATOR"_lvl: {
 		ret.inputs.resize(1);
