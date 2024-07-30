@@ -540,8 +540,14 @@ single_test random_test(int id, uint32_t seed) {
 		} while (out.size() < max_test_length);
 	} break;
 	case "INTEGER SERIES CALCULATOR"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.n_outputs.resize(1);
+		for (std::size_t i = 0; i < max_test_length; i++) {
+			word_t n = engine.next(1, 44);
+			ret.inputs[0].push_back(n);
+			ret.n_outputs[0].push_back(static_cast<word_t>(n * (n + 1) / 2));
+		}
 	} break;
 	case "SEQUENCE RANGE LIMITER"_lvl: {
 		ret.inputs.resize(3);
