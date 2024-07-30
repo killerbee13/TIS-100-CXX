@@ -389,8 +389,10 @@ single_test random_test(int id, uint32_t seed) {
 		ret.inputs.push_back(make_random_array(seed + 1, 39, 1, 10));
 		ret.n_outputs.resize(2, std::vector<word_t>(max_test_length));
 		for (std::size_t i = 0; i < max_test_length; ++i) {
-			ret.n_outputs[0][i] = static_cast<word_t>(ret.inputs[0][i] / ret.inputs[1][i]);
-			ret.n_outputs[1][i] = static_cast<word_t>(ret.inputs[0][i] % ret.inputs[1][i]);
+			ret.n_outputs[0][i]
+			    = static_cast<word_t>(ret.inputs[0][i] / ret.inputs[1][i]);
+			ret.n_outputs[1][i]
+			    = static_cast<word_t>(ret.inputs[0][i] % ret.inputs[1][i]);
 		}
 	} break;
 	case "SEQUENCE INDEXER"_lvl: {
@@ -482,26 +484,29 @@ single_test random_test(int id, uint32_t seed) {
 			} else {
 				maxmax = 38 - out.size();
 			}
-			
+
 			std::size_t maxout;
 			if (maxmax < 10) {
 				maxout = maxmax;
 			} else {
 				do {
-					maxout = static_cast<std::size_t>(engine.next(0, static_cast<word_t>(maxmax)));
-				} while (!canzero and maxout == 0);
+					maxout = static_cast<std::size_t>(
+					    engine.next(0, static_cast<word_t>(maxmax)));
+				} while (! canzero and maxout == 0);
 			}
-			
+
 			std::size_t count1;
 			if (prevempty and maxout >= 2) {
-				count1 = static_cast<std::size_t>(engine.next(1, static_cast<word_t>(maxout - 1)));
+				count1 = static_cast<std::size_t>(
+				    engine.next(1, static_cast<word_t>(maxout - 1)));
 			} else {
-				count1 = static_cast<std::size_t>(engine.next(0, static_cast<word_t>(maxout)));
+				count1 = static_cast<std::size_t>(
+				    engine.next(0, static_cast<word_t>(maxout)));
 			}
 			if (maxout == 0) {
 				canzero = false;
 			}
-			
+
 			prevempty = (count1 == 0 or count1 == maxout);
 			std::vector<word_t> outseq(maxout);
 			std::vector<word_t> in1seq(count1);
@@ -511,7 +516,8 @@ single_test random_test(int id, uint32_t seed) {
 					word_t val;
 					while (true) {
 						val = engine.next(10, 99);
-						if (std::find(outseq.begin(), outseq.end(), val) == outseq.end()) {
+						if (std::find(outseq.begin(), outseq.end(), val)
+						    == outseq.end()) {
 							break;
 						}
 					}
@@ -550,8 +556,33 @@ single_test random_test(int id, uint32_t seed) {
 		}
 	} break;
 	case "SEQUENCE RANGE LIMITER"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(3);
 		ret.n_outputs.resize(1);
+		std::vector<word_t>& input = ret.inputs[1];
+		std::vector<word_t>& mininput = ret.inputs[0];
+		std::vector<word_t>& maxinput = ret.inputs[2];
+		std::vector<word_t>& output = ret.n_outputs[0];
+		// make minimums small but not too small
+		for (std::size_t i = 0; i < 6; i++) {
+			mininput.push_back(engine.next(3, 9) * 5);
+		}
+		// make maximums big
+		for (std::size_t i = 0; i < 6; i++) {
+			maxinput.push_back(engine.next(10, 17) * 5);
+		}
+		// For now, just make five sequences that are five long (with a
+		// sixth value being a 0 terminator)
+		// Manually calculate correct output values
+		for (std::size_t i = 0; i < 6; i++) {
+			for (std::size_t j = 0; j < 5; j++) {
+				word_t val = engine.next(10, 99);
+				input.push_back(val);
+				output.push_back(std::clamp(val, mininput[i], maxinput[i]));
+			}
+			input.push_back(0);
+			output.push_back(0);
+		}
 	} break;
 	case "SIGNAL ERROR CORRECTOR"_lvl: {
 		ret.inputs.resize(2);
