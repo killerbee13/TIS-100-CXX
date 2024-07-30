@@ -586,8 +586,12 @@ std::vector<instr> assemble(std::string_view source, int node,
 		}
 	}
 
-	for (const auto& line : lines) {
+	for (auto& line : lines) {
 		bool seen_op{false};
+		// Apparently the game allows ! anywhere as long as there's only one
+		if (auto bang = line.find_first_of('!'); bang != std::string::npos) {
+			line[bang] = ' ';
+		}
 		auto tokens
 		    = kblib::split_tokens(line.substr(0, line.find_first_of('#')),
 		                          [](char c) { return " \t,"sv.contains(c); });
@@ -616,7 +620,6 @@ std::vector<instr> assemble(std::string_view source, int node,
 		};
 		for (auto j : range(tokens.size())) {
 			auto& tok = tokens[j];
-			tok.erase(0, tok.find_first_not_of('!'));
 			if (tok.empty()) {
 				continue;
 			}
