@@ -24,7 +24,7 @@ end
 set -l wrong_file $_flag_w
 
 if set -q _flag_n
-	set _flag_n --fixed false
+	set _flag_n --fixed 0
 end
 
 # all implemented saves

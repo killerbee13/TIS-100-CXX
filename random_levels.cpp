@@ -699,7 +699,7 @@ single_test random_test(int id, uint32_t seed) {
 				val = engine.next(0, 9);
 			} else if (digits == 1) {
 				val = engine.next(10, 99);
-			} else if (digits == 2) {
+			} else {
 				val = engine.next(100, 999);
 			}
 			ret.inputs[0].push_back(val);

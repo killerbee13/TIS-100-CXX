@@ -501,22 +501,21 @@ port parse_port(std::string_view str) {
 		return last;
 	} else {
 		throw std::invalid_argument{kblib::quoted(str)
-		                            + " is not a valid port name"};
+		                            + " is not a valid port or register name"};
 	}
 }
 
-std::pair<port, word_t> parse_port_or_immediate(
-    const std::vector<std::string> tokens, std::size_t j) {
+std::pair<port, word_t> parse_port_or_immediate(const std::string& token) {
 	std::pair<port, word_t> ret;
-	assert(j < tokens.size());
-	if ("-0123456789"sv.contains(tokens[j].front())) {
+	if ("-0123456789"sv.contains(token.front())) {
 		ret.first = port::immediate;
-		ret.second = kblib::parse_integer<word_t>(tokens[j]);
+		ret.second = kblib::parse_integer<word_t>(token);
 		if (ret.second < word_min or ret.second > word_max) {
-			throw std::invalid_argument{""};
+			throw std::invalid_argument{
+			    concat("Immediate value ", ret.second, " out of range -999:999")};
 		}
 	} else {
-		ret.first = parse_port(tokens[j]);
+		ret.first = parse_port(token);
 	}
 	return ret;
 }
@@ -547,60 +546,73 @@ std::vector<instr> assemble(std::string_view source, int node,
                             std::size_t T21_size) {
 	auto lines = kblib::split_dsv(source, '\n');
 	if (lines.size() > T21_size) {
-		throw std::invalid_argument{
-		    concat("too many lines of asm for node ", node)};
+		throw std::invalid_argument{concat("too many lines of asm for node ",
+		                                   node, "; ", lines.size(),
+		                                   " exceeds limit ", T21_size)};
 	}
 	std::vector<instr> ret;
 	std::vector<std::pair<std::string, word_t>> labels;
 
-	{
-		int l{};
-		for (const auto& line : lines) {
-			auto tokens
-			    = kblib::split_tokens(line.substr(0, line.find_first_of('#')),
-			                          [](char c) { return " \t,"sv.contains(c); });
-			for (auto j : range(tokens.size())) {
-				const auto& tok = tokens[j];
-				if (tok.empty()) {
-					continue; // ?
-				}
-				std::string tmp;
-				for (auto c : tok) {
-					if (c == ':') {
-						if (tmp.empty()) {
-							throw std::invalid_argument{""};
-						}
-						push_label(tmp, l, labels);
-						tmp.clear();
-					} else if (not " \t"sv.contains(c)) {
-						tmp.push_back(c);
-					} else {
-						break;
-					}
-				}
-				if (not tmp.empty()) {
-					++l;
-					break;
-				}
-			}
-		}
-	}
-
+	int l{};
 	for (auto& line : lines) {
-		bool seen_op{false};
 		// Apparently the game allows ! anywhere as long as there's only one
 		if (auto bang = line.find_first_of('!'); bang != std::string::npos) {
 			line[bang] = ' ';
 		}
+		for (auto c : line) {
+			// the game won't let you type '`' or '\t' but (sort of) handles
+			// them in saves. Same with '@' not followed by a digit but that
+			// breaks the logic
+			if (c == '@' or (c < ' ' and c != '\t') or c > '~') {
+				throw std::invalid_argument{concat(
+				    '@', node, ':', l, ": Invalid assembly ", kblib::quoted(line),
+				    ", character ", kblib::escapify(c), " not allowed in source")};
+			}
+		}
+		auto tokens
+		    = kblib::split_tokens(line.substr(0, line.find_first_of('#')),
+		                          [](char c) { return " \t,"sv.contains(c); });
+		for (auto j : range(tokens.size())) {
+			const auto& tok = tokens[j];
+			if (tok.empty()) {
+				continue; // ?
+			}
+			std::string tmp;
+			for (auto c : tok) {
+				if (c == ':') {
+					if (tmp.empty()) {
+						throw std::invalid_argument{
+						    concat('@', node, ':', l, ": Invalid label \"\"")};
+					}
+					push_label(tmp, l, labels);
+					tmp.clear();
+				} else if (not " \t"sv.contains(c)) {
+					tmp.push_back(c);
+				} else {
+					break;
+				}
+			}
+			if (not tmp.empty()) {
+				++l;
+				break;
+			}
+		}
+	}
+
+	l = 0;
+	for (const auto& line : lines) {
+		bool seen_op{false};
 		auto tokens
 		    = kblib::split_tokens(line.substr(0, line.find_first_of('#')),
 		                          [](char c) { return " \t,"sv.contains(c); });
 		std::optional<instr> tmp;
+		// remove labels
 		for (auto j : range(tokens.size())) {
 			auto& tok = tokens[j];
 			if (tok.contains(':')) {
 				if (seen_op) {
-					throw std::invalid_argument{"Labels must be first on a line"};
+					throw std::invalid_argument{concat(
+					    '@', node, ':', l, ": Labels must be first on a line")};
 				}
 				tok = tok.substr(tok.find_last_of(':') + 1);
 			}
@@ -613,9 +625,14 @@ std::vector<instr> assemble(std::string_view source, int node,
 		std::erase(tokens, "");
 
 		auto assert_last_operand = [&](std::size_t j) {
-			if (tokens.size() > j + 1) {
+			if (tokens.size() < j) {
 				throw std::invalid_argument{
-				    concat("Unexpected operand ", kblib::quoted(tokens[j + 1]))};
+				    concat('@', node, ':', l, ": Expected operand")};
+			}
+			if (tokens.size() > j + 1) {
+				throw std::invalid_argument{concat('@', node, ':', l,
+				                                   ": Unexpected operand ",
+				                                   kblib::quoted(tokens[j + 1]))};
 			}
 		};
 		for (auto j : range(tokens.size())) {
@@ -642,59 +659,60 @@ std::vector<instr> assemble(std::string_view source, int node,
 				assert_last_operand(j);
 			} else if (tok == "MOV") {
 				auto& d = i.data.emplace<static_cast<std::size_t>(mov)>();
-				assert(j + 2 < tokens.size());
-				auto r = parse_port_or_immediate(tokens, j + 1);
+				assert_last_operand(j + 2);
+				auto r = parse_port_or_immediate(tokens[j + 1]);
 				d.src = r.first;
 				d.val = r.second;
 				d.dst = parse_port(tokens[j + 2]);
-				assert_last_operand(j + 2);
 			} else if (tok == "ADD") {
 				auto& d = i.data.emplace<static_cast<std::size_t>(add)>();
-				auto r = parse_port_or_immediate(tokens, j + 1);
+				assert_last_operand(j + 1);
+				auto r = parse_port_or_immediate(tokens[j + 1]);
 				d.src = r.first;
 				d.val = r.second;
-				assert_last_operand(j + 1);
 			} else if (tok == "SUB") {
 				auto& d = i.data.emplace<static_cast<std::size_t>(sub)>();
-				auto r = parse_port_or_immediate(tokens, j + 1);
+				assert_last_operand(j + 1);
+				auto r = parse_port_or_immediate(tokens[j + 1]);
 				d.src = r.first;
 				d.val = r.second;
-				assert_last_operand(j + 1);
 			} else if (tok == "JMP") {
 				auto& d = i.data.emplace<static_cast<std::size_t>(jmp)>();
-				d.target = parse_label(tokens.at(j + 1), labels);
 				assert_last_operand(j + 1);
+				d.target = parse_label(tokens[j + 1], labels);
 			} else if (tok == "JEZ") {
 				auto& d = i.data.emplace<static_cast<std::size_t>(jez)>();
-				d.target = parse_label(tokens.at(j + 1), labels);
 				assert_last_operand(j + 1);
+				d.target = parse_label(tokens[j + 1], labels);
 			} else if (tok == "JNZ") {
 				auto& d = i.data.emplace<static_cast<std::size_t>(jnz)>();
-				d.target = parse_label(tokens.at(j + 1), labels);
 				assert_last_operand(j + 1);
+				d.target = parse_label(tokens[j + 1], labels);
 			} else if (tok == "JGZ") {
 				auto& d = i.data.emplace<static_cast<std::size_t>(jgz)>();
-				d.target = parse_label(tokens.at(j + 1), labels);
 				assert_last_operand(j + 1);
+				d.target = parse_label(tokens[j + 1], labels);
 			} else if (tok == "JLZ") {
 				auto& d = i.data.emplace<static_cast<std::size_t>(jlz)>();
-				d.target = parse_label(tokens.at(j + 1), labels);
 				assert_last_operand(j + 1);
+				d.target = parse_label(tokens[j + 1], labels);
 			} else if (tok == "JRO") {
 				auto& d = i.data.emplace<static_cast<std::size_t>(jro)>();
-				auto r = parse_port_or_immediate(tokens, j + 1);
+				assert_last_operand(j + 1);
+				auto r = parse_port_or_immediate(tokens[j + 1]);
 				d.src = r.first;
 				d.val = r.second;
-				assert_last_operand(j + 1);
 			} else {
-				throw std::invalid_argument{kblib::quoted(tok)
-				                            + " is not a valid instruction opcode"};
+				throw std::invalid_argument{
+				    concat('@', node, ':', l, ": ", kblib::quoted(tok),
+				           " is not a valid instruction opcode")};
 			}
 			log_debug_r([&] { return "parsed: " + to_string(i); });
 			ret.push_back(i);
 			tmp.reset();
 			break;
 		}
+		++l;
 	}
 
 	// normalize labels at the end of the code
