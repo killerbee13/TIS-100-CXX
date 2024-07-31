@@ -648,8 +648,16 @@ single_test random_test(int id, uint32_t seed) {
 		}
 	} break;
 	case "SIGNAL PRESCALER"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.n_outputs.resize(3);
+		for (int i = 0; i < max_test_length; i++) {
+			word_t val = engine.next(1, 120);
+			ret.n_outputs[2].push_back(val);
+			ret.n_outputs[1].push_back(val * 2);
+			ret.n_outputs[0].push_back(val * 4);
+			ret.inputs[0].push_back(val * 8);
+		}
 	} break;
 	case "SIGNAL AVERAGER"_lvl: {
 		ret.inputs.resize(2);
