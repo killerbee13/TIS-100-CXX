@@ -660,8 +660,16 @@ single_test random_test(int id, uint32_t seed) {
 		}
 	} break;
 	case "SIGNAL AVERAGER"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(2);
 		ret.n_outputs.resize(1);
+		for (int i = 0; i < max_test_length; i++) {
+			word_t valA = engine.next(100, 999);
+			word_t valB = engine.next(100, 999);
+			ret.inputs[0].push_back(valA);
+			ret.inputs[1].push_back(valB);
+			ret.n_outputs[0].push_back(static_cast<word_t>((valA + valB) / 2));
+		}
 	} break;
 	case "SUBMAXIMUM SELECTOR"_lvl: {
 		ret.inputs.resize(4);
