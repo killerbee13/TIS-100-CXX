@@ -116,12 +116,7 @@ class lua_random {
 		}
 	}
 
-	int32_t next_int(int32_t min, int32_t max) {
-		assert(min < max); // all our calls are static, no need to throw
-		if (max == min + 1) {
-			return min;
-		}
-
+	double next_double() {
 		if (++inext >= 56) {
 			inext = 1;
 		}
@@ -140,8 +135,15 @@ class lua_random {
 		}
 		seed_array[to_unsigned(inext)] = ret;
 
-		double sample = ret * (1.0 / kblib::max.of<int32_t>());
-		return static_cast<int32_t>(sample * (max - min)) + min;
+		return ret * (1.0 / kblib::max.of<int32_t>());
+	}
+
+	int32_t next_int(int32_t min, int32_t max) {
+		assert(min < max); // all our calls are static, no need to throw
+		if (max == min + 1) {
+			return min;
+		}
+		return static_cast<int32_t>(next_double() * (max - min)) + min;
 	}
 
 	word_t next(word_t min, word_t max) {

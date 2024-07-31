@@ -625,7 +625,8 @@ single_test random_test(int id, uint32_t seed) {
 		std::array<word_t, 8> seq_lengths = {2, 3, 3, 4, 4, 4, 5, 6};
 		// Shuffle the subsequence lengths:
 		for (std::size_t i = seq_lengths.size() - 1; i >= 1; i--) {
-			std::size_t j = static_cast<std::size_t>(engine.next_int(0, static_cast<int32_t>(i)));
+			std::size_t j = static_cast<std::size_t>(
+			    engine.next_int(0, static_cast<int32_t>(i)));
 			std::swap(seq_lengths[i], seq_lengths[j]);
 		}
 
@@ -642,7 +643,7 @@ single_test random_test(int id, uint32_t seed) {
 			in_indexes.push_back(first);
 			in_indexes.push_back(last);
 			// Generate correct output:
-			auto in_it = in_seq.end() - len -1 + first;
+			auto in_it = in_seq.end() - len - 1 + first;
 			out.insert(out.end(), in_it, in_it + sublen);
 			out.push_back(0);
 		}
@@ -717,7 +718,8 @@ single_test random_test(int id, uint32_t seed) {
 		for (int i = 0; i < max_test_length - 1; i++) {
 			ret.inputs[0].push_back(engine.next(1, 5));
 			// tuned to give nice balance of sequence lengths
-			if (i - last_zero > 3 and engine.next_double() < 0.5 and i < max_test_length - 2) {
+			if (i - last_zero > 3 and engine.next_double() < 0.5
+			    and i < max_test_length - 2) {
 				ret.inputs[0].back() = 0;
 				last_zero = i;
 			}
@@ -730,7 +732,7 @@ single_test random_test(int id, uint32_t seed) {
 			if (input == 0) {
 				// generate frequency map
 				std::array frequency = {0u, 0u, 0u, 0u, 0u};
-				for (word_t element: sequence) {
+				for (word_t element : sequence) {
 					frequency[static_cast<std::size_t>(element - 1)]++;
 				}
 
@@ -761,8 +763,37 @@ single_test random_test(int id, uint32_t seed) {
 		}
 	} break;
 	case "SEQUENCE NORMALIZER"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.n_outputs.resize(1);
+		// Current sequence from 'input'
+		std::vector<word_t> cur_seq = {};
+		
+		for (int i = 0; i < max_test_length - 1; i++) {
+			word_t val = engine.next(1, 99);
+			ret.inputs[0].push_back(val);
+			cur_seq.push_back(val);
+
+			// Possibly end sequence ensuring that the it is at least of length 3
+			// and no longer than 8.
+			// Also ensure final sequence is ended properly - may cause shorter
+			// sequence length.
+			if ((engine.next(1, 3) % 3 == 0 and cur_seq.size() > 2)
+			    or (cur_seq.size() > 7) or (i == max_test_length - 3)) {
+				// Generate 'output'
+				word_t min_in_seq = *std::ranges::min_element(cur_seq);
+				for (word_t seqval : cur_seq) {
+					ret.n_outputs[0].push_back(seqval - min_in_seq);
+				}
+
+				// Add the sequence terminating -1
+				i++;
+				ret.inputs[0].push_back(-1);
+				ret.n_outputs[0].push_back(-1);
+
+				cur_seq.clear();
+			}
+		}
 	} break;
 	case "IMAGE TEST PATTERN 3"_lvl: {
 		ret.i_output.assign({
