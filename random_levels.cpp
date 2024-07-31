@@ -708,8 +708,57 @@ single_test random_test(int id, uint32_t seed) {
 		}
 	} break;
 	case "SEQUENCE MODE CALCULATOR"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.n_outputs.resize(1);
+
+		// generate input stream
+		int last_zero = -1;
+		for (int i = 0; i < max_test_length - 1; i++) {
+			ret.inputs[0].push_back(engine.next(1, 5));
+			// tuned to give nice balance of sequence lengths
+			if (i - last_zero > 3 and engine.next_double() < 0.5 and i < max_test_length - 2) {
+				ret.inputs[0].back() = 0;
+				last_zero = i;
+			}
+		}
+		ret.inputs[0].push_back(0);
+
+		// generate output stream
+		std::vector<word_t> sequence = {};
+		for (word_t input : ret.inputs[0]) {
+			if (input == 0) {
+				// generate frequency map
+				std::array frequency = {0u, 0u, 0u, 0u, 0u};
+				for (word_t element: sequence) {
+					frequency[static_cast<std::size_t>(element - 1)]++;
+				}
+
+				// determine mode, and whether it is unique
+				uint max_frequency = 0;
+				uint most_frequent = 1;
+				bool unique = true;
+				for (uint k = 0; k < 5; k++) {
+					if (frequency[k] > max_frequency) {
+						unique = true;
+						most_frequent = k + 1;
+						max_frequency = frequency[k];
+					} else if (frequency[k] == max_frequency) {
+						unique = false;
+					}
+				}
+
+				if (unique) {
+					ret.n_outputs[0].push_back(static_cast<word_t>(most_frequent));
+				} else {
+					ret.n_outputs[0].push_back(0);
+				}
+
+				sequence.clear();
+			} else {
+				sequence.push_back(input);
+			}
+		}
 	} break;
 	case "SEQUENCE NORMALIZER"_lvl: {
 		ret.inputs.resize(1);
