@@ -688,8 +688,24 @@ single_test random_test(int id, uint32_t seed) {
 		}
 	} break;
 	case "DECIMAL DECOMPOSER"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.n_outputs.resize(3);
+		for (int i = 0; i < max_test_length; i++) {
+			word_t digits = engine.next(0, 2);
+			word_t val;
+			if (digits == 0) {
+				val = engine.next(0, 9);
+			} else if (digits == 1) {
+				val = engine.next(10, 99);
+			} else if (digits == 2) {
+				val = engine.next(100, 999);
+			}
+			ret.inputs[0].push_back(val);
+			ret.n_outputs[0].push_back(val / 100);
+			ret.n_outputs[1].push_back((val % 100) / 10);
+			ret.n_outputs[2].push_back(val % 10);
+		}
 	} break;
 	case "SEQUENCE MODE CALCULATOR"_lvl: {
 		ret.inputs.resize(1);
