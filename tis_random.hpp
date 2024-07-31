@@ -75,7 +75,8 @@ class xorshift128_engine {
 
 // based on
 // https://github.com/microsoft/referencesource/blob/master/mscorlib/system/random.cs
-// but with inextp = 31 instead of 21, matching the old mono version in the game
+// but with inextp = 31 instead of 21 and the min+1==max escape hatch, matching
+// the old mono version in the game
 class lua_random {
  private:
 	int32_t inext{};
@@ -116,7 +117,10 @@ class lua_random {
 	}
 
 	int32_t next_int(int32_t min, int32_t max) {
-		assert(min <= max); // all our calls are static, no need to throw
+		assert(min < max); // all our calls are static, no need to throw
+		if (max == min + 1) {
+			return min;
+		}
 
 		if (++inext >= 56) {
 			inext = 1;
@@ -137,7 +141,7 @@ class lua_random {
 		seed_array[to_unsigned(inext)] = ret;
 
 		double sample = ret * (1.0 / kblib::max.of<int32_t>());
-		return static_cast<int32_t>(sample * (max - min) + min);
+		return static_cast<int32_t>(sample * (max - min)) + min;
 	}
 
 	word_t next(word_t min, word_t max) {

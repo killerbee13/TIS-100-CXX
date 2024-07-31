@@ -615,8 +615,37 @@ single_test random_test(int id, uint32_t seed) {
 		}
 	} break;
 	case "SUBSEQUENCE EXTRACTOR"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(2);
 		ret.n_outputs.resize(1);
+		std::vector<word_t>& in_indexes = ret.inputs[0];
+		std::vector<word_t>& in_seq = ret.inputs[1];
+		std::vector<word_t>& out = ret.n_outputs[0];
+
+		std::array<word_t, 8> seq_lengths = {2, 3, 3, 4, 4, 4, 5, 6};
+		// Shuffle the subsequence lengths:
+		for (std::size_t i = seq_lengths.size() - 1; i >= 1; i--) {
+			std::size_t j = static_cast<std::size_t>(engine.next_int(0, static_cast<int32_t>(i)));
+			std::swap(seq_lengths[i], seq_lengths[j]);
+		}
+
+		for (word_t len : seq_lengths) {
+			// Generate input sequences:
+			for (word_t j = 0; j < len; j++) {
+				in_seq.push_back(engine.next(10, 99));
+			}
+			in_seq.push_back(0);
+			// Generate subsequence indexes:
+			word_t sublen = engine.next(2, len);
+			word_t first = engine.next(0, len - sublen);
+			word_t last = static_cast<word_t>(first + sublen - 1);
+			in_indexes.push_back(first);
+			in_indexes.push_back(last);
+			// Generate correct output:
+			auto in_it = in_seq.end() - len -1 + first;
+			out.insert(out.end(), in_it, in_it + sublen);
+			out.push_back(0);
+		}
 	} break;
 	case "SIGNAL PRESCALER"_lvl: {
 		ret.inputs.resize(1);
