@@ -672,8 +672,20 @@ single_test random_test(int id, uint32_t seed) {
 		}
 	} break;
 	case "SUBMAXIMUM SELECTOR"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(4);
 		ret.n_outputs.resize(1);
+		for (int i = 0; i < max_test_length; i++) {
+			std::array<word_t, 4> group;
+			for (std::size_t j = 0; j < 4; j++) {
+				word_t v = engine.next(0, 99);
+				group[j] = v;
+				ret.inputs[j].push_back(v);
+			}
+
+			std::nth_element(group.begin(), group.begin() + 2, group.end());
+			ret.n_outputs[0].push_back(group[2]);
+		}
 	} break;
 	case "DECIMAL DECOMPOSER"_lvl: {
 		ret.inputs.resize(1);
