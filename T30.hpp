@@ -30,9 +30,9 @@ struct T30 : node {
 	bool wrote{};
 	bool used{};
 	type_t type() const noexcept override { return type_t::T30; }
-	bool step() override {
+	void step() override {
 		if (data.size() == max_size) {
-			return false;
+			return;
 		}
 		for (auto p : {port::left, port::right, port::up, port::down, port::D5,
 		               port::D6}) {
@@ -45,13 +45,11 @@ struct T30 : node {
 				}
 			}
 		}
-		return not buffer.empty();
 	}
-	bool finalize() override {
+	void finalize() override {
 		data.insert(data.end(), buffer.begin(), buffer.end());
 		buffer.clear();
 		wrote = false;
-		return false;
 	}
 	void reset() noexcept override {
 		data.clear();

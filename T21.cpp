@@ -71,50 +71,44 @@ std::optional<word_t> T21::read(port p, word_t imm) {
 	}
 }
 
-bool T21::step() {
+void T21::step() {
 	auto log = log_debug();
 	log << "step(" << x << ',' << y << ',' << +pc << "): ";
 	if (code.empty()) {
 		log << "empty";
-		return false;
+		return;
 	}
 	auto& i = code[to_unsigned(pc)];
-	auto old_state = s;
 	log << "instruction type: ";
-	bool r = kblib::visit_indexed(
+	kblib::visit_indexed(
 	    std::as_const(i.data),
 	    [&](constant<std::size_t, instr::hcf>, seq_instr) {
 		    log << "hcf";
 		    log << "\n\ts = " << state_name(s);
 		    throw std::runtime_error{"HCF"};
-		    return true;
 	    },
 	    [&, this](constant<std::size_t, instr::nop>, seq_instr) {
 		    log << "nop";
 		    next();
 		    s = activity::run;
-		    return true;
 	    },
 	    [&, this](constant<std::size_t, instr::swp>, seq_instr) {
 		    log << "swp (" << acc << "<->" << bak << ')';
 		    std::swap(acc, bak);
 		    s = activity::run;
 		    next();
-		    return true;
 	    },
 	    [&, this](constant<std::size_t, instr::sav>, seq_instr) {
 		    log << "sav (" << acc << "->" << bak << ')';
 		    bak = acc;
 		    s = activity::run;
 		    next();
-		    return true;
 	    },
 	    [&, this](constant<std::size_t, instr::neg>, seq_instr) {
 		    log << "neg (" << acc << ')';
 		    acc = -acc;
 		    s = activity::run;
 		    next();
-		    return true;
 	    },
 	    [&, this](constant<std::size_t, instr::mov>, mov_instr i) {
 		    log << "mov ";
@@ -122,7 +116,6 @@ bool T21::step() {
 			    log << "stalled[W]";
 			    // if waiting for a write, then this instruction's read already
 			    // happened
-			    return false;
 		    } else if (auto r = read(i.src, i.val)) {
 			    log << '(' << *r << ") ";
 			    switch (i.dst) {
@@ -158,11 +151,9 @@ bool T21::step() {
 			    case port::immediate:
 				    assert(i.dst != port::immediate);
 			    }
-			    return true;
 		    } else {
 			    s = activity::read;
 			    log << "stalled[R]";
-			    return s != old_state;
 		    }
 	    },
 	    [&, this](constant<std::size_t, instr::add>, arith_instr i) {
@@ -172,11 +163,9 @@ bool T21::step() {
 			    acc = sat_add(acc, *r);
 			    s = activity::run;
 			    next();
-			    return true;
 		    } else {
 			    log << "stalled[R]";
 			    s = activity::read;
-			    return s != old_state;
 		    }
 	    },
 	    [&, this](constant<std::size_t, instr::sub>, arith_instr i) {
@@ -186,17 +175,14 @@ bool T21::step() {
 			    acc = sat_sub(acc, *r);
 			    s = activity::run;
 			    next();
-			    return true;
 		    } else {
 			    log << "stalled[R]";
 			    s = activity::read;
-			    return s != old_state;
 		    }
 	    },
 	    [&, this](constant<std::size_t, instr::jmp>, jmp_instr i) {
 		    log << "jmp " << +i.target;
 		    pc = i.target;
-		    return true;
 	    },
 	    [&, this](constant<std::size_t, instr::jez>, jmp_instr i) {
 		    log << "jez (" << (acc == 0 ? "taken" : "not taken") << ") "
@@ -207,7 +193,6 @@ bool T21::step() {
 			    next();
 		    }
 		    s = activity::run;
-		    return true;
 	    },
 	    [&, this](constant<std::size_t, instr::jnz>, jmp_instr i) {
 		    log << "jnz (" << (acc != 0 ? "taken" : "not taken") << ") "
@@ -218,7 +203,6 @@ bool T21::step() {
 			    next();
 		    }
 		    s = activity::run;
-		    return true;
 	    },
 	    [&, this](constant<std::size_t, instr::jgz>, jmp_instr i) {
 		    log << "jgz (" << (acc > 0 ? "taken" : "not taken") << ") "
@@ -229,7 +213,6 @@ bool T21::step() {
 			    next();
 		    }
 		    s = activity::run;
-		    return true;
 	    },
 	    [&, this](constant<std::size_t, instr::jlz>, jmp_instr i) {
 		    log << "jlz (" << (acc < 0 ? "taken" : "not taken") << ") "
@@ -240,41 +223,35 @@ bool T21::step() {
 			    next();
 		    }
 		    s = activity::run;
-		    return true;
 	    },
 	    [&, this](constant<std::size_t, instr::jro>, jro_instr i) {
 		    log << "jro ";
 		    if (auto r = read(i.src, i.val)) {
 			    log << '(' << +pc << '+' << *r << " -> ";
-			    pc = sat_add(static_cast<word_t>(pc), *r, word_t{},
+			    pc = sat_add(pc, *r, word_t{},
 			                 static_cast<word_t>(code.size() - 1));
 			    log << +pc << ")";
 			    s = activity::run;
-			    return true;
 		    } else {
 			    log << "stalled[R]";
 			    s = activity::read;
-			    return s != old_state;
 		    }
 	    });
 	log << "\n                    s = " << state_name(s);
-	return r;
 }
-bool T21::finalize() {
+void T21::finalize() {
 	if (code.empty()) {
-		return false;
+		return;
 	}
 	auto& i = code[to_unsigned(pc)];
-	return kblib::visit2(
+	kblib::visit2(
 	    i.data,
 	    [this](auto) {
 		    log_debug("finalize(", x, ',', y, ',', +pc, "): skipped");
-		    return false;
 	    },
 	    [this](mov_instr i) {
 		    auto log = log_debug();
 		    log << "finalize(" << x << ',' << y << ',' << +pc << "): mov ";
-		    bool r{};
 		    if (s == activity::write) {
 			    // if write just started
 			    if (write_port == port::nil) {
@@ -284,21 +261,18 @@ bool T21::finalize() {
 				    } else {
 					    write_port = i.dst;
 				    }
-				    r = true;
 				    // if write completed
 			    } else if (write_port == port::immediate) {
 				    log << "completed";
 				    write_port = port::nil;
 				    s = activity::run;
 				    next();
-				    r = true;
 			    } else {
 				    log << "in progress";
 			    }
 		    } else {
 			    log << "skipped";
 		    }
-		    return r;
 	    });
 }
 

@@ -28,22 +28,19 @@ enum io_type_t { numeric, ascii, list };
 struct input_node : node {
 	using node::node;
 	type_t type() const noexcept override { return in; }
-	bool step() override { return false; }
-	bool finalize() override {
+	void step() override {}
+	void finalize() override {
 		if (writing) {
 			// writing this turn
 			s = activity::write;
 			writing = false;
-			return true;
 		} else {
 			s = activity::idle;
 			// ready a value if we don't have one
 			if (not wrt and idx != inputs.size()) {
 				log_debug("I: ", not wrt, ',', idx != inputs.size());
 				wrt.emplace(inputs[idx++]);
-				return true;
 			}
-			return false;
 		}
 	}
 	void reset() noexcept override {
@@ -74,9 +71,9 @@ struct output_node : node {
 	using node::node;
 	type_t type() const noexcept override { return out; }
 	// Attempt to read from neighbor every step
-	bool step() override {
+	void step() override {
 		if (outputs_expected.size() == outputs_received.size()) {
-			return false;
+			return;
 		}
 		if (auto r = do_read(neighbors[port::up], port::down)) {
 			log_debug("O", x, ": read");
@@ -85,12 +82,9 @@ struct output_node : node {
 			if (outputs_received[i] != outputs_expected[i]) {
 				log_debug("incorrect value written");
 			}
-			return true;
-		} else {
-			return false;
 		}
 	}
-	bool finalize() override { return false; }
+	void finalize() override {}
 	void reset() noexcept override { outputs_received.clear(); }
 	std::optional<word_t> emit(port) override { return std::nullopt; }
 	std::string print() const override {
@@ -118,7 +112,7 @@ struct image_output : node {
 	}
 
 	type_t type() const noexcept override { return image; }
-	bool step() override {
+	void step() override {
 		if (auto r = do_read(neighbors[port::up], port::down)) {
 			if (r < 0) {
 				c_x.reset();
@@ -134,11 +128,9 @@ struct image_output : node {
 				poke(*r);
 				++*c_x;
 			}
-			return true;
 		}
-		return false;
 	}
-	bool finalize() override { return false; }
+	void finalize() override {}
 	void reset() noexcept override {
 		image_received.fill(tis_pixel::C_black);
 		c_x.reset();

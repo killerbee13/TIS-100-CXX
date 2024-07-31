@@ -37,27 +37,23 @@ class field {
 	field() = default;
 	field(builtin_layout_spec spec, std::size_t T30_size = def_T30_size);
 
-	/// Advance the field one full cycle (step and finalize), returning true if
-	/// any work done
-	bool step() {
+	/// Advance the field one full cycle (step and finalize)
+	void step() {
 		// evaluate code
-		bool r{false};
 		for (auto& p : nodes) {
 			if (p) {
-				r |= p->step();
+				p->step();
 			}
 		}
-		log_debug("step() -> ", r, '\n');
+		log_debug('\n');
 		// execute writes
 		// this is a separate step to ensure a consistent propagation delay
-		bool f{false};
 		for (auto& p : nodes) {
 			if (p) {
-				f |= p->finalize();
+				p->finalize();
 			}
 		}
-		log_debug("finalize() -> ", f, '\n');
-		return r or f;
+		log_debug('\n');
 	}
 
 	bool active() const {

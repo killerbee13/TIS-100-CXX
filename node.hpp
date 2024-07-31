@@ -127,9 +127,9 @@ struct node {
 	/// Returns the type of the node
 	virtual type_t type() const noexcept = 0;
 	/// Begin processing a cycle. Do not perform writes.
-	virtual bool step() = 0;
+	virtual void step() = 0;
 	/// Finish processing a cycle. Writes are completed here.
-	virtual bool finalize() = 0;
+	virtual void finalize() = 0;
 	/// Reset the node to its default (startup) configuration. Do not erase code
 	/// or expected values.
 	virtual void reset() noexcept = 0;
@@ -187,8 +187,8 @@ struct node {
 struct damaged : node {
 	using node::node;
 	type_t type() const noexcept override { return Damaged; }
-	bool step() override { return false; }
-	bool finalize() override { return false; }
+	void step() override {}
+	void finalize() override {}
 	void reset() noexcept override {}
 	std::optional<word_t> emit(port) override { return std::nullopt; }
 	std::string print() const override {
