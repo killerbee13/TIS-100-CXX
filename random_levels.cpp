@@ -585,8 +585,34 @@ single_test random_test(int id, uint32_t seed) {
 		}
 	} break;
 	case "SIGNAL ERROR CORRECTOR"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(2);
 		ret.n_outputs.resize(2);
+		std::vector<word_t>& in_a = ret.inputs[0];
+		std::vector<word_t>& in_b = ret.inputs[1];
+		std::vector<word_t>& out_a = ret.n_outputs[0];
+		std::vector<word_t>& out_b = ret.n_outputs[1];
+		for (int i = 0; i < max_test_length; i++) {
+			word_t r = engine.next(1, 4);
+			word_t a = engine.next(10, 99);
+			word_t b = engine.next(10, 99);
+			if (r == 1) {
+				in_a.push_back(-1);
+				in_b.push_back(b);
+				out_a.push_back(b);
+				out_b.push_back(b);
+			} else if (r == 2) {
+				in_a.push_back(a);
+				in_b.push_back(-1);
+				out_a.push_back(a);
+				out_b.push_back(a);
+			} else {
+				in_a.push_back(a);
+				in_b.push_back(b);
+				out_a.push_back(a);
+				out_b.push_back(b);
+			}
+		}
 	} break;
 	case "SUBSEQUENCE EXTRACTOR"_lvl: {
 		ret.inputs.resize(2);
