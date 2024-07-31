@@ -177,9 +177,9 @@ struct greyscale_pixel {
 constexpr auto color_from_hex(std::string_view hex) -> rgb_pixel {
 	std::uint8_t r{}, g{}, b{};
 	uint_fast32_t c = kblib::parse_integer<uint_fast32_t>(hex, 16);
-	r = (c & 0xFF0000u) >> 16u;
-	g = (c & 0x00FF00u) >> 8u;
-	b = (c & 0x0000FFu);
+	r = static_cast<std::uint8_t>((c & 0xFF0000u) >> 16u);
+	g = static_cast<std::uint8_t>((c & 0x00FF00u) >> 8u);
+	b = static_cast<std::uint8_t>(c & 0x0000FFu);
 	return pnm::rgb_pixel{r, g, b};
 }
 inline auto color_to_hex(pnm::rgb_pixel color) -> std::string {

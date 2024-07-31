@@ -389,8 +389,10 @@ single_test random_test(int id, uint32_t seed) {
 		ret.inputs.push_back(make_random_array(seed + 1, 39, 1, 10));
 		ret.n_outputs.resize(2, std::vector<word_t>(max_test_length));
 		for (std::size_t i = 0; i < max_test_length; ++i) {
-			ret.n_outputs[0][i] = static_cast<word_t>(ret.inputs[0][i] / ret.inputs[1][i]);
-			ret.n_outputs[1][i] = static_cast<word_t>(ret.inputs[0][i] % ret.inputs[1][i]);
+			ret.n_outputs[0][i]
+			    = static_cast<word_t>(ret.inputs[0][i] / ret.inputs[1][i]);
+			ret.n_outputs[1][i]
+			    = static_cast<word_t>(ret.inputs[0][i] % ret.inputs[1][i]);
 		}
 	} break;
 	case "SEQUENCE INDEXER"_lvl: {
@@ -482,26 +484,29 @@ single_test random_test(int id, uint32_t seed) {
 			} else {
 				maxmax = 38 - out.size();
 			}
-			
+
 			std::size_t maxout;
 			if (maxmax < 10) {
 				maxout = maxmax;
 			} else {
 				do {
-					maxout = static_cast<std::size_t>(engine.next(0, static_cast<word_t>(maxmax)));
-				} while (!canzero and maxout == 0);
+					maxout = static_cast<std::size_t>(
+					    engine.next(0, static_cast<word_t>(maxmax)));
+				} while (! canzero and maxout == 0);
 			}
-			
+
 			std::size_t count1;
 			if (prevempty and maxout >= 2) {
-				count1 = static_cast<std::size_t>(engine.next(1, static_cast<word_t>(maxout - 1)));
+				count1 = static_cast<std::size_t>(
+				    engine.next(1, static_cast<word_t>(maxout - 1)));
 			} else {
-				count1 = static_cast<std::size_t>(engine.next(0, static_cast<word_t>(maxout)));
+				count1 = static_cast<std::size_t>(
+				    engine.next(0, static_cast<word_t>(maxout)));
 			}
 			if (maxout == 0) {
 				canzero = false;
 			}
-			
+
 			prevempty = (count1 == 0 or count1 == maxout);
 			std::vector<word_t> outseq(maxout);
 			std::vector<word_t> in1seq(count1);
@@ -511,7 +516,8 @@ single_test random_test(int id, uint32_t seed) {
 					word_t val;
 					while (true) {
 						val = engine.next(10, 99);
-						if (std::find(outseq.begin(), outseq.end(), val) == outseq.end()) {
+						if (std::find(outseq.begin(), outseq.end(), val)
+						    == outseq.end()) {
 							break;
 						}
 					}
@@ -540,44 +546,254 @@ single_test random_test(int id, uint32_t seed) {
 		} while (out.size() < max_test_length);
 	} break;
 	case "INTEGER SERIES CALCULATOR"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.n_outputs.resize(1);
+		for (std::size_t i = 0; i < max_test_length; i++) {
+			word_t n = engine.next(1, 44);
+			ret.inputs[0].push_back(n);
+			ret.n_outputs[0].push_back(static_cast<word_t>(n * (n + 1) / 2));
+		}
 	} break;
 	case "SEQUENCE RANGE LIMITER"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(3);
 		ret.n_outputs.resize(1);
+		std::vector<word_t>& input = ret.inputs[1];
+		std::vector<word_t>& mininput = ret.inputs[0];
+		std::vector<word_t>& maxinput = ret.inputs[2];
+		std::vector<word_t>& output = ret.n_outputs[0];
+		// make minimums small but not too small
+		for (std::size_t i = 0; i < 6; i++) {
+			mininput.push_back(engine.next(3, 9) * 5);
+		}
+		// make maximums big
+		for (std::size_t i = 0; i < 6; i++) {
+			maxinput.push_back(engine.next(10, 17) * 5);
+		}
+		// For now, just make five sequences that are five long (with a
+		// sixth value being a 0 terminator)
+		// Manually calculate correct output values
+		for (std::size_t i = 0; i < 6; i++) {
+			for (std::size_t j = 0; j < 5; j++) {
+				word_t val = engine.next(10, 99);
+				input.push_back(val);
+				output.push_back(std::clamp(val, mininput[i], maxinput[i]));
+			}
+			input.push_back(0);
+			output.push_back(0);
+		}
 	} break;
 	case "SIGNAL ERROR CORRECTOR"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(2);
 		ret.n_outputs.resize(2);
+		std::vector<word_t>& in_a = ret.inputs[0];
+		std::vector<word_t>& in_b = ret.inputs[1];
+		std::vector<word_t>& out_a = ret.n_outputs[0];
+		std::vector<word_t>& out_b = ret.n_outputs[1];
+		for (int i = 0; i < max_test_length; i++) {
+			word_t r = engine.next(1, 4);
+			word_t a = engine.next(10, 99);
+			word_t b = engine.next(10, 99);
+			if (r == 1) {
+				in_a.push_back(-1);
+				in_b.push_back(b);
+				out_a.push_back(b);
+				out_b.push_back(b);
+			} else if (r == 2) {
+				in_a.push_back(a);
+				in_b.push_back(-1);
+				out_a.push_back(a);
+				out_b.push_back(a);
+			} else {
+				in_a.push_back(a);
+				in_b.push_back(b);
+				out_a.push_back(a);
+				out_b.push_back(b);
+			}
+		}
 	} break;
 	case "SUBSEQUENCE EXTRACTOR"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(2);
 		ret.n_outputs.resize(1);
+		std::vector<word_t>& in_indexes = ret.inputs[0];
+		std::vector<word_t>& in_seq = ret.inputs[1];
+		std::vector<word_t>& out = ret.n_outputs[0];
+
+		std::array<word_t, 8> seq_lengths = {2, 3, 3, 4, 4, 4, 5, 6};
+		// Shuffle the subsequence lengths:
+		for (std::size_t i = seq_lengths.size() - 1; i >= 1; i--) {
+			std::size_t j = static_cast<std::size_t>(
+			    engine.next_int(0, static_cast<int32_t>(i)));
+			std::swap(seq_lengths[i], seq_lengths[j]);
+		}
+
+		for (word_t len : seq_lengths) {
+			// Generate input sequences:
+			for (word_t j = 0; j < len; j++) {
+				in_seq.push_back(engine.next(10, 99));
+			}
+			in_seq.push_back(0);
+			// Generate subsequence indexes:
+			word_t sublen = engine.next(2, len);
+			word_t first = engine.next(0, len - sublen);
+			word_t last = static_cast<word_t>(first + sublen - 1);
+			in_indexes.push_back(first);
+			in_indexes.push_back(last);
+			// Generate correct output:
+			auto in_it = in_seq.end() - len - 1 + first;
+			out.insert(out.end(), in_it, in_it + sublen);
+			out.push_back(0);
+		}
 	} break;
 	case "SIGNAL PRESCALER"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.n_outputs.resize(3);
+		for (int i = 0; i < max_test_length; i++) {
+			word_t val = engine.next(1, 120);
+			ret.n_outputs[2].push_back(val);
+			ret.n_outputs[1].push_back(val * 2);
+			ret.n_outputs[0].push_back(val * 4);
+			ret.inputs[0].push_back(val * 8);
+		}
 	} break;
 	case "SIGNAL AVERAGER"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(2);
 		ret.n_outputs.resize(1);
+		for (int i = 0; i < max_test_length; i++) {
+			word_t valA = engine.next(100, 999);
+			word_t valB = engine.next(100, 999);
+			ret.inputs[0].push_back(valA);
+			ret.inputs[1].push_back(valB);
+			ret.n_outputs[0].push_back(static_cast<word_t>((valA + valB) / 2));
+		}
 	} break;
 	case "SUBMAXIMUM SELECTOR"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(4);
 		ret.n_outputs.resize(1);
+		for (int i = 0; i < max_test_length; i++) {
+			std::array<word_t, 4> group;
+			for (std::size_t j = 0; j < 4; j++) {
+				word_t v = engine.next(0, 99);
+				group[j] = v;
+				ret.inputs[j].push_back(v);
+			}
+
+			std::nth_element(group.begin(), group.begin() + 2, group.end());
+			ret.n_outputs[0].push_back(group[2]);
+		}
 	} break;
 	case "DECIMAL DECOMPOSER"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.n_outputs.resize(3);
+		for (int i = 0; i < max_test_length; i++) {
+			word_t digits = engine.next(0, 2);
+			word_t val;
+			if (digits == 0) {
+				val = engine.next(0, 9);
+			} else if (digits == 1) {
+				val = engine.next(10, 99);
+			} else if (digits == 2) {
+				val = engine.next(100, 999);
+			}
+			ret.inputs[0].push_back(val);
+			ret.n_outputs[0].push_back(val / 100);
+			ret.n_outputs[1].push_back((val % 100) / 10);
+			ret.n_outputs[2].push_back(val % 10);
+		}
 	} break;
 	case "SEQUENCE MODE CALCULATOR"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.n_outputs.resize(1);
+
+		// generate input stream
+		int last_zero = -1;
+		for (int i = 0; i < max_test_length - 1; i++) {
+			ret.inputs[0].push_back(engine.next(1, 5));
+			// tuned to give nice balance of sequence lengths
+			if (i - last_zero > 3 and engine.next_double() < 0.5
+			    and i < max_test_length - 2) {
+				ret.inputs[0].back() = 0;
+				last_zero = i;
+			}
+		}
+		ret.inputs[0].push_back(0);
+
+		// generate output stream
+		std::vector<word_t> sequence = {};
+		for (word_t input : ret.inputs[0]) {
+			if (input == 0) {
+				// generate frequency map
+				std::array frequency = {0u, 0u, 0u, 0u, 0u};
+				for (word_t element : sequence) {
+					frequency[static_cast<std::size_t>(element - 1)]++;
+				}
+
+				// determine mode, and whether it is unique
+				uint max_frequency = 0;
+				uint most_frequent = 1;
+				bool unique = true;
+				for (uint k = 0; k < 5; k++) {
+					if (frequency[k] > max_frequency) {
+						unique = true;
+						most_frequent = k + 1;
+						max_frequency = frequency[k];
+					} else if (frequency[k] == max_frequency) {
+						unique = false;
+					}
+				}
+
+				if (unique) {
+					ret.n_outputs[0].push_back(static_cast<word_t>(most_frequent));
+				} else {
+					ret.n_outputs[0].push_back(0);
+				}
+
+				sequence.clear();
+			} else {
+				sequence.push_back(input);
+			}
+		}
 	} break;
 	case "SEQUENCE NORMALIZER"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.n_outputs.resize(1);
+		// Current sequence from 'input'
+		std::vector<word_t> cur_seq = {};
+		
+		for (int i = 0; i < max_test_length - 1; i++) {
+			word_t val = engine.next(1, 99);
+			ret.inputs[0].push_back(val);
+			cur_seq.push_back(val);
+
+			// Possibly end sequence ensuring that the it is at least of length 3
+			// and no longer than 8.
+			// Also ensure final sequence is ended properly - may cause shorter
+			// sequence length.
+			if ((engine.next(1, 3) % 3 == 0 and cur_seq.size() > 2)
+			    or (cur_seq.size() > 7) or (i == max_test_length - 3)) {
+				// Generate 'output'
+				word_t min_in_seq = *std::ranges::min_element(cur_seq);
+				for (word_t seqval : cur_seq) {
+					ret.n_outputs[0].push_back(seqval - min_in_seq);
+				}
+
+				// Add the sequence terminating -1
+				i++;
+				ret.inputs[0].push_back(-1);
+				ret.n_outputs[0].push_back(-1);
+
+				cur_seq.clear();
+			}
+		}
 	} break;
 	case "IMAGE TEST PATTERN 3"_lvl: {
 		ret.i_output.assign({
