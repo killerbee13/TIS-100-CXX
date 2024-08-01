@@ -960,7 +960,7 @@ single_test random_test(int id, uint32_t seed) {
 
 		auto shuffle_tables = [&](word_vec& t) {
 			for (auto i : kblib::range(std::ssize(t) - 1, 0z, -1)) {
-				auto j = engine.next(0, i);
+				auto j = engine.next(0, static_cast<word_t>(i));
 				std::swap(t[i], t[j]);
 			}
 		};
@@ -968,7 +968,7 @@ single_test random_test(int id, uint32_t seed) {
 		std::array lengths{5, 4, 4, 4, 5, 4, 5, 4, 4};
 		for (auto length : lengths) {
 			word_t min = engine.next(10, 90);
-			word_t max = min + length - 1;
+			word_t max = static_cast<word_t>(min + length - 1);
 			auto missing_value = engine.next(min + 1, max - 1);
 			word_vec values;
 			for (auto i : kblib::range<word_t>(min, max + 1)) {
@@ -991,7 +991,7 @@ single_test random_test(int id, uint32_t seed) {
 
 		for ([[maybe_unused]] auto _ : kblib::range(max_test_length)) {
 			auto i = ret.inputs[0].emplace_back(engine.next(1, 63));
-			ret.n_outputs[0].push_back(to_octal(i));
+			ret.n_outputs[0].push_back(static_cast<word_t>(to_octal(i)));
 		}
 	} break;
 	case "PROLONGED SEQUENCE SORTER"_lvl: {
@@ -1024,12 +1024,12 @@ single_test random_test(int id, uint32_t seed) {
 			ret.inputs[0].clear();
 			ret.n_outputs[0].clear();
 			for ([[maybe_unused]] auto _ : kblib::range(10)) {
-				auto fac = 2;
+				word_t fac = 2;
 				auto inp = ret.inputs[0].emplace_back(engine.next(10, 99));
 				while (inp > fac) {
 					if (inp % fac == 0) {
 						ret.n_outputs[0].push_back(fac);
-						inp = inp / fac;
+						inp = static_cast<word_t>(inp / fac);
 					} else {
 						++fac;
 					}
@@ -1045,12 +1045,12 @@ single_test random_test(int id, uint32_t seed) {
 		ret.inputs.resize(2);
 		ret.n_outputs.resize(1);
 		// extra 0 at the beginning because Lua arrays start at 1
-		std::array max_exp{0, 10, 9, 6, 4, 4, 3, 3, 3, 3, 2};
+		std::array<word_t, 11> max_exp{0, 10, 9, 6, 4, 4, 3, 3, 3, 3, 2};
 
 		for ([[maybe_unused]] auto _ : kblib::range(max_test_length)) {
 			auto a = ret.inputs[0].emplace_back(engine.next(1, 10));
 			auto b = ret.inputs[1].emplace_back(engine.next(1, max_exp[a]));
-			ret.n_outputs[0].push_back(std::pow(a, b));
+			ret.n_outputs[0].push_back(static_cast<word_t>(std::pow(a, b)));
 		}
 	} break;
 	case "T20 NODE EMULATOR"_lvl: {
