@@ -145,7 +145,7 @@ single_test random_test(int id, uint32_t seed) {
 	} break;
 	case "SIGNAL COMPARATOR"_lvl: {
 		ret.inputs.push_back(make_random_array(seed, max_test_length, -2, 3));
-		ret.n_outputs.resize(3, std::vector<word_t>(max_test_length));
+		ret.n_outputs.resize(3, empty_vec());
 		for (auto [x, i] : kblib::enumerate(ret.inputs[0])) {
 			ret.n_outputs[0][i] = (x > 0);
 			ret.n_outputs[1][i] = (x == 0);
@@ -154,7 +154,7 @@ single_test random_test(int id, uint32_t seed) {
 	} break;
 	case "SIGNAL MULTIPLEXER"_lvl: {
 		ret.inputs.resize(3);
-		ret.n_outputs.resize(1, std::vector<word_t>(max_test_length));
+		ret.n_outputs.resize(1, empty_vec());
 		ret.inputs[0] = make_random_array(seed, max_test_length, -30, 1);
 		ret.inputs[1] = make_random_array(seed + 2, max_test_length, -1, 2);
 		ret.inputs[2] = make_random_array(seed + 1, max_test_length, 0, 31);
@@ -197,7 +197,7 @@ single_test random_test(int id, uint32_t seed) {
 	} break;
 	case "SIGNAL EDGE DETECTOR"_lvl: {
 		xorshift128_engine engine(seed);
-		ret.inputs.push_back(std::vector<word_t>(max_test_length));
+		ret.inputs.push_back(empty_vec());
 		ret.inputs[0][1] = engine.next_int(25, 75);
 		std::size_t i = 2;
 		while (i < max_test_length) {
@@ -221,8 +221,8 @@ single_test random_test(int id, uint32_t seed) {
 		}
 	} break;
 	case "INTERRUPT HANDLER"_lvl: {
-		ret.inputs.resize(4, std::vector<word_t>(1));
-		ret.n_outputs.resize(1, std::vector<word_t>(1));
+		ret.inputs.resize(4, empty_vec(1));
+		ret.n_outputs.resize(1, empty_vec(1));
 		std::array<bool, 4> array2{};
 
 		xorshift128_engine engine(seed);
@@ -258,7 +258,7 @@ single_test random_test(int id, uint32_t seed) {
 			ret.inputs[0][num + 2] = 0;
 			ret.inputs[0][num + 3] = engine.next_int(1, 6);
 		}
-		ret.n_outputs.push_back(std::vector<word_t>(max_test_length));
+		ret.n_outputs.push_back(empty_vec());
 		for (std::size_t j = 0; j < max_test_length; ++j) {
 			ret.n_outputs[0][j]
 			    = (j > 1 and ret.inputs[0][j - 2] == 0
@@ -293,7 +293,7 @@ single_test random_test(int id, uint32_t seed) {
 	case "SIGNAL MULTIPLIER"_lvl: {
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 0, 10));
 		ret.inputs.push_back(make_random_array(seed + 1, max_test_length, 0, 10));
-		ret.n_outputs.push_back(std::vector<word_t>(max_test_length));
+		ret.n_outputs.push_back(empty_vec());
 		std::ranges::transform(ret.inputs[0], ret.inputs[1],
 		                       ret.n_outputs[0].begin(), std::multiplies<>{});
 	} break;
@@ -348,7 +348,7 @@ single_test random_test(int id, uint32_t seed) {
 	} break;
 	case "HISTOGRAM VIEWER"_lvl: {
 		xorshift128_engine engine(seed);
-		ret.inputs.push_back(std::vector<word_t>(image_width));
+		ret.inputs.push_back(empty_vec(image_width));
 		ret.i_output.reshape(image_width, image_height);
 		ret.inputs[0][0] = engine.next_int(3, 14);
 		for (std::size_t x = 1; x < image_width; ++x) {
@@ -391,7 +391,7 @@ single_test random_test(int id, uint32_t seed) {
 	case "SIGNAL DIVIDER"_lvl: {
 		ret.inputs.push_back(make_random_array(seed, 39, 10, 100));
 		ret.inputs.push_back(make_random_array(seed + 1, 39, 1, 10));
-		ret.n_outputs.resize(2, std::vector<word_t>(max_test_length));
+		ret.n_outputs.resize(2, empty_vec());
 		for (std::size_t i = 0; i < max_test_length; ++i) {
 			ret.n_outputs[0][i]
 			    = static_cast<word_t>(ret.inputs[0][i] / ret.inputs[1][i]);
@@ -403,7 +403,7 @@ single_test random_test(int id, uint32_t seed) {
 		ret.inputs.push_back(make_random_array(seed, 10, 100, 1000));
 		ret.inputs[0].push_back(0);
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 0, 10));
-		ret.n_outputs.resize(1, std::vector<word_t>(max_test_length));
+		ret.n_outputs.resize(1, empty_vec());
 		for (std::size_t i = 0; i < max_test_length; ++i) {
 			ret.n_outputs[0][i] = ret.inputs[0][to_unsigned(ret.inputs[1][i])];
 		}
@@ -440,7 +440,7 @@ single_test random_test(int id, uint32_t seed) {
 	} break;
 	case "UNKNOWN"_lvl: {
 		xorshift128_engine engine(seed);
-		ret.inputs.push_back(std::vector<word_t>(max_test_length));
+		ret.inputs.push_back(empty_vec());
 		ret.n_outputs.resize(2);
 		while (ret.n_outputs[0].size() < max_test_length) {
 			word_t item = engine.next_int(0, 4);
@@ -772,7 +772,7 @@ single_test random_test(int id, uint32_t seed) {
 		ret.n_outputs.resize(1);
 		// Current sequence from 'input'
 		std::vector<word_t> cur_seq = {};
-		
+
 		for (int i = 0; i < max_test_length - 1; i++) {
 			word_t val = engine.next(1, 99);
 			ret.inputs[0].push_back(val);
@@ -869,8 +869,8 @@ single_test random_test(int id, uint32_t seed) {
 	} break;
 	case "PROLONGED SEQUENCE SORTER"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(1, std::vector<word_t>(max_test_length));
-		ret.n_outputs.resize(1, std::vector<word_t>(max_test_length));
+		ret.inputs.resize(1, empty_vec());
+		ret.n_outputs.resize(1, empty_vec());
 		std::array<int, 10> counts{};
 		int zeros = 10;
 		for (std::size_t i = 0; i < max_test_length - 1; ++i) {

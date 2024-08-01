@@ -461,6 +461,7 @@ inline constexpr auto layouts1 = gen_layouts();
 
 } catch (const std::exception& e) {
 	log_err("failed with exception: ", e.what());
+	log_flush();
 	throw;
 }
 

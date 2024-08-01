@@ -435,10 +435,9 @@ template <typename Stream>
 requires requires(Stream s) {
 	{s << "" << 1};
 }
-inline Stream& write_list(Stream& os, const std::vector<word_t>& v,
-                          const std::vector<word_t>* expected = nullptr,
-                          bool colored = use_color) {
-
+inline Stream&& write_list(Stream&& os, const std::vector<word_t>& v,
+                           const std::vector<word_t>* expected = nullptr,
+                           bool colored = use_color) {
 	if (colored and expected and v.size() != expected->size()) {
 		os << print_escape(bright_red);
 	}
@@ -463,7 +462,7 @@ inline Stream& write_list(Stream& os, const std::vector<word_t>& v,
 		}
 	}
 	os << "\n]";
-	return os;
+	return std::forward<Stream>(os);
 }
 
 #endif // NODE_HPP
