@@ -899,6 +899,28 @@ single_test random_test(int id, uint32_t seed) {
 	case "T31 NODE EMULATOR"_lvl: {
 		ret.inputs.resize(1);
 		ret.n_outputs.resize(1);
+		lua_random engine(to_signed(seed));
+
+		std::array<word_t, 8> memory{};
+		std::array<bool, 8> written{};
+
+		do {
+			auto index = engine.next(0, 7);
+			auto value = engine.next(10, 99);
+			if (engine.next(0, 1)) {
+				if (written[index]) {
+					ret.inputs[0].push_back(1);
+					ret.inputs[0].push_back(index);
+					ret.n_outputs[0].push_back(memory[index]);
+				}
+			} else {
+				ret.inputs[0].push_back(0);
+				ret.inputs[0].push_back(index);
+				ret.inputs[0].push_back(value);
+				memory[index] = value;
+				written[index] = true;
+			}
+		} while (ret.inputs[0].size() <= 36);
 	} break;
 	case "WAVE COLLAPSE SUPERVISOR"_lvl: {
 		lua_random engine(to_signed(seed));
