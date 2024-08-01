@@ -997,8 +997,23 @@ single_test random_test(int id, uint32_t seed) {
 		ret.i_output.assign(std::move(image));
 	} break;
 	case "BACK-REFERENCE REIFIER"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(2);
 		ret.n_outputs.resize(1);
+		auto& input_refs = ret.inputs[0];
+		auto& input_values = ret.inputs[1];
+		for (ssize_t i = 0; i < max_test_length; i++) {
+			word_t ref = 0;
+			if (engine.next(0, 1) == 0) {
+				ref = engine.next(-4, -1);
+				if (i + ref < 0) {
+					ref = 0;
+				}
+			}
+			input_values.push_back(engine.next(10, 99));
+			input_refs.push_back(ref);
+			ret.n_outputs[0].push_back(input_values[i + ref]);
+		}
 	} break;
 	case "DYNAMIC PATTERN DETECTOR"_lvl: {
 		ret.inputs.resize(2);
