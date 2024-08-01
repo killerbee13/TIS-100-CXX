@@ -110,6 +110,10 @@ void for_each_subsequence_of(std::vector<word_t>& in, word_t delim, F f) {
 	}
 }
 
+std::vector<word_t> empty_vec(word_t size = max_test_length) {
+	return std::vector<word_t>(size);
+}
+
 single_test random_test(int id, uint32_t seed) {
 	// log_info("random_test(", id, ", ", seed, ")");
 	single_test ret{};
@@ -902,8 +906,23 @@ single_test random_test(int id, uint32_t seed) {
 		ret.n_outputs.resize(1);
 	} break;
 	case "WAVE COLLAPSE SUPERVISOR"_lvl: {
-		ret.inputs.resize(4);
-		ret.n_outputs.resize(1);
+		lua_random engine(to_signed(seed));
+		ret.inputs.resize(4, empty_vec());
+		ret.n_outputs.resize(1, empty_vec());
+		std::array<word_t, 4> sums{};
+
+		for (const auto i : kblib::range(39u)) {
+			for (const auto j : kblib::range(4u)) {
+				auto n = engine.next(0, 1);
+				if (i > 0 and ret.n_outputs[0][i - 1] == to_signed(j + 1)) {
+					n = engine.next(-1, 0);
+				}
+				ret.inputs[j][i] = n;
+				sums[j] = sums[j] + n;
+			}
+			auto max = std::ranges::max_element(sums);
+			ret.n_outputs[0][i] = static_cast<word_t>(max - sums.begin() + 1);
+		}
 	} break;
 	default:
 		throw std::invalid_argument{""};
