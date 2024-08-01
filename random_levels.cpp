@@ -885,8 +885,28 @@ single_test random_test(int id, uint32_t seed) {
 		ret.n_outputs[0].back() = -1;
 	} break;
 	case "PRIME FACTOR CALCULATOR"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.n_outputs.resize(1);
+		do {
+			ret.inputs[0].clear();
+			ret.n_outputs[0].clear();
+			for ([[maybe_unused]] auto _ : kblib::range(10)) {
+				auto fac = 2;
+				auto inp = ret.inputs[0].emplace_back(engine.next(10, 99));
+				while (inp > fac) {
+					if (inp % fac == 0) {
+						ret.n_outputs[0].push_back(fac);
+						inp = inp / fac;
+					} else {
+						++fac;
+					}
+				}
+				ret.n_outputs[0].push_back(inp);
+				ret.n_outputs[0].push_back(0);
+			}
+			// was this really the best way?
+		} while (ret.n_outputs[0].size() != max_test_length - 1);
 	} break;
 	case "SIGNAL EXPONENTIATOR"_lvl: {
 		lua_random engine(to_signed(seed));
