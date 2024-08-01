@@ -188,9 +188,15 @@ int main(int argc, char** argv) try {
 	std::vector<std::string> loglevels_allowed{"none",   "err",  "error", "warn",
 	                                           "notice", "info", "debug"};
 	TCLAP::ValuesConstraint<std::string> loglevels(loglevels_allowed);
-	const TCLAP::ValueArg<std::string> loglevel(
+	TCLAP::ValueArg<std::string> loglevel(
 	    "", "loglevel", "Set the logging level. (Default 'notice')", false,
-	    "notice", &loglevels, cmd);
+	    "notice", &loglevels);
+	TCLAP::SwitchArg debug_loglevel("", "debug",
+	                                "Equivalent to --loglevel debug");
+	TCLAP::SwitchArg info_loglevel("", "info", "Equivalent to --loglevel info");
+	TCLAP::EitherOf log_arg(cmd);
+	log_arg.add(loglevel).add(info_loglevel).add(debug_loglevel);
+
 	TCLAP::MultiSwitchArg quiet("q", "quiet",
 	                            "Suppress printing anything but score and "
 	                            "errors. A second flag suppresses errors.",
@@ -213,6 +219,11 @@ int main(int argc, char** argv) try {
 
 	set_log_level([&] {
 		using namespace kblib::literals;
+		if (debug_loglevel.isSet()) {
+			return log_level::debug;
+		} else if (info_loglevel.isSet()) {
+			return log_level::info;
+		}
 		switch (kblib::FNV32a(loglevel.getValue())) {
 		case "none"_fnv32:
 			return log_level::silent;
