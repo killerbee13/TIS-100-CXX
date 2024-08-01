@@ -942,8 +942,59 @@ single_test random_test(int id, uint32_t seed) {
 		ret.i_output.assign(std::move(image));
 	} break;
 	case "CHARACTER TERMINAL"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.i_output.reshape(image_width, image_height);
+
+		std::vector<tis_pixel> image(image_width * image_height, tis_pixel{0});
+
+		// replace 2d arrays for alternative characters
+		bool char_decode[][2][2] = {{{0, 0}, {0, 0}},
+		                            {{1, 1}, {0, 0}},
+		                            {{1, 0}, {0, 1}},
+		                            {{0, 1}, {1, 0}},
+		                            {{1, 1}, {1, 0}}};
+
+		// place the character c into the image at x y
+		auto render_character = [&](word_t x, word_t y, word_t c) {
+			auto ch = char_decode[c];
+			for (int a : {0, 1}) {
+				for (int b : {0, 1}) {
+					if (ch[a][b]) {
+						// color for the character is set here
+						image[x + a + (y + b) * image_width] = tis_pixel{3};
+					}
+				}
+			}
+		};
+
+		auto& input = ret.inputs[0];
+		for (std::size_t i = 0; i < max_test_length; i++) {
+			input.push_back(engine.next(1, 4));
+		}
+		input.push_back(0);
+
+		// these values are choosen to allow a bit of undefined behavior; I do not
+		// pick whether a 0 at after the 10th character should be an empty line.
+		// The prerolled sample will not have that, so I avoid testing the user on
+		// that case because it seemed unfair.  I think both ways could be valid.
+		input[engine.next(12, 16)] = 0;
+		input[engine.next(28, 31)] = 0;
+
+		// render image
+		word_t x = -1;
+		word_t y = 0;
+		for (std::size_t i = 0; i < max_test_length; i++) {
+			if (input[i] == 0 or x == 9) {
+				x = 0;
+				y++;
+			} else {
+				x++;
+			}
+			render_character(x * 3, y * 3, input[i + 1]);
+		}
+		input.erase(input.begin());
+		ret.i_output.assign(std::move(image));
 	} break;
 	case "BACK-REFERENCE REIFIER"_lvl: {
 		ret.inputs.resize(2);
