@@ -855,8 +855,34 @@ single_test random_test(int id, uint32_t seed) {
 		ret.n_outputs.resize(1);
 	} break;
 	case "SEQUENCE GAP INTERPOLATOR"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.n_outputs.resize(1);
+
+		auto shuffle_tables = [&](word_vec& t) {
+			for (auto i : kblib::range(std::ssize(t) - 1, 0z, -1)) {
+				auto j = engine.next(0, i);
+				std::swap(t[i], t[j]);
+			}
+		};
+
+		std::array lengths{5, 4, 4, 4, 5, 4, 5, 4, 4};
+		for (auto length : lengths) {
+			word_t min = engine.next(10, 90);
+			word_t max = min + length - 1;
+			auto missing_value = engine.next(min + 1, max - 1);
+			word_vec values;
+			for (auto i : kblib::range<word_t>(min, max + 1)) {
+				if (i != missing_value) {
+					values.push_back(i);
+				}
+			}
+			shuffle_tables(values);
+			ret.inputs[0].insert(ret.inputs[0].end(), values.begin(),
+			                     values.end());
+			ret.inputs[0].push_back(0);
+			ret.n_outputs[0].push_back(missing_value);
+		}
 	} break;
 	case "DECIMAL TO OCTAL CONVERTER"_lvl: {
 		lua_random engine(to_signed(seed));
