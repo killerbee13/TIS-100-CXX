@@ -2,16 +2,9 @@
 # ----------------------------------------------------------------------------
 
 *~
-*.autosave
-*.a
 *.core
-*.moc
-*.o
-*.obj
 *.orig
 *.rej
-*.so
-*.so.*
 *_pch.h.cpp
 *_resource.rc
 *.qm
@@ -27,6 +20,7 @@ Makefile*
 *.prl
 *.app
 moc_*.cpp
+*.moc
 ui_*.h
 qrc_*.cpp
 Thumbs.db
@@ -35,15 +29,13 @@ Thumbs.db
 /.qmake.cache
 /.qmake.stash
 
-# qtcreator generated files
+# editor generated files
 *.pro.user*
 CMakeLists.txt.user*
-
-# xemacs temporary files
 *.flc
-
-# Vim temporary files
 .*.swp
+*.autosave
+nppBackup/*
 
 # Visual Studio generated files
 *.ib_pdb_index
@@ -73,14 +65,12 @@ CMakeLists.txt.user*
 *.exe
 *.out
 *.app
+
 # Compiled Static libraries
 *.lai
 *.la
 *.a
 *.lib
-
-# Prerequisites
-*.d
 
 # Compiled Object files
 *.slo
@@ -88,14 +78,18 @@ CMakeLists.txt.user*
 *.o
 *.obj
 
+# Compiled Dynamic libraries
+*.so
+*.so.*
+*.dylib
+*.dll
+
 # Precompiled Headers
 *.gch
 *.pch
 
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
+# Prerequisites
+*.d
 
 # Fortran module files
 *.mod
