@@ -889,17 +889,61 @@ single_test random_test(int id, uint32_t seed) {
 		ret.n_outputs.resize(1);
 	} break;
 	case "SIGNAL EXPONENTIATOR"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(2);
 		ret.n_outputs.resize(1);
+		// extra 0 at the beginning because Lua arrays start at 1
+		std::array max_exp{0, 10, 9, 6, 4, 4, 3, 3, 3, 3, 2};
+
+		for ([[maybe_unused]] auto _ : kblib::range(max_test_length)) {
+			auto a = ret.inputs[0].emplace_back(engine.next(1, 10));
+			auto b = ret.inputs[1].emplace_back(engine.next(1, max_exp[a]));
+			ret.n_outputs[0].push_back(std::pow(a, b));
+		}
 	} break;
 	case "T20 NODE EMULATOR"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(2);
 		ret.n_outputs.resize(1);
+
+		auto& instructions = ret.inputs[0];
+		auto& values = ret.inputs[1];
+		auto& output = ret.n_outputs[0];
+		instructions = {0, 1};
+		values = {0, 0};
+
+		word_t p = 0;
+		word_t q = 0;
+
+		for ([[maybe_unused]] auto _ : kblib::range(2, max_test_length)) {
+			auto instr = engine.next(0, 4);
+			instructions.push_back(instr);
+			switch (instr) {
+			case 0: {
+				p = engine.next(10, 99);
+				values.push_back(p);
+			} break;
+			case 1: {
+				q = engine.next(10, 99);
+				values.push_back(q);
+			} break;
+			case 2: {
+				std::swap(p, q);
+			} break;
+			case 3: {
+				p = p + q;
+			} break;
+			case 5:
+			default: {
+				output.push_back(p);
+			} break;
+			}
+		}
 	} break;
 	case "T31 NODE EMULATOR"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.n_outputs.resize(1);
-		lua_random engine(to_signed(seed));
 
 		std::array<word_t, 8> memory{};
 		std::array<bool, 8> written{};
