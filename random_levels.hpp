@@ -21,6 +21,10 @@
 #include "node.hpp"
 
 std::array<single_test, 3> static_suite(int id);
-single_test random_test(int id, std::uint32_t seed);
+std::optional<single_test> random_test(int id, std::uint32_t seed);
+
+#if HISTOGRAM
+inline std::array<std::vector<std::size_t>, 9> histogram;
+#endif
 
 #endif // RANDOM_LEVELS_HPP

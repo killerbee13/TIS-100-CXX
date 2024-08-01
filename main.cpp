@@ -384,7 +384,10 @@ inline constexpr auto layouts1 = gen_layouts();
 		int valid_count = 0;
 		for (; count < random.getValue(); ++count) {
 			auto test = random_test(id, seed++);
-			set_expected(f, test);
+			if (not test) {
+				continue;
+			}
+			set_expected(f, *test);
 			last = run(f, cycles_limit.getValue(),
 			           not quiet.isSet() and valid_count == count);
 			worst.cycles = std::max(worst.cycles, last.cycles);
@@ -439,6 +442,46 @@ inline constexpr auto layouts1 = gen_layouts();
 		std::cout << "score: ";
 	}
 	std::cout << sc << '\n';
+
+	// This was used to analyze the failure chance of EXPOSURE MASK VIEWER's
+	// random test generation and serves no continuing purpose.
+#if HISTOGRAM
+	if (not histogram[0].empty()) {
+		for (auto i : kblib::range(histogram.size())) {
+			std::cerr << histogram[i].size() << '\n';
+			std::ranges::sort(histogram[i]);
+			auto average
+			    = std::accumulate(histogram[i].begin(), histogram[i].end(), 0.0)
+			      / histogram[i].size();
+			auto variance
+			    = std::accumulate(histogram[i].begin(), histogram[i].end(), 0.0,
+			                      [&](double acc, std::size_t val) {
+				                      return acc
+				                             + ((val - average) * (val - average)
+				                                / (histogram[i].size() - 1));
+			                      });
+			auto minmax = std::ranges::minmax_element(histogram[i]);
+			auto midpoint = histogram[i].begin() + (histogram[i].size() / 2);
+			auto get_pct = [&](double pct) -> double {
+				auto pos = histogram[i].size() * pct;
+				if (pos == histogram[i].size() - 1) {
+					return histogram[i].back();
+				}
+				double posi{};
+				double posf = std::modf(pos, &posi);
+				auto point = histogram[i].begin() + posi;
+				return std::lerp(point[0], point[1], posf);
+			};
+
+			std::cout << "rectangle " << i
+			          << " stats: average/stddev/median/min/max: " << average
+			          << '/' << std::sqrt(variance) << '/' << get_pct(.5) << '/'
+			          << *minmax.min << '/' << *minmax.max << '\n';
+			std::cout << "\t5%t/95%t/99%t: " << get_pct(.05) << '/' << get_pct(.95)
+			          << '/' << get_pct(.99) << '\n';
+		}
+	}
+#endif
 	return (sc.validated) ? 0 : 1;
 
 #if 0
@@ -504,7 +547,7 @@ int generate(std::uint32_t seed) {
 				auto o_path = copy(base_path).concat(p->filename);
 				log_info("writing in ", i_idx, ": ", o_path.native());
 				std::ofstream o_f(o_path, std::ios_base::trunc);
-				for (auto w : r.inputs[i_idx]) {
+				for (auto w : r->inputs[i_idx]) {
 					o_f << w << '\n';
 				}
 				++i_idx;
@@ -513,7 +556,7 @@ int generate(std::uint32_t seed) {
 				auto o_path = copy(base_path).concat(p->filename);
 				log_info("writing out ", o_idx, ": ", o_path.native());
 				std::ofstream o_f(o_path, std::ios_base::trunc);
-				for (auto w : r.n_outputs[o_idx]) {
+				for (auto w : r->n_outputs[o_idx]) {
 					o_f << w << '\n';
 				}
 				++o_idx;
@@ -522,13 +565,13 @@ int generate(std::uint32_t seed) {
 				auto o_path = copy(base_path).concat(p->filename);
 				log_info("writing image: ", o_path.native());
 				std::ofstream o_f(o_path, std::ios_base::trunc);
-				o_f << r.i_output;
+				o_f << r->i_output;
 				o_f.close();
 
 				o_path += ".pnm";
 				log_info("writing scaled image: ", o_path.native());
 				o_f.open(o_path, std::ios_base::trunc);
-				r.i_output.write(o_f, 11, 17);
+				r->i_output.write(o_f, 11, 17);
 			}
 		}
 	}

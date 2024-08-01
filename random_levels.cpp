@@ -86,9 +86,9 @@ constexpr static std::array<std::uint32_t, layouts.size()> seeds{
 
 std::array<single_test, 3> static_suite(int id) {
 	return {
-	    random_test(id, seeds.at(static_cast<std::size_t>(id)) * 100),
-	    random_test(id, seeds[static_cast<std::size_t>(id)] * 100 + 1),
-	    random_test(id, seeds[static_cast<std::size_t>(id)] * 100 + 2),
+	    *random_test(id, seeds.at(static_cast<std::size_t>(id)) * 100),
+	    *random_test(id, seeds[static_cast<std::size_t>(id)] * 100 + 1),
+	    *random_test(id, seeds[static_cast<std::size_t>(id)] * 100 + 2),
 	};
 }
 
@@ -109,7 +109,7 @@ word_vec empty_vec(word_t size = max_test_length) {
 	return word_vec(kblib::to_unsigned(size));
 }
 
-single_test random_test(int id, uint32_t seed) {
+std::optional<single_test> random_test(int id, uint32_t seed) {
 	// log_info("random_test(", id, ", ", seed, ")");
 	single_test ret{};
 	switch (id) {
@@ -308,37 +308,57 @@ single_test random_test(int id, uint32_t seed) {
 		ret.inputs.resize(1);
 		ret.i_output.reshape(image_width, image_height);
 		for (int i = 0; i < 9; ++i) {
-			word_t num2{};
-			word_t num3{};
-			word_t num4{};
-			word_t num5{};
+			word_t w{};
+			word_t h{};
+			word_t x_c{};
+			word_t y_c{};
+			std::size_t iterations{};
 			{
-			IL_0030:
-				num2 = engine.next_int(3, 6);
-				num3 = engine.next_int(3, 6);
-				num4 = engine.next_int(1, image_width - 1 - num2);
-				num5 = engine.next_int(1, image_height - 1 - num3);
-				for (int j = -1; j < num2 + 1; ++j) {
-					for (int k = -1; k < num3 + 1; ++k) {
-						std::size_t index = static_cast<std::size_t>(
-						    num4 + j + (num5 + k) * image_width);
-						if (ret.i_output.at(index) != 0) {
-							goto IL_0030;
+			retry:
+				// This code sometimes places 8 rectangles in such a way that there
+				// is no valid position for a 9th, and gets stuck in an infinite
+				// loop. 99th percentile of iterations required to place the 9th
+				// rectangle is 217, so using 250 will cause fewer than 1% of seeds
+				// to be skipped. This check has some false positives, some seeds
+				// may find a place to fit the last rectangle on the 251st
+				// iteration, but a proper largest_contiguous_rectangle check would
+				// be slower and need more code.
+				if (iterations > 250) {
+					log_debug("skipped placing rectangle ", i);
+					return std::nullopt;
+				}
+				w = engine.next_int(3, 6);
+				h = engine.next_int(3, 6);
+				x_c = engine.next_int(1, image_width - 1 - w);
+				y_c = engine.next_int(1, image_height - 1 - h);
+				// Check if the rectangle would overlap or touch any already placed
+				// rectangle
+				for (int j = -1; j < w + 1; ++j) {
+					for (int k = -1; k < h + 1; ++k) {
+						if (ret.i_output.at(x_c + j, y_c + k) != 0) {
+							++iterations;
+							goto retry;
 						}
 					}
 				}
 			}
-			ret.inputs[0].push_back(num4);
-			ret.inputs[0].push_back(num5);
-			ret.inputs[0].push_back(num2);
-			ret.inputs[0].push_back(num3);
-			for (int l = 0; l < num2; ++l) {
-				for (int m = 0; m < num3; ++m) {
+#if HISTOGRAM
+			histogram[i].push_back(iterations);
+#endif
+			ret.inputs[0].push_back(x_c);
+			ret.inputs[0].push_back(y_c);
+			ret.inputs[0].push_back(w);
+			ret.inputs[0].push_back(h);
+			for (int j = 0; j < w; ++j) {
+				for (int k = 0; k < h; ++k) {
 					std::size_t index = static_cast<std::size_t>(
-					    num4 + l + (num5 + m) * image_width);
-					ret.i_output.at(index) = 3;
+					    x_c + j + (y_c + k) * image_width);
+					ret.i_output.at(x_c + j, y_c + k) = 3;
+					assert(ret.i_output.at(index)
+					       == ret.i_output.at(x_c + j, y_c + k));
 				}
 			}
+			log_debug_r([&] { return "image:\n" + ret.i_output.write_text(); });
 		}
 	} break;
 	case "HISTOGRAM VIEWER"_lvl: {
