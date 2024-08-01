@@ -57,7 +57,7 @@ struct input_node : node {
 		              "/", inputs.size(), ") }");
 	}
 
-	std::vector<word_t> inputs;
+	word_vec inputs;
 	std::size_t idx{};
 	std::string filename{};
 	io_type_t io_type{};
@@ -95,8 +95,8 @@ struct output_node : node {
 		ret << '}';
 		return std::move(ret).str();
 	}
-	std::vector<word_t> outputs_expected;
-	std::vector<word_t> outputs_received;
+	word_vec outputs_expected;
+	word_vec outputs_received;
 	std::string filename;
 	io_type_t io_type;
 	char d{' '};

@@ -23,10 +23,9 @@
 
 static_assert(xorshift128_engine(400).next_int(-10, 0) < 0);
 
-static std::vector<word_t> make_random_array(xorshift128_engine& engine,
-                                             std::uint32_t size, word_t min,
-                                             word_t max) {
-	std::vector<word_t> array(size);
+static word_vec make_random_array(xorshift128_engine& engine,
+                                  std::uint32_t size, word_t min, word_t max) {
+	word_vec array(size);
 	std::uint32_t num = 0;
 	while (num < size) {
 		array[num] = engine.next_int(min, max);
@@ -34,19 +33,16 @@ static std::vector<word_t> make_random_array(xorshift128_engine& engine,
 	}
 	return array;
 }
-static std::vector<word_t> make_random_array(std::uint32_t seed,
-                                             std::uint32_t size, word_t min,
-                                             word_t max) {
+static word_vec make_random_array(std::uint32_t seed, std::uint32_t size,
+                                  word_t min, word_t max) {
 	xorshift128_engine engine(seed);
 	return make_random_array(engine, size, min, max);
 }
 
-static std::vector<word_t> make_composite_array(xorshift128_engine& engine,
-                                                word_t size, word_t sublistmin,
-                                                word_t sublistmax,
-                                                word_t valuemin,
-                                                word_t valuemax) {
-	std::vector<word_t> list;
+static word_vec make_composite_array(xorshift128_engine& engine, word_t size,
+                                     word_t sublistmin, word_t sublistmax,
+                                     word_t valuemin, word_t valuemax) {
+	word_vec list;
 	while (std::cmp_less(list.size(), size)) {
 		int sublistsize = engine.next_int(sublistmin, sublistmax);
 		int i = 0;
@@ -61,11 +57,9 @@ static std::vector<word_t> make_composite_array(xorshift128_engine& engine,
 	list.back() = 0;
 	return list;
 }
-static std::vector<word_t> make_composite_array(uint seed, word_t size,
-                                                word_t sublistmin,
-                                                word_t sublistmax,
-                                                word_t valuemin,
-                                                word_t valuemax) {
+static word_vec make_composite_array(uint seed, word_t size, word_t sublistmin,
+                                     word_t sublistmax, word_t valuemin,
+                                     word_t valuemax) {
 	xorshift128_engine engine(seed);
 	return make_composite_array(engine, size, sublistmin, sublistmax, valuemin,
 	                            valuemax);
@@ -99,7 +93,7 @@ std::array<single_test, 3> static_suite(int id) {
 }
 
 template <typename F>
-void for_each_subsequence_of(std::vector<word_t>& in, word_t delim, F f) {
+void for_each_subsequence_of(word_vec& in, word_t delim, F f) {
 	auto start = in.begin();
 	auto cur = start;
 	for (; cur != in.end(); ++cur) {
@@ -110,8 +104,9 @@ void for_each_subsequence_of(std::vector<word_t>& in, word_t delim, F f) {
 	}
 }
 
-std::vector<word_t> empty_vec(word_t size = max_test_length) {
-	return std::vector<word_t>(size);
+word_vec empty_vec(word_t size = max_test_length) {
+	assert(size >= 0);
+	return word_vec(kblib::to_unsigned(size));
 }
 
 single_test random_test(int id, uint32_t seed) {
@@ -414,7 +409,7 @@ single_test random_test(int id, uint32_t seed) {
 		ret.n_outputs.resize(1);
 		ret.n_outputs[0].reserve(max_test_length);
 
-		std::vector<word_t> sublist;
+		word_vec sublist;
 		for_each_subsequence_of(ret.inputs[0], 0, [&](auto begin, auto end) {
 			sublist.assign(begin, end);
 			std::ranges::sort(sublist);
@@ -476,7 +471,7 @@ single_test random_test(int id, uint32_t seed) {
 		lua_random engine(kblib::to_signed(seed));
 		ret.inputs.resize(2);
 		ret.n_outputs.resize(1);
-		std::vector<word_t>& out = ret.n_outputs[0];
+		word_vec& out = ret.n_outputs[0];
 		bool prevempty = true;
 		bool canzero = true;
 		do {
@@ -512,9 +507,9 @@ single_test random_test(int id, uint32_t seed) {
 			}
 
 			prevempty = (count1 == 0 or count1 == maxout);
-			std::vector<word_t> outseq(maxout);
-			std::vector<word_t> in1seq(count1);
-			std::vector<word_t> in2seq(maxout - count1);
+			word_vec outseq(maxout);
+			word_vec in1seq(count1);
+			word_vec in2seq(maxout - count1);
 			if (maxout > 0) {
 				for (std::size_t i = 0; i < maxout; i++) {
 					word_t val;
@@ -563,10 +558,10 @@ single_test random_test(int id, uint32_t seed) {
 		lua_random engine(to_signed(seed));
 		ret.inputs.resize(3);
 		ret.n_outputs.resize(1);
-		std::vector<word_t>& input = ret.inputs[1];
-		std::vector<word_t>& mininput = ret.inputs[0];
-		std::vector<word_t>& maxinput = ret.inputs[2];
-		std::vector<word_t>& output = ret.n_outputs[0];
+		word_vec& input = ret.inputs[1];
+		word_vec& mininput = ret.inputs[0];
+		word_vec& maxinput = ret.inputs[2];
+		word_vec& output = ret.n_outputs[0];
 		// make minimums small but not too small
 		for (std::size_t i = 0; i < 6; i++) {
 			mininput.push_back(engine.next(3, 9) * 5);
@@ -592,10 +587,10 @@ single_test random_test(int id, uint32_t seed) {
 		lua_random engine(to_signed(seed));
 		ret.inputs.resize(2);
 		ret.n_outputs.resize(2);
-		std::vector<word_t>& in_a = ret.inputs[0];
-		std::vector<word_t>& in_b = ret.inputs[1];
-		std::vector<word_t>& out_a = ret.n_outputs[0];
-		std::vector<word_t>& out_b = ret.n_outputs[1];
+		word_vec& in_a = ret.inputs[0];
+		word_vec& in_b = ret.inputs[1];
+		word_vec& out_a = ret.n_outputs[0];
+		word_vec& out_b = ret.n_outputs[1];
 		for (int i = 0; i < max_test_length; i++) {
 			word_t r = engine.next(1, 4);
 			word_t a = engine.next(10, 99);
@@ -622,9 +617,9 @@ single_test random_test(int id, uint32_t seed) {
 		lua_random engine(to_signed(seed));
 		ret.inputs.resize(2);
 		ret.n_outputs.resize(1);
-		std::vector<word_t>& in_indexes = ret.inputs[0];
-		std::vector<word_t>& in_seq = ret.inputs[1];
-		std::vector<word_t>& out = ret.n_outputs[0];
+		word_vec& in_indexes = ret.inputs[0];
+		word_vec& in_seq = ret.inputs[1];
+		word_vec& out = ret.n_outputs[0];
 
 		std::array<word_t, 8> seq_lengths = {2, 3, 3, 4, 4, 4, 5, 6};
 		// Shuffle the subsequence lengths:
@@ -731,7 +726,7 @@ single_test random_test(int id, uint32_t seed) {
 		ret.inputs[0].push_back(0);
 
 		// generate output stream
-		std::vector<word_t> sequence = {};
+		word_vec sequence = {};
 		for (word_t input : ret.inputs[0]) {
 			if (input == 0) {
 				// generate frequency map
@@ -771,7 +766,7 @@ single_test random_test(int id, uint32_t seed) {
 		ret.inputs.resize(1);
 		ret.n_outputs.resize(1);
 		// Current sequence from 'input'
-		std::vector<word_t> cur_seq = {};
+		word_vec cur_seq = {};
 
 		for (int i = 0; i < max_test_length - 1; i++) {
 			word_t val = engine.next(1, 99);

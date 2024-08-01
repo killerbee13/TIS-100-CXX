@@ -24,8 +24,8 @@
 
 struct T30 : node {
 	using node::node;
-	std::vector<word_t> data;
-	std::vector<word_t> buffer;
+	word_vec data;
+	word_vec buffer;
 	std::size_t max_size{def_T30_size};
 	bool wrote{};
 	bool used{};

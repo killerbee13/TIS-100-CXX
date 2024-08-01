@@ -32,6 +32,7 @@
 #include <vector>
 
 using word_t = std::int16_t;
+using word_vec = std::vector<word_t>;
 constexpr inline word_t word_min = -999;
 constexpr inline word_t word_max = 999;
 static_assert(word_min == -word_max);
@@ -377,8 +378,8 @@ struct image_t : pnm::image<tis_pixel> {
 };
 
 struct single_test {
-	std::vector<std::vector<word_t>> inputs{};
-	std::vector<std::vector<word_t>> n_outputs{};
+	std::vector<word_vec> inputs{};
+	std::vector<word_vec> n_outputs{};
 	image_t i_output{};
 };
 struct inputs_outputs {
@@ -435,8 +436,8 @@ template <typename Stream>
 requires requires(Stream s) {
 	{s << "" << 1};
 }
-inline Stream&& write_list(Stream&& os, const std::vector<word_t>& v,
-                           const std::vector<word_t>* expected = nullptr,
+inline Stream&& write_list(Stream&& os, const word_vec& v,
+                           const word_vec* expected = nullptr,
                            bool colored = use_color) {
 	if (colored and expected and v.size() != expected->size()) {
 		os << print_escape(bright_red);
