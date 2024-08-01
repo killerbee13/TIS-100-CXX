@@ -859,8 +859,15 @@ single_test random_test(int id, uint32_t seed) {
 		ret.n_outputs.resize(1);
 	} break;
 	case "DECIMAL TO OCTAL CONVERTER"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.n_outputs.resize(1);
+		auto to_octal = [](word_t i) { return (i / 8) * 10 + (i % 8); };
+
+		for ([[maybe_unused]] auto _ : kblib::range(max_test_length)) {
+			auto i = ret.inputs[0].emplace_back(engine.next(1, 63));
+			ret.n_outputs[0].push_back(to_octal(i));
+		}
 	} break;
 	case "PROLONGED SEQUENCE SORTER"_lvl: {
 		lua_random engine(to_signed(seed));
