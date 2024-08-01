@@ -21,6 +21,8 @@
 #include "tis_random.hpp"
 #include <kblib/random.h>
 
+#include <ranges>
+
 static_assert(xorshift128_engine(400).next_int(-10, 0) < 0);
 
 static word_vec make_random_array(xorshift128_engine& engine,
@@ -625,7 +627,7 @@ single_test random_test(int id, uint32_t seed) {
 		// Shuffle the subsequence lengths:
 		for (std::size_t i = seq_lengths.size() - 1; i >= 1; i--) {
 			std::size_t j = static_cast<std::size_t>(
-			    engine.next_int(0, static_cast<int32_t>(i)));
+			    engine.next(0, static_cast<word_t>(i - 1)));
 			std::swap(seq_lengths[i], seq_lengths[j]);
 		}
 
@@ -839,8 +841,105 @@ single_test random_test(int id, uint32_t seed) {
 		});
 	} break;
 	case "SPATIAL PATH VIEWER"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.i_output.reshape(image_width, image_height);
+
+		// Initialize the image
+		std::vector<tis_pixel> image(image_width * image_height, tis_pixel{0});
+
+		// Helper methods
+		auto shuffle = [&engine](std::vector<word_t> t) {
+			for (std::size_t n = t.size() - 1; n > 0; n--) {
+				// n is now the last pertinent index
+				std::size_t k = engine.next(0, static_cast<word_t>(n));
+				// Quick swap
+				std::swap(t[n], t[k]);
+			}
+			return t;
+		};
+
+		auto one_to_n = [](word_t n) {
+			std::vector<word_t> a = {};
+			for (word_t i = 0; i < n; i++) {
+				a.push_back(i + 1);
+			}
+			return a;
+		};
+
+		auto makePoints = [&](std::size_t n, word_t maxX, word_t maxY) {
+			std::vector<word_t> xCoors = {0};
+			std::vector<word_t> yCoors = {0};
+			std::vector<word_t> remainingX = shuffle(one_to_n(maxX));
+			std::vector<word_t> remainingY = shuffle(one_to_n(maxY));
+			while (xCoors.size() < n) {
+				for (std::size_t i = 0; i < remainingX.size(); i++) {
+					int dx = std::abs(xCoors.back() - remainingX[i]);
+					if (dx >= 3 and dx <= 14) {
+						xCoors.push_back(remainingX[i]);
+						remainingX.erase(remainingX.begin() + to_signed(i));
+						break;
+					}
+				}
+				for (std::size_t i = 0; i < remainingY.size(); i++) {
+					int dy = std::abs(yCoors.back() - remainingY[i]);
+					if (dy >= 3 and dy <= 14) {
+						yCoors.push_back(remainingY[i]);
+						remainingY.erase(remainingY.begin() + to_signed(i));
+						break;
+					}
+				}
+			}
+			return std::views::zip(xCoors, yCoors)
+			       | std::ranges::to<std::vector>();
+		};
+
+		// Construct set of 11 points where
+		//		no two points share an X or Y coordinate, and
+		//		no adjacent points have X or Y coordinates less than 4 or more than
+		// 15 apart.
+		auto points = makePoints(11, image_width - 1, image_height - 1);
+
+		// Draw lines, alternating from horizontal to vertical, between each
+		// adjacent pair of points.
+		for (std::size_t i = 1; i < points.size(); i++) {
+			auto [xOne, yOne] = points[i - 1];
+			auto [xTwo, yTwo] = points[i];
+
+			word_t dx;
+			if (xTwo < xOne) {
+				ret.inputs[0].push_back(180);
+				dx = -1;
+			} else {
+				ret.inputs[0].push_back(0);
+				dx = 1;
+			}
+			for (word_t x = xOne; x != xTwo + dx; x += dx) {
+				image[x + yOne * image_width] = tis_pixel{3};
+			}
+			ret.inputs[0].push_back(
+			    static_cast<word_t>(std::abs(xOne - xTwo) + 1));
+
+			// Exit early if the path is already long enough.
+			if (ret.inputs[0].size() == max_test_length - 1) {
+				break;
+			}
+
+			word_t dy;
+			if (yTwo < yOne) {
+				ret.inputs[0].push_back(90);
+				dy = -1;
+			} else {
+				ret.inputs[0].push_back(270);
+				dy = 1;
+			}
+			for (word_t y = yOne; y != yTwo + dy; y += dy) {
+				image[xTwo + y * image_width] = tis_pixel{3};
+			}
+			ret.inputs[0].push_back(
+			    static_cast<word_t>(std::abs(yOne - yTwo) + 1));
+		}
+		ret.i_output.assign(std::move(image));
 	} break;
 	case "CHARACTER TERMINAL"_lvl: {
 		ret.inputs.resize(1);

@@ -146,6 +146,7 @@ class lua_random {
 		return static_cast<int32_t>(next_double() * (max - min)) + min;
 	}
 
+	/// @return random word_t in [min,max]
 	word_t next(word_t min, word_t max) {
 		return static_cast<word_t>(
 		    next_int(static_cast<int32_t>(min), static_cast<int32_t>(max) + 1));
