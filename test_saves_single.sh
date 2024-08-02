@@ -57,16 +57,18 @@ for file in $save_dir/$id*
 		if test $result = $expected
 			echo "$file; $result; $expected" >> $success_file
 			set success_count (math $success_count + 1)
+			echo $expected
 		else
 			echo "$file; $result; $expected" >> $wrong_file
 			set wrong_count (math $wrong_count + 1)
+			echo $expected '!'
 		end
 	else
 		set -l result (filter_result)
 		echo "$file; $result; $expected" >> $fail_file
 		set fail_count (math $fail_count + 1)
+		echo $expected '!'
 	end
-	echo $expected
 	fgrep '##' $file
 	if set -q _flag_i
 		read _

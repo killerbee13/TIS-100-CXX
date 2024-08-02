@@ -66,12 +66,15 @@ for id in $saves
 				if test -z $expected 
 					echo "$file; $result; //" >> $wrong_file
 					set unmarked_count (math $unmarked_count + 1)
+					echo $expected '?'
 				else if test $result = $expected
 					echo "$file; $result; $expected" >> $success_file
 					set success_count (math $success_count + 1)
+					echo $expected
 				else
 					echo "$file; $result; $expected" >> $wrong_file
 					set wrong_count (math $wrong_count + 1)
+					echo $expected '!'
 				end
 			else
 				set -l result (filter_result)
@@ -81,8 +84,8 @@ for id in $saves
 					echo "$file; $result; $expected" >> $fail_file
 				end
 				set fail_count (math $fail_count + 1)
+				echo $expected '!'
 			end
-			echo $expected
 			fgrep '##' $file
 			if set -q _flag_i
 				read _
