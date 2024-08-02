@@ -154,22 +154,27 @@ int main(int argc, char** argv) try {
 	TCLAP::OneOf layout(cmd);
 	layout.add(id_arg).add(level_num); //.add(layout_s);
 
-	TCLAP::ValueArg<bool> fixed("", "fixed", "Run fixed tests. (Default 1)",
-	                            false, true, "[0-1]", cmd);
-	TCLAP::ValueArg<int> random("r", "random",
-	                            "Random tests to run (upper bound)", false, 0,
-	                            "integer", cmd);
-	TCLAP::ValueArg<std::uint32_t> seed_arg(
-	    "", "seed", "Seed to use for random tests", false, 0, "uint32_t", cmd);
-	TCLAP::SwitchArg stats(
-	    "S", "stats", "Run all random tests requested and calculate pass rate",
-	    cmd);
 	TCLAP::ValueArg<int> cycles_limit(
 	    "", "limit", "Number of cycles to run test for before timeout", false,
 	    10'000, "integer", cmd);
+
+	TCLAP::ValueArg<bool> fixed("", "fixed", "Run fixed tests. (Default 1)",
+	                            false, true, "[0-1]", cmd);
 	// unused because the test case parser is not implemented
 	TCLAP::ValueArg<std::string> set_test("t", "test", "Manually set test cases",
 	                                      false, "", "test case");
+	TCLAP::ValueArg<std::uint32_t> random(
+	    "r", "random", "Random tests to run (upper bound)", false, 0, "integer");
+	TCLAP::ValueArg<std::uint32_t> seed_arg(
+	    "", "seed", "Seed to use for random tests", false, 0, "uint32_t");
+	TCLAP::SwitchArg stats(
+	    "S", "stats", "Run all random tests requested and calculate pass rate",
+	    cmd);
+	TCLAP::MultiArg<std::string> seed_exprs("", "seeds",
+	                                        "A range of seed values to use",
+	                                        false, "[range-expr...]", cmd);
+	TCLAP::AnyOf implicit_random(cmd);
+	implicit_random.add(random).add(seed_arg);
 
 	// Size constraint of word_max guarantees that JRO can reach every
 	// instruction
@@ -211,6 +216,9 @@ int main(int argc, char** argv) try {
 	TCLAP::ValueArg<std::string> write_machine_layout(
 	    "", "write-layouts", "write the C++-parsable layouts to [filename]",
 	    false, "", "filename", cmd);
+
+	TCLAP::SwitchArg dry_run(
+	    "", "dry-run", "Parse the command line, but don't run any tests", cmd);
 
 	cmd.parse(argc, argv);
 	use_color = color.isSet();
@@ -262,6 +270,89 @@ int main(int argc, char** argv) try {
 			abort();
 		}
 	}();
+
+	struct range {
+		std::uint32_t begin{};
+		std::uint32_t size{};
+	};
+
+	std::vector<range> seed_ranges;
+
+	if (seed_exprs.isSet()) {
+		if (random.isSet() or seed_arg.isSet()) {
+			throw std::invalid_argument{
+			    "Cannot set --seeds in combination with -r or --seed"};
+		}
+		for (auto& e : seed_exprs.getValue()) {
+			for (auto& r : kblib::split_dsv(e, ',')) {
+				std::string begin;
+				std::optional<std::string> end;
+				std::size_t i{};
+				for (; i != r.size(); ++i) {
+					if (r[i] == '.') {
+						if (i + 1 < r.size()) {
+							end.emplace();
+							i += 2;
+							break;
+						} else {
+							throw std::invalid_argument{
+							    "Decimals not allowed in seed exprs"};
+						}
+					} else if (r[i] >= '0' and r[i] <= '9') {
+						begin.push_back(r[i]);
+					} else {
+						throw std::invalid_argument{
+						    kblib::concat("Invalid character ", kblib::escapify(r[i]),
+						                  " in seed expr")};
+					}
+				}
+				auto b = kblib::parse_integer<std::uint32_t>(begin);
+				if (not end) {
+					seed_ranges.push_back({b, 1});
+					continue;
+				}
+				for (; i != r.size(); ++i) {
+					if (r[i] >= '0' and r[i] <= '9') {
+						end->push_back(r[i]);
+					} else {
+						throw std::invalid_argument{
+						    kblib::concat("Invalid character ", kblib::escapify(r[i]),
+						                  " in seed expr")};
+					}
+				}
+				auto e = kblib::parse_integer<std::uint32_t>(*end);
+				if (e < b) {
+					throw std::invalid_argument{kblib::concat(
+					    "Seed ranges must be low..high, got: ", b, "..", e)};
+				}
+				seed_ranges.push_back({b, e - b + 1});
+			}
+		}
+	} else if (random.isSet()) {
+		std::uint32_t seed;
+		if (seed_arg.isSet()) {
+			seed = seed_arg.getValue();
+		} else {
+			seed = std::random_device{}();
+			log_info("random seed: ", seed);
+		}
+		seed_ranges.push_back({seed, random.getValue()});
+	}
+
+	{
+		auto log = log_info();
+		log << "Seed ranges parsed: {\n";
+		std::uint32_t total{};
+		for (auto r : seed_ranges) {
+			log << r.begin << ".." << r.begin + r.size - 1 << " [" << r.size
+			    << "]; ";
+			total += r.size;
+		}
+		log << "\n} sum: " << total << " tests";
+	}
+	if (dry_run.getValue()) {
+		return 0;
+	}
 
 	if (solution.getValue() == "-") {
 		std::ostringstream in;
@@ -322,16 +413,6 @@ inline constexpr auto layouts1 = gen_layouts();
 )";
 	}
 
-	std::uint32_t seed;
-	if (random.getValue() > 0) {
-		if (seed_arg.isSet()) {
-			seed = seed_arg.getValue();
-		} else {
-			seed = std::random_device{}();
-			log_info("random seed: ", seed);
-		}
-	}
-
 	log_debug_r([&] { return f.layout(); });
 
 	score sc;
@@ -377,36 +458,44 @@ inline constexpr auto layouts1 = gen_layouts();
 			std::cout << '\n';
 		}
 	}
-	if ((sc.validated or fixed.getValue() == 0) and random.getValue() > 0) {
+	if (sc.validated and not seed_ranges.empty()) {
 		score last{};
 		score worst{};
 		int count = 0;
 		int valid_count = 0;
-		for (; count < random.getValue(); ++count) {
-			auto test = random_test(id, seed++);
-			if (not test) {
-				continue;
-			}
-			set_expected(f, *test);
-			last = run(f, cycles_limit.getValue(),
-			           not quiet.isSet() and valid_count == count);
-			worst.cycles = std::max(worst.cycles, last.cycles);
-			worst.instructions = last.instructions;
-			worst.nodes = last.nodes;
-			// for random tests, only one validation is needed
-			worst.validated = worst.validated or last.validated;
-			valid_count += last.validated ? 1 : 0;
-			if (not stats.isSet()) {
-				// at least one pass and at least one fail
-				if (valid_count > 0 and valid_count < count) {
-					break;
+		[&] {
+			for (auto seed_range : seed_ranges) {
+				auto seed = seed_range.begin;
+				auto r_count = seed_range.size;
+				log_info("Seed range: ", seed, ", ", seed + seed_range.size);
+				for (; r_count != 0; ++count, ++seed, --r_count) {
+					auto test = random_test(id, seed);
+					if (not test) {
+						continue;
+					}
+					set_expected(f, *test);
+					last = run(f, cycles_limit.getValue(),
+					           not quiet.isSet() and valid_count == count);
+					worst.cycles = std::max(worst.cycles, last.cycles);
+					worst.instructions = last.instructions;
+					worst.nodes = last.nodes;
+					// for random tests, only one validation is needed
+					worst.validated = worst.validated or last.validated;
+					valid_count += last.validated ? 1 : 0;
+					if (not stats.isSet()) {
+						// at least one pass and at least one fail
+						if (valid_count > 0 and valid_count < count) {
+							return;
+						}
+					}
+					if (not f.has_inputs()) {
+						log_info(
+						    "Secondary random tests skipped for invariant level");
+						return;
+					}
 				}
 			}
-			if (not f.has_inputs()) {
-				log_info("Secondary random tests skipped for invariant level");
-				break;
-			}
-		}
+		}();
 		log_info("Random test results: ", valid_count, " passed out of ", count,
 		         " total");
 		sc.cheat = (count != valid_count);
