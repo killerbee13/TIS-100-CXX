@@ -166,7 +166,10 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 	} break;
 	case "SEQUENCE GENERATOR"_lvl: {
 		ret.inputs.push_back(make_random_array(seed, 13, 10, 100));
-		ret.inputs.push_back(make_random_array(seed + 1, 13, 10, 100));
+		xorshift128_engine engine(seed + 1);
+		ret.inputs.push_back(make_random_array(engine, 13, 10, 100));
+		uint idx = engine.next(0, 13);
+		ret.inputs[0][idx] = ret.inputs[1][idx] = engine.next_int(10, 100);
 		ret.n_outputs.resize(1);
 		for (const auto i : range(13u)) {
 			auto v = std::minmax(ret.inputs[0][i], ret.inputs[1][i]);
