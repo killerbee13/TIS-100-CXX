@@ -1036,8 +1036,76 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 		}
 	} break;
 	case "DYNAMIC PATTERN DETECTOR"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(2);
 		ret.n_outputs.resize(1);
+		auto& pattern = ret.inputs[0];
+		auto& input = ret.inputs[1];
+
+		for (int i = 0; i < 12; i++) {
+			// RNG manip (There has to be a 42 in the pattern.)
+			engine.next(1, 101);
+		}
+
+		for (int i = 0; i < 3; i++) {
+			pattern.push_back(engine.next(1, 42)); // PATTERN gen
+		}
+		pattern.push_back(0);
+		for (int i = 0; i < max_test_length; i++) {
+			input.push_back(engine.next(1, 42)); // SEQUENCE gen
+		}
+
+		for (int k = 0; k < 2; k++) {
+			word_t j = engine.next(1, 37); // pattern 123 potential extra matches
+			for (int i = 0; i < 3; i++) {
+				input[i + j - 1] = pattern[i];
+			}
+		}
+		for (int k = 0; k < 3; k++) {
+			word_t j = engine.next(1, 37); // pattern 23 these may be overwriten
+			for (int i = 1; i < 3; i++) {
+				input[i + j - 1] = pattern[i];
+			}
+		}
+
+		// The following are guararnteed to be complete ( do I need a 123123? )
+		word_t j = engine.next(1, 7); // pattern 123
+		for (int i = 0; i < 3; i++) {
+			input[i + j - 1] = pattern[i];
+		}
+
+		// pattern 1223 Don't know if guaranteed X23 is also needed.
+		j = engine.next(10, 13);
+		for (int i = 0; i < 2; i++) {
+			input[i + j - 1] = pattern[i];
+		}
+		for (int i = 1; i < 3; i++) {
+			input[i + j] = pattern[i];
+		}
+
+		j = engine.next(17, 23); // pattern 1123
+		input[j - 1] = pattern[0];
+		for (int i = 0; i < 3; i++) {
+			input[j + i] = pattern[i];
+		}
+
+		j = engine.next(27, 35); // pattern 12123
+		input[j - 1] = pattern[0];
+		input[j] = pattern[1];
+		for (int i = 0; i < 3; i++) {
+			input[j + i + 1] = pattern[i];
+		}
+
+		ret.n_outputs[0].push_back(0);
+		ret.n_outputs[0].push_back(0);
+		for (int i = 2; i < max_test_length; i++) {
+			if (input[i - 2] == pattern[0] and input[i - 1] == pattern[1]
+			    and input[i] == pattern[2]) {
+				ret.n_outputs[0].push_back(1);
+			} else {
+				ret.n_outputs[0].push_back(0);
+			}
+		}
 	} break;
 	case "SEQUENCE GAP INTERPOLATOR"_lvl: {
 		lua_random engine(to_signed(seed));

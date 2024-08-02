@@ -45,7 +45,7 @@ class field {
 				p->step();
 			}
 		}
-		log_debug('\n');
+		log_debug("");
 		// execute writes
 		// this is a separate step to ensure a consistent propagation delay
 		for (auto& p : nodes) {
@@ -53,7 +53,7 @@ class field {
 				p->finalize();
 			}
 		}
-		log_debug('\n');
+		log_debug("");
 	}
 
 	bool active() const {
