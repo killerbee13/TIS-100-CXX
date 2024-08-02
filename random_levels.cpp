@@ -650,7 +650,7 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 		// Shuffle the subsequence lengths:
 		for (std::size_t i = seq_lengths.size() - 1; i >= 1; i--) {
 			std::size_t j = static_cast<std::size_t>(
-			    engine.next(0, static_cast<word_t>(i - 1)));
+			    engine.next(0, static_cast<word_t>(i)));
 			std::swap(seq_lengths[i], seq_lengths[j]);
 		}
 
