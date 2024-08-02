@@ -21,6 +21,8 @@
 #include "tis_random.hpp"
 #include <kblib/random.h>
 
+#include <ranges>
+
 static_assert(xorshift128_engine(400).next_int(-10, 0) < 0);
 
 static word_vec make_random_array(xorshift128_engine& engine,
@@ -645,7 +647,7 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 		// Shuffle the subsequence lengths:
 		for (std::size_t i = seq_lengths.size() - 1; i >= 1; i--) {
 			std::size_t j = static_cast<std::size_t>(
-			    engine.next_int(0, static_cast<int32_t>(i)));
+			    engine.next(0, static_cast<word_t>(i - 1)));
 			std::swap(seq_lengths[i], seq_lengths[j]);
 		}
 
@@ -859,16 +861,179 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 		});
 	} break;
 	case "SPATIAL PATH VIEWER"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.i_output.reshape(image_width, image_height);
+
+		// Initialize the image
+		std::vector<tis_pixel> image(image_width * image_height, tis_pixel{0});
+
+		// Helper methods
+		auto shuffle = [&engine](std::vector<word_t> t) {
+			for (std::size_t n = t.size() - 1; n > 0; n--) {
+				// n is now the last pertinent index
+				std::size_t k = engine.next(0, static_cast<word_t>(n));
+				// Quick swap
+				std::swap(t[n], t[k]);
+			}
+			return t;
+		};
+
+		auto one_to_n = [](word_t n) {
+			std::vector<word_t> a = {};
+			for (word_t i = 0; i < n; i++) {
+				a.push_back(i + 1);
+			}
+			return a;
+		};
+
+		auto makePoints = [&](std::size_t n, word_t maxX, word_t maxY) {
+			std::vector<word_t> xCoors = {0};
+			std::vector<word_t> yCoors = {0};
+			std::vector<word_t> remainingX = shuffle(one_to_n(maxX));
+			std::vector<word_t> remainingY = shuffle(one_to_n(maxY));
+			while (xCoors.size() < n) {
+				for (std::size_t i = 0; i < remainingX.size(); i++) {
+					int dx = std::abs(xCoors.back() - remainingX[i]);
+					if (dx >= 3 and dx <= 14) {
+						xCoors.push_back(remainingX[i]);
+						remainingX.erase(remainingX.begin() + to_signed(i));
+						break;
+					}
+				}
+				for (std::size_t i = 0; i < remainingY.size(); i++) {
+					int dy = std::abs(yCoors.back() - remainingY[i]);
+					if (dy >= 3 and dy <= 14) {
+						yCoors.push_back(remainingY[i]);
+						remainingY.erase(remainingY.begin() + to_signed(i));
+						break;
+					}
+				}
+			}
+			return std::views::zip(xCoors, yCoors)
+			       | std::ranges::to<std::vector>();
+		};
+
+		// Construct set of 11 points where
+		//		no two points share an X or Y coordinate, and
+		//		no adjacent points have X or Y coordinates less than 4 or more than
+		// 15 apart.
+		auto points = makePoints(11, image_width - 1, image_height - 1);
+
+		// Draw lines, alternating from horizontal to vertical, between each
+		// adjacent pair of points.
+		for (std::size_t i = 1; i < points.size(); i++) {
+			auto [xOne, yOne] = points[i - 1];
+			auto [xTwo, yTwo] = points[i];
+
+			word_t dx;
+			if (xTwo < xOne) {
+				ret.inputs[0].push_back(180);
+				dx = -1;
+			} else {
+				ret.inputs[0].push_back(0);
+				dx = 1;
+			}
+			for (word_t x = xOne; x != xTwo + dx; x += dx) {
+				image[x + yOne * image_width] = tis_pixel{3};
+			}
+			ret.inputs[0].push_back(
+			    static_cast<word_t>(std::abs(xOne - xTwo) + 1));
+
+			// Exit early if the path is already long enough.
+			if (ret.inputs[0].size() == max_test_length - 1) {
+				break;
+			}
+
+			word_t dy;
+			if (yTwo < yOne) {
+				ret.inputs[0].push_back(90);
+				dy = -1;
+			} else {
+				ret.inputs[0].push_back(270);
+				dy = 1;
+			}
+			for (word_t y = yOne; y != yTwo + dy; y += dy) {
+				image[xTwo + y * image_width] = tis_pixel{3};
+			}
+			ret.inputs[0].push_back(
+			    static_cast<word_t>(std::abs(yOne - yTwo) + 1));
+		}
+		ret.i_output.assign(std::move(image));
 	} break;
 	case "CHARACTER TERMINAL"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.i_output.reshape(image_width, image_height);
+
+		std::vector<tis_pixel> image(image_width * image_height, tis_pixel{0});
+
+		// replace 2d arrays for alternative characters
+		bool char_decode[][2][2] = {{{0, 0}, {0, 0}},
+		                            {{1, 1}, {0, 0}},
+		                            {{1, 0}, {0, 1}},
+		                            {{0, 1}, {1, 0}},
+		                            {{1, 1}, {1, 0}}};
+
+		// place the character c into the image at x y
+		auto render_character = [&](word_t x, word_t y, word_t c) {
+			auto ch = char_decode[c];
+			for (int a : {0, 1}) {
+				for (int b : {0, 1}) {
+					if (ch[a][b]) {
+						// color for the character is set here
+						image[x + a + (y + b) * image_width] = tis_pixel{3};
+					}
+				}
+			}
+		};
+
+		auto& input = ret.inputs[0];
+		for (std::size_t i = 0; i < max_test_length; i++) {
+			input.push_back(engine.next(1, 4));
+		}
+		input.push_back(0);
+
+		// these values are choosen to allow a bit of undefined behavior; I do not
+		// pick whether a 0 at after the 10th character should be an empty line.
+		// The prerolled sample will not have that, so I avoid testing the user on
+		// that case because it seemed unfair.  I think both ways could be valid.
+		input[engine.next(12, 16)] = 0;
+		input[engine.next(28, 31)] = 0;
+
+		// render image
+		word_t x = -1;
+		word_t y = 0;
+		for (std::size_t i = 0; i < max_test_length; i++) {
+			if (input[i] == 0 or x == 9) {
+				x = 0;
+				y++;
+			} else {
+				x++;
+			}
+			render_character(x * 3, y * 3, input[i + 1]);
+		}
+		input.erase(input.begin());
+		ret.i_output.assign(std::move(image));
 	} break;
 	case "BACK-REFERENCE REIFIER"_lvl: {
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(2);
 		ret.n_outputs.resize(1);
+		auto& input_refs = ret.inputs[0];
+		auto& input_values = ret.inputs[1];
+		for (ssize_t i = 0; i < max_test_length; i++) {
+			word_t ref = 0;
+			if (engine.next(0, 1) == 0) {
+				ref = engine.next(-4, -1);
+				if (i + ref < 0) {
+					ref = 0;
+				}
+			}
+			input_values.push_back(engine.next(10, 99));
+			input_refs.push_back(ref);
+			ret.n_outputs[0].push_back(input_values[i + ref]);
+		}
 	} break;
 	case "DYNAMIC PATTERN DETECTOR"_lvl: {
 		ret.inputs.resize(2);
@@ -881,7 +1046,7 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 
 		auto shuffle_tables = [&](word_vec& t) {
 			for (auto i : kblib::range(std::ssize(t) - 1, 0z, -1)) {
-				auto j = engine.next(0, i);
+				auto j = engine.next(0, static_cast<word_t>(i));
 				std::swap(t[i], t[j]);
 			}
 		};
@@ -889,7 +1054,7 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 		std::array lengths{5, 4, 4, 4, 5, 4, 5, 4, 4};
 		for (auto length : lengths) {
 			word_t min = engine.next(10, 90);
-			word_t max = min + length - 1;
+			word_t max = static_cast<word_t>(min + length - 1);
 			auto missing_value = engine.next(min + 1, max - 1);
 			word_vec values;
 			for (auto i : kblib::range<word_t>(min, max + 1)) {
@@ -912,7 +1077,7 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 
 		for ([[maybe_unused]] auto _ : kblib::range(max_test_length)) {
 			auto i = ret.inputs[0].emplace_back(engine.next(1, 63));
-			ret.n_outputs[0].push_back(to_octal(i));
+			ret.n_outputs[0].push_back(static_cast<word_t>(to_octal(i)));
 		}
 	} break;
 	case "PROLONGED SEQUENCE SORTER"_lvl: {
@@ -945,12 +1110,12 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 			ret.inputs[0].clear();
 			ret.n_outputs[0].clear();
 			for ([[maybe_unused]] auto _ : kblib::range(10)) {
-				auto fac = 2;
+				word_t fac = 2;
 				auto inp = ret.inputs[0].emplace_back(engine.next(10, 99));
 				while (inp > fac) {
 					if (inp % fac == 0) {
 						ret.n_outputs[0].push_back(fac);
-						inp = inp / fac;
+						inp = static_cast<word_t>(inp / fac);
 					} else {
 						++fac;
 					}
@@ -966,12 +1131,12 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 		ret.inputs.resize(2);
 		ret.n_outputs.resize(1);
 		// extra 0 at the beginning because Lua arrays start at 1
-		std::array max_exp{0, 10, 9, 6, 4, 4, 3, 3, 3, 3, 2};
+		std::array<word_t, 11> max_exp{0, 10, 9, 6, 4, 4, 3, 3, 3, 3, 2};
 
 		for ([[maybe_unused]] auto _ : kblib::range(max_test_length)) {
 			auto a = ret.inputs[0].emplace_back(engine.next(1, 10));
 			auto b = ret.inputs[1].emplace_back(engine.next(1, max_exp[a]));
-			ret.n_outputs[0].push_back(std::pow(a, b));
+			ret.n_outputs[0].push_back(static_cast<word_t>(std::pow(a, b)));
 		}
 	} break;
 	case "T20 NODE EMULATOR"_lvl: {
