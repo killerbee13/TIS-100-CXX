@@ -19,7 +19,6 @@
 #include "parser.hpp"
 #include "T21.hpp"
 #include "T30.hpp"
-#include "builtin_levels.hpp"
 #include "io.hpp"
 
 #include <kblib/convert.h>
@@ -29,7 +28,6 @@
 #include <kblib/variant.h>
 
 #include <set>
-#include <spanstream>
 
 using namespace std::literals;
 
@@ -154,7 +152,7 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 template <bool use_nonstandard_rep>
 field parse_layout(std::string_view layout, std::size_t T30_size) {
 	auto ss
-	    = std::ispanstream{std::span<const char>{layout.begin(), layout.size()}};
+	    = std::istringstream{std::string(layout)};
 
 	constexpr static std::string_view cs = use_nonstandard_rep ? "BSMC" : "CSMD";
 

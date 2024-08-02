@@ -18,6 +18,7 @@
 #include "logger.hpp"
 
 #include <iostream>
+#include <unistd.h>
 
 static log_level current = log_level::notice;
 static std::ostream* output = &std::clog;
