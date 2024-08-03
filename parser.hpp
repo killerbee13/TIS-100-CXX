@@ -60,17 +60,9 @@ class field {
 		bool r{};
 		bool all_outputs_satisfied{true};
 		bool all_outputs_correct{true};
-		for (auto& p : nodes) {
-			if (type(p.get()) == node::T21) {
-				//	if (static_cast<const T21*>(p.get())->s == activity::run) {
-				//		r = true;
-				//	}
-			} else if (type(p.get()) == node::in) {
-				// if (i->idx != i->inputs.size()) {
-				//	 r = true;
-				// }
-			} else if (type(p.get()) == node::out) {
-				auto i = static_cast<const output_node*>(p.get());
+		for (auto it = begin_io(); it != end(); ++it) {
+			if (type(it->get()) == node::out) {
+				auto i = static_cast<const output_node*>(it->get());
 				if (i->outputs_received.size() < i->outputs_expected.size()) {
 					r = true;
 					all_outputs_satisfied = false;
@@ -87,8 +79,8 @@ class field {
 					}
 #endif
 				}
-			} else if (type(p.get()) == node::image) {
-				auto i = static_cast<const image_output*>(p.get());
+			} else if (type(it->get()) == node::image) {
+				auto i = static_cast<const image_output*>(it->get());
 				if (i->image_expected != i->image_received) {
 					r = true;
 					all_outputs_satisfied = false;
@@ -164,17 +156,17 @@ class field {
 	}
 	// returns the ith programmable (T21) node
 	T21* node_by_index(std::size_t i) {
-		for (auto& p : nodes) {
-			if (type(p.get()) == node::T21 and i-- == 0) {
-				return static_cast<T21*>(p.get());
+		for (auto it = begin(); it != end_regular(); ++it) {
+			if (type(it->get()) == node::T21 and i-- == 0) {
+				return static_cast<T21*>(it->get());
 			}
 		}
 		return nullptr;
 	}
 	const T21* node_by_index(std::size_t i) const {
-		for (auto& p : nodes) {
-			if (type(p.get()) == node::T21 and i-- == 0) {
-				return static_cast<const T21*>(p.get());
+		for (auto it = begin(); it != end_regular(); ++it) {
+			if (type(it->get()) == node::T21 and i-- == 0) {
+				return static_cast<const T21*>(it->get());
 			}
 		}
 		return nullptr;
@@ -188,9 +180,13 @@ class field {
 	const_iterator end_regular() const noexcept {
 		return nodes.begin() + static_cast<std::ptrdiff_t>(io_node_offset);
 	}
+	const_iterator begin_io() const noexcept {
+		return end_regular();
+	}
 	const_iterator end() const noexcept { return nodes.end(); }
 
  private:
+	// w*h regulars, 0..w inputs, 1..w outputs
 	std::vector<std::unique_ptr<node>> nodes;
 	std::size_t width{};
 	std::size_t height() const {
