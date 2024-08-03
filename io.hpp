@@ -72,7 +72,7 @@ struct output_node : node {
 	type_t type() const noexcept override { return out; }
 	// Attempt to read from neighbor every step
 	void step() override {
-		if (outputs_expected.size() == outputs_received.size()) {
+		if (complete) {
 			return;
 		}
 		if (auto r = do_read(neighbors[port::up], port::down)) {
@@ -80,12 +80,18 @@ struct output_node : node {
 			auto i = outputs_received.size();
 			outputs_received.push_back(*r);
 			if (outputs_received[i] != outputs_expected[i]) {
+				wrong = true;
 				log_debug("incorrect value written");
 			}
+			complete = (outputs_expected.size() == outputs_received.size());
 		}
 	}
 	void finalize() override {}
-	void reset() noexcept override { outputs_received.clear(); }
+	void reset() noexcept override {
+		outputs_received.clear();
+		wrong = false;
+		complete = false;
+	}
 	std::optional<word_t> emit(port) override { return std::nullopt; }
 	std::string print() const override {
 		std::ostringstream ret;
@@ -100,6 +106,8 @@ struct output_node : node {
 	std::string filename;
 	io_type_t io_type;
 	char d{' '};
+	bool wrong{false};
+	bool complete{false};
 };
 struct image_output : node {
 	using node::node;

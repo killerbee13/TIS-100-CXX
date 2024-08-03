@@ -74,17 +74,19 @@ score run(field& l, int cycles_limit, bool print_err) {
 	sc.validated = true;
 
 	log_flush();
-	for (auto it = l.end_regular(); it != l.end(); ++it) {
+	for (auto it = l.begin_output(); it != l.end(); ++it) {
 		auto n = it->get();
 		if (type(n) == node::out) {
 			auto p = static_cast<output_node*>(n);
-			if (p->outputs_expected != p->outputs_received) {
+			if (p->wrong) {
 				sc.validated = false;
+				break;
 			}
 		} else if (type(n) == node::image) {
 			auto p = static_cast<image_output*>(n);
 			if (p->image_expected != p->image_received) {
 				sc.validated = false;
+				break;
 			}
 		}
 	}

@@ -57,40 +57,28 @@ class field {
 	}
 
 	bool active() const {
-		bool r{};
-		bool all_outputs_satisfied{true};
-		bool all_outputs_correct{true};
+		bool active{};
 		for (auto it = begin_output(); it != end(); ++it) {
 			if (type(it->get()) == node::out) {
 				auto i = static_cast<const output_node*>(it->get());
-				if (i->outputs_received.size() < i->outputs_expected.size()) {
-					r = true;
-					all_outputs_satisfied = false;
+				if (not i->complete) {
+					active = true;
 
-					if (i->outputs_received.size() > i->outputs_expected.size()) {
-						all_outputs_correct = false;
-					}
 // speed up simulator by failing early when an incorrect output is written
 #if RELEASE
-					else if (auto k = i->outputs_received.size() - 1;
-					         not i->outputs_received.empty()
-					         and i->outputs_received[k] != i->outputs_expected[k]) {
-						all_outputs_correct = false;
+					if (i->wrong) {
+						return false;
 					}
 #endif
 				}
 			} else if (type(it->get()) == node::image) {
 				auto i = static_cast<const image_output*>(it->get());
 				if (i->image_expected != i->image_received) {
-					r = true;
-					all_outputs_satisfied = false;
+					active = true;
 				}
 			}
 		}
-		if (all_outputs_satisfied or not all_outputs_correct) {
-			return false;
-		}
-		return r;
+		return active;
 	}
 
 	/// Write the full state of all nodes, similar to what the game displays in
