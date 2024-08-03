@@ -88,7 +88,7 @@ constexpr port invert(port p) {
 	case D6:
 		return D5;
 	default:
-		throw std::invalid_argument{""};
+		std::unreachable();
 	}
 }
 

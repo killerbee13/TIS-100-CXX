@@ -65,7 +65,7 @@ std::optional<word_t> T21::read(port p, word_t imm) {
 	case port::immediate:
 		return imm;
 	default:
-		throw std::invalid_argument{""};
+		std::unreachable();
 	}
 }
 
