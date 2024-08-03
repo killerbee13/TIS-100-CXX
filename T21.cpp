@@ -78,165 +78,171 @@ void T21::step() {
 		log << "empty";
 		return;
 	}
-	auto& i = code[to_unsigned(pc)];
+	auto& instr = code[to_unsigned(pc)];
 	log << "instruction type: ";
-	kblib::visit_indexed(
-	    std::as_const(i.data),
-	    [&](constant<std::size_t, instr::hcf>, seq_instr) {
-		    log << "hcf";
-		    log << "\n\ts = " << state_name(s);
-		    throw std::runtime_error{"HCF"};
-	    },
-	    [&, this](constant<std::size_t, instr::nop>, seq_instr) {
-		    log << "nop";
-		    next();
-		    s = activity::run;
-	    },
-	    [&, this](constant<std::size_t, instr::swp>, seq_instr) {
-		    log << "swp (" << acc << "<->" << bak << ')';
-		    std::swap(acc, bak);
-		    s = activity::run;
-		    next();
-	    },
-	    [&, this](constant<std::size_t, instr::sav>, seq_instr) {
-		    log << "sav (" << acc << "->" << bak << ')';
-		    bak = acc;
-		    s = activity::run;
-		    next();
-	    },
-	    [&, this](constant<std::size_t, instr::neg>, seq_instr) {
-		    log << "neg (" << acc << ')';
-		    acc = -acc;
-		    s = activity::run;
-		    next();
-	    },
-	    [&, this](constant<std::size_t, instr::mov>, mov_instr i) {
-		    log << "mov ";
-		    if (s == activity::write) {
-			    log << "stalled[W]";
-			    // if waiting for a write, then this instruction's read already
-			    // happened
-		    } else if (auto r = read(i.src, i.val)) {
-			    log << '(' << *r << ") ";
-			    switch (i.dst) {
-			    case port::acc:
-				    log << "acc = " << *r;
-				    acc = *r;
-				    [[fallthrough]];
-			    case port::nil:
-				    // log << "nil = " << *r;
-				    s = activity::run;
-				    next();
-				    break;
-			    case port::last:
-				    if (last == port::nil) {
-					    log << "last[N/A] = " << *r;
-					    s = activity::run;
-					    next();
-					    break;
-				    }
-				    [[fallthrough]];
-			    case port::left:
-			    case port::right:
-			    case port::up:
-			    case port::down:
-			    case port::D5:
-			    case port::D6:
-			    case port::any:
-				    s = activity::write;
-				    wrt = *r;
-				    log << "stalling[W]";
-				    // writes don't happen until next cycle
-				    break;
-			    case port::immediate:
-				    assert(i.dst != port::immediate);
-			    }
-		    } else {
-			    s = activity::read;
-			    log << "stalled[R]";
-		    }
-	    },
-	    [&, this](constant<std::size_t, instr::add>, arith_instr i) {
-		    log << "add (" << acc << ") ";
-		    if (auto r = read(i.src, i.val)) {
-			    log << *r;
-			    acc = sat_add(acc, *r);
-			    s = activity::run;
-			    next();
-		    } else {
-			    log << "stalled[R]";
-			    s = activity::read;
-		    }
-	    },
-	    [&, this](constant<std::size_t, instr::sub>, arith_instr i) {
-		    log << "sub (" << acc << ") ";
-		    if (auto r = read(i.src, i.val)) {
-			    log << *r;
-			    acc = sat_sub(acc, *r);
-			    s = activity::run;
-			    next();
-		    } else {
-			    log << "stalled[R]";
-			    s = activity::read;
-		    }
-	    },
-	    [&, this](constant<std::size_t, instr::jmp>, jmp_instr i) {
-		    log << "jmp " << +i.target;
-		    pc = i.target;
-	    },
-	    [&, this](constant<std::size_t, instr::jez>, jmp_instr i) {
-		    log << "jez (" << (acc == 0 ? "taken" : "not taken") << ") "
-		        << +i.target;
-		    if (acc == 0) {
-			    pc = i.target;
-		    } else {
-			    next();
-		    }
-		    s = activity::run;
-	    },
-	    [&, this](constant<std::size_t, instr::jnz>, jmp_instr i) {
-		    log << "jnz (" << (acc != 0 ? "taken" : "not taken") << ") "
-		        << +i.target;
-		    if (acc != 0) {
-			    pc = i.target;
-		    } else {
-			    next();
-		    }
-		    s = activity::run;
-	    },
-	    [&, this](constant<std::size_t, instr::jgz>, jmp_instr i) {
-		    log << "jgz (" << (acc > 0 ? "taken" : "not taken") << ") "
-		        << +i.target;
-		    if (acc > 0) {
-			    pc = i.target;
-		    } else {
-			    next();
-		    }
-		    s = activity::run;
-	    },
-	    [&, this](constant<std::size_t, instr::jlz>, jmp_instr i) {
-		    log << "jlz (" << (acc < 0 ? "taken" : "not taken") << ") "
-		        << +i.target;
-		    if (acc < 0) {
-			    pc = i.target;
-		    } else {
-			    next();
-		    }
-		    s = activity::run;
-	    },
-	    [&, this](constant<std::size_t, instr::jro>, jro_instr i) {
-		    log << "jro ";
-		    if (auto r = read(i.src, i.val)) {
-			    log << '(' << +pc << '+' << *r << " -> ";
-			    pc = sat_add(pc, *r, word_t{},
-			                 static_cast<word_t>(code.size() - 1));
-			    log << +pc << ")";
-			    s = activity::run;
-		    } else {
-			    log << "stalled[R]";
-			    s = activity::read;
-		    }
-	    });
+	switch (instr.get_op()) {
+	case instr::hcf: {
+		log << "hcf";
+		log << "\n\ts = " << state_name(s);
+		throw std::runtime_error{"HCF"};
+	}
+	case instr::nop: {
+		log << "nop";
+		next();
+		s = activity::run;
+	} break;
+	case instr::swp: {
+		log << "swp (" << acc << "<->" << bak << ')';
+		std::swap(acc, bak);
+		s = activity::run;
+		next();
+	} break;
+	case instr::sav: {
+		log << "sav (" << acc << "->" << bak << ')';
+		bak = acc;
+		s = activity::run;
+		next();
+	} break;
+	case instr::neg: {
+		log << "neg (" << acc << ')';
+		acc = -acc;
+		s = activity::run;
+		next();
+	} break;
+	case instr::mov: {
+		auto i = std::get<mov_instr>(instr.data);
+		log << "mov ";
+		if (s == activity::write) {
+			log << "stalled[W]";
+			// if waiting for a write, then this instruction's read already
+			// happened
+		} else if (auto r = read(i.src, i.val)) {
+			log << '(' << *r << ") ";
+			switch (i.dst) {
+			case port::acc:
+				log << "acc = " << *r;
+				acc = *r;
+				[[fallthrough]];
+			case port::nil:
+				// log << "nil = " << *r;
+				s = activity::run;
+				next();
+				break;
+			case port::last:
+				if (last == port::nil) {
+					log << "last[N/A] = " << *r;
+					s = activity::run;
+					next();
+					break;
+				}
+				[[fallthrough]];
+			case port::left:
+			case port::right:
+			case port::up:
+			case port::down:
+			case port::D5:
+			case port::D6:
+			case port::any:
+				s = activity::write;
+				wrt = *r;
+				log << "stalling[W]";
+				// writes don't happen until next cycle
+				break;
+			case port::immediate:
+				assert(i.dst != port::immediate);
+			}
+		} else {
+			s = activity::read;
+			log << "stalled[R]";
+		}
+	} break;
+	case instr::add: {
+		auto i = std::get<instr::add>(instr.data);
+		log << "add (" << acc << ") ";
+		if (auto r = read(i.src, i.val)) {
+			log << *r;
+			acc = sat_add(acc, *r);
+			s = activity::run;
+			next();
+		} else {
+			log << "stalled[R]";
+			s = activity::read;
+		}
+	} break;
+	case instr::sub: {
+		auto i = std::get<instr::sub>(instr.data);
+		log << "sub (" << acc << ") ";
+		if (auto r = read(i.src, i.val)) {
+			log << *r;
+			acc = sat_sub(acc, *r);
+			s = activity::run;
+			next();
+		} else {
+			log << "stalled[R]";
+			s = activity::read;
+		}
+	} break;
+	case instr::jmp: {
+		auto i = std::get<instr::jmp>(instr.data);
+		log << "jmp " << +i.target;
+		pc = i.target;
+	} break;
+	case instr::jez: {
+		auto i = std::get<instr::jez>(instr.data);
+		log << "jez (" << (acc == 0 ? "taken" : "not taken") << ") " << +i.target;
+		if (acc == 0) {
+			pc = i.target;
+		} else {
+			next();
+		}
+		s = activity::run;
+	} break;
+	case instr::jnz: {
+		auto i = std::get<instr::jnz>(instr.data);
+		log << "jnz (" << (acc != 0 ? "taken" : "not taken") << ") " << +i.target;
+		if (acc != 0) {
+			pc = i.target;
+		} else {
+			next();
+		}
+		s = activity::run;
+	} break;
+	case instr::jgz: {
+		auto i = std::get<instr::jgz>(instr.data);
+		log << "jgz (" << (acc > 0 ? "taken" : "not taken") << ") " << +i.target;
+		if (acc > 0) {
+			pc = i.target;
+		} else {
+			next();
+		}
+		s = activity::run;
+	} break;
+	case instr::jlz: {
+		auto i = std::get<instr::jlz>(instr.data);
+		log << "jlz (" << (acc < 0 ? "taken" : "not taken") << ") " << +i.target;
+		if (acc < 0) {
+			pc = i.target;
+		} else {
+			next();
+		}
+		s = activity::run;
+	} break;
+	case instr::jro: {
+		auto i = std::get<instr::jro>(instr.data);
+		log << "jro ";
+		if (auto r = read(i.src, i.val)) {
+			log << '(' << +pc << '+' << *r << " -> ";
+			pc = sat_add(pc, *r, word_t{}, static_cast<word_t>(code.size() - 1));
+			log << +pc << ")";
+			s = activity::run;
+		} else {
+			log << "stalled[R]";
+			s = activity::read;
+		}
+	} break;
+	default:
+		std::unreachable();
+	}
 	log << "\n                    s = " << state_name(s);
 }
 void T21::finalize() {
