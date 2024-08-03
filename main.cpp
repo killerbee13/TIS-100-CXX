@@ -443,8 +443,8 @@ inline constexpr auto layouts1 = gen_layouts();
 	log_debug_r([&] { return f.layout(); });
 
 	score sc;
+	sc.validated = true;
 	if (fixed.getValue()) {
-		sc.validated = true;
 		score last{};
 		int succeeded{1};
 		for (auto test : static_suite(id)) {
