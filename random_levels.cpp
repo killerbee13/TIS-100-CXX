@@ -356,7 +356,7 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 			ret.inputs[0].push_back(h);
 			for (int j = 0; j < w; ++j) {
 				for (int k = 0; k < h; ++k) {
-					std::size_t index = static_cast<std::size_t>(
+					[[maybe_unused]] std::size_t index = static_cast<std::size_t>(
 					    x_c + j + (y_c + k) * image_width);
 					ret.i_output.at(x_c + j, y_c + k) = 3;
 					assert(ret.i_output.at(index)
@@ -649,8 +649,8 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 		std::array<word_t, 8> seq_lengths = {2, 3, 3, 4, 4, 4, 5, 6};
 		// Shuffle the subsequence lengths:
 		for (std::size_t i = seq_lengths.size() - 1; i >= 1; i--) {
-			std::size_t j = static_cast<std::size_t>(
-			    engine.next(0, static_cast<word_t>(i)));
+			std::size_t j
+			    = static_cast<std::size_t>(engine.next(0, static_cast<word_t>(i)));
 			std::swap(seq_lengths[i], seq_lengths[j]);
 		}
 
