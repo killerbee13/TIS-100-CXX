@@ -108,15 +108,15 @@ void T21::step() {
 		next();
 	} break;
 	case instr::mov: {
-		auto i = *std::get_if<mov_instr>(&instr.data);
+		auto* i = std::get_if<mov_instr>(&instr.data);
 		log << "mov ";
 		if (s == activity::write) {
 			log << "stalled[W]";
 			// if waiting for a write, then this instruction's read already
 			// happened
-		} else if (auto r = read(i.src, i.val)) {
+		} else if (auto r = read(i->src, i->val)) {
 			log << '(' << *r << ") ";
-			switch (i.dst) {
+			switch (i->dst) {
 			case port::acc:
 				log << "acc = " << *r;
 				acc = *r;
@@ -147,7 +147,7 @@ void T21::step() {
 				// writes don't happen until next cycle
 				break;
 			case port::immediate:
-				assert(i.dst != port::immediate);
+				assert(i->dst != port::immediate);
 			}
 		} else {
 			s = activity::read;
@@ -155,9 +155,9 @@ void T21::step() {
 		}
 	} break;
 	case instr::add: {
-		auto i = *std::get_if<instr::add>(&instr.data);
+		auto* i = std::get_if<instr::add>(&instr.data);
 		log << "add (" << acc << ") ";
-		if (auto r = read(i.src, i.val)) {
+		if (auto r = read(i->src, i->val)) {
 			log << *r;
 			acc = sat_add(acc, *r);
 			s = activity::run;
@@ -168,9 +168,9 @@ void T21::step() {
 		}
 	} break;
 	case instr::sub: {
-		auto i = *std::get_if<instr::sub>(&instr.data);
+		auto* i = std::get_if<instr::sub>(&instr.data);
 		log << "sub (" << acc << ") ";
-		if (auto r = read(i.src, i.val)) {
+		if (auto r = read(i->src, i->val)) {
 			log << *r;
 			acc = sat_sub(acc, *r);
 			s = activity::run;
@@ -181,54 +181,54 @@ void T21::step() {
 		}
 	} break;
 	case instr::jmp: {
-		auto i = *std::get_if<instr::jmp>(&instr.data);
-		log << "jmp " << +i.target;
-		pc = i.target;
+		auto* i = std::get_if<instr::jmp>(&instr.data);
+		log << "jmp " << +i->target;
+		pc = i->target;
 	} break;
 	case instr::jez: {
-		auto i = *std::get_if<instr::jez>(&instr.data);
-		log << "jez (" << (acc == 0 ? "taken" : "not taken") << ") " << +i.target;
+		auto* i = std::get_if<instr::jez>(&instr.data);
+		log << "jez (" << (acc == 0 ? "taken" : "not taken") << ") " << +i->target;
 		if (acc == 0) {
-			pc = i.target;
+			pc = i->target;
 		} else {
 			next();
 		}
 		s = activity::run;
 	} break;
 	case instr::jnz: {
-		auto i = *std::get_if<instr::jnz>(&instr.data);
-		log << "jnz (" << (acc != 0 ? "taken" : "not taken") << ") " << +i.target;
+		auto* i = std::get_if<instr::jnz>(&instr.data);
+		log << "jnz (" << (acc != 0 ? "taken" : "not taken") << ") " << +i->target;
 		if (acc != 0) {
-			pc = i.target;
+			pc = i->target;
 		} else {
 			next();
 		}
 		s = activity::run;
 	} break;
 	case instr::jgz: {
-		auto i = *std::get_if<instr::jgz>(&instr.data);
-		log << "jgz (" << (acc > 0 ? "taken" : "not taken") << ") " << +i.target;
+		auto* i = std::get_if<instr::jgz>(&instr.data);
+		log << "jgz (" << (acc > 0 ? "taken" : "not taken") << ") " << +i->target;
 		if (acc > 0) {
-			pc = i.target;
+			pc = i->target;
 		} else {
 			next();
 		}
 		s = activity::run;
 	} break;
 	case instr::jlz: {
-		auto i = *std::get_if<instr::jlz>(&instr.data);
-		log << "jlz (" << (acc < 0 ? "taken" : "not taken") << ") " << +i.target;
+		auto* i = std::get_if<instr::jlz>(&instr.data);
+		log << "jlz (" << (acc < 0 ? "taken" : "not taken") << ") " << +i->target;
 		if (acc < 0) {
-			pc = i.target;
+			pc = i->target;
 		} else {
 			next();
 		}
 		s = activity::run;
 	} break;
 	case instr::jro: {
-		auto i = *std::get_if<instr::jro>(&instr.data);
+		auto* i = std::get_if<instr::jro>(&instr.data);
 		log << "jro ";
-		if (auto r = read(i.src, i.val)) {
+		if (auto r = read(i->src, i->val)) {
 			log << '(' << +pc << '+' << *r << " -> ";
 			pc = sat_add(pc, *r, word_t{}, static_cast<word_t>(code.size() - 1));
 			log << +pc << ")";
