@@ -19,8 +19,6 @@
 #include "T21.hpp"
 #include "logger.hpp"
 
-#include <kblib/variant.h>
-
 using namespace std::literals;
 
 static_assert(sat_add(word_max, word_max) == word_max);
@@ -110,7 +108,7 @@ void T21::step() {
 		next();
 	} break;
 	case instr::mov: {
-		auto i = std::get<mov_instr>(instr.data);
+		auto i = *std::get_if<mov_instr>(&instr.data);
 		log << "mov ";
 		if (s == activity::write) {
 			log << "stalled[W]";
@@ -157,7 +155,7 @@ void T21::step() {
 		}
 	} break;
 	case instr::add: {
-		auto i = std::get<instr::add>(instr.data);
+		auto i = *std::get_if<instr::add>(&instr.data);
 		log << "add (" << acc << ") ";
 		if (auto r = read(i.src, i.val)) {
 			log << *r;
@@ -170,7 +168,7 @@ void T21::step() {
 		}
 	} break;
 	case instr::sub: {
-		auto i = std::get<instr::sub>(instr.data);
+		auto i = *std::get_if<instr::sub>(&instr.data);
 		log << "sub (" << acc << ") ";
 		if (auto r = read(i.src, i.val)) {
 			log << *r;
@@ -183,12 +181,12 @@ void T21::step() {
 		}
 	} break;
 	case instr::jmp: {
-		auto i = std::get<instr::jmp>(instr.data);
+		auto i = *std::get_if<instr::jmp>(&instr.data);
 		log << "jmp " << +i.target;
 		pc = i.target;
 	} break;
 	case instr::jez: {
-		auto i = std::get<instr::jez>(instr.data);
+		auto i = *std::get_if<instr::jez>(&instr.data);
 		log << "jez (" << (acc == 0 ? "taken" : "not taken") << ") " << +i.target;
 		if (acc == 0) {
 			pc = i.target;
@@ -198,7 +196,7 @@ void T21::step() {
 		s = activity::run;
 	} break;
 	case instr::jnz: {
-		auto i = std::get<instr::jnz>(instr.data);
+		auto i = *std::get_if<instr::jnz>(&instr.data);
 		log << "jnz (" << (acc != 0 ? "taken" : "not taken") << ") " << +i.target;
 		if (acc != 0) {
 			pc = i.target;
@@ -208,7 +206,7 @@ void T21::step() {
 		s = activity::run;
 	} break;
 	case instr::jgz: {
-		auto i = std::get<instr::jgz>(instr.data);
+		auto i = *std::get_if<instr::jgz>(&instr.data);
 		log << "jgz (" << (acc > 0 ? "taken" : "not taken") << ") " << +i.target;
 		if (acc > 0) {
 			pc = i.target;
@@ -218,7 +216,7 @@ void T21::step() {
 		s = activity::run;
 	} break;
 	case instr::jlz: {
-		auto i = std::get<instr::jlz>(instr.data);
+		auto i = *std::get_if<instr::jlz>(&instr.data);
 		log << "jlz (" << (acc < 0 ? "taken" : "not taken") << ") " << +i.target;
 		if (acc < 0) {
 			pc = i.target;
@@ -228,7 +226,7 @@ void T21::step() {
 		s = activity::run;
 	} break;
 	case instr::jro: {
-		auto i = std::get<instr::jro>(instr.data);
+		auto i = *std::get_if<instr::jro>(&instr.data);
 		log << "jro ";
 		if (auto r = read(i.src, i.val)) {
 			log << '(' << +pc << '+' << *r << " -> ";
@@ -250,36 +248,33 @@ void T21::finalize() {
 		return;
 	}
 	auto& i = code[to_unsigned(pc)];
-	kblib::visit2(
-	    i.data,
-	    [this](auto) {
-		    log_debug("finalize(", x, ',', y, ',', +pc, "): skipped");
-	    },
-	    [this](mov_instr i) {
-		    auto log = log_debug();
-		    log << "finalize(" << x << ',' << y << ',' << +pc << "): mov ";
-		    if (s == activity::write) {
-			    // if write just started
-			    if (write_port == port::nil) {
-				    log << "started";
-				    if (i.dst == port::last) {
-					    write_port = last;
-				    } else {
-					    write_port = i.dst;
-				    }
-				    // if write completed
-			    } else if (write_port == port::immediate) {
-				    log << "completed";
-				    write_port = port::nil;
-				    s = activity::run;
-				    next();
-			    } else {
-				    log << "in progress";
-			    }
-		    } else {
-			    log << "skipped";
-		    }
-	    });
+	if (auto* p = std::get_if<mov_instr>(&i.data)) {
+		auto log = log_debug();
+		log << "finalize(" << x << ',' << y << ',' << +pc << "): mov ";
+		if (s == activity::write) {
+			// if write just started
+			if (write_port == port::nil) {
+				log << "started";
+				if (p->dst == port::last) {
+					write_port = last;
+				} else {
+					write_port = p->dst;
+				}
+				// if write completed
+			} else if (write_port == port::immediate) {
+				log << "completed";
+				write_port = port::nil;
+				s = activity::run;
+				next();
+			} else {
+				log << "in progress";
+			}
+		} else {
+			log << "skipped";
+		}
+	} else {
+		log_debug("finalize(", x, ',', y, ',', +pc, "): skipped");
+	}
 }
 
 std::optional<word_t> T21::emit(port p) {
