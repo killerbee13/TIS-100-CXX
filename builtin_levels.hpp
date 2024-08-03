@@ -195,8 +195,9 @@ inline bool check_achievement(int id, const field& solve, score sc) {
 		log << "NO_MEMORY: ";
 
 		for (auto it = solve.begin(); it != solve.end_regular(); ++it) {
-			if (type(it->get()) == node::T30) {
-				auto n = static_cast<const T30*>(it->get());
+			auto p = it->get();
+			if (p->type() == node::T30) {
+				auto n = static_cast<const T30*>(p);
 				log << "T30 (" << n->x << ',' << n->y << "): " << n->used << '\n';
 				if (n->used) {
 					return false;

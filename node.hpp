@@ -156,15 +156,6 @@ struct node {
 	    , y(y) {}
 	virtual ~node() = default;
 
-	/// nullptr-safe accessor for virtual node::type
-	friend node::type_t type(const node* n) {
-		if (n) {
-			return n->type();
-		} else {
-			return node::null;
-		}
-	}
-
 	/// null and Damaged are negative. Any positive value is a valid node
 	// (0 is unallocated)
 	friend bool valid(const node* n) { return n and etoi(n->type()) > 0; }

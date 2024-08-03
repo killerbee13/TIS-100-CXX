@@ -41,17 +41,13 @@ class field {
 	void step() {
 		// evaluate code
 		for (auto& p : nodes) {
-			if (p) {
-				p->step();
-			}
+			p->step();
 		}
 		log_debug("");
 		// execute writes
 		// this is a separate step to ensure a consistent propagation delay
 		for (auto& p : nodes) {
-			if (p) {
-				p->finalize();
-			}
+			p->finalize();
 		}
 		log_debug("");
 	}
@@ -59,7 +55,7 @@ class field {
 	bool active() const {
 		bool active{};
 		for (auto it = begin_output(); it != end(); ++it) {
-			if (type(it->get()) == node::out) {
+			if ((*it)->type() == node::out) {
 				auto i = static_cast<const output_node*>(it->get());
 				if (not i->complete) {
 					active = true;
@@ -71,7 +67,7 @@ class field {
 					}
 #endif
 				}
-			} else if (type(it->get()) == node::image) {
+			} else if ((*it)->type() == node::image) {
 				auto i = static_cast<const image_output*>(it->get());
 				if (i->image_expected != i->image_received) {
 					active = true;
@@ -103,9 +99,8 @@ class field {
 	// Whether there are any input nodes attached to the field. Image test
 	// pattern levels do not use inputs so only need a single test run.
 	bool has_inputs() const {
-		for (auto it = begin() + static_cast<std::ptrdiff_t>(nodes_total());
-		     it != end(); ++it) {
-			if (auto p = it->get(); type(p) == node::in) {
+		for (auto it = begin_io(); it != begin_output(); ++it) {
+			if (auto p = it->get(); p->type() == node::in) {
 				log_debug("Field has input at location ", p->x);
 				return true;
 			}
@@ -119,7 +114,7 @@ class field {
 	/// Serialize layout as a C++ builtin_layout_spec initializer
 	std::string machine_layout() const;
 
-	// returns the node at the (x,y) coordinates
+	// returns the node at the (x,y) coordinates, Nullable
 	node* node_by_location(std::size_t x, std::size_t y) {
 		if (x > width) {
 			return nullptr;
@@ -131,6 +126,7 @@ class field {
 			return nullptr;
 		}
 	}
+	// Nullable
 	const node* node_by_location(std::size_t x, std::size_t y) const {
 		if (x > width or y > height()) {
 			return nullptr;
@@ -145,16 +141,18 @@ class field {
 	// returns the ith programmable (T21) node
 	T21* node_by_index(std::size_t i) {
 		for (auto it = begin(); it != end_regular(); ++it) {
-			if (type(it->get()) == node::T21 and i-- == 0) {
-				return static_cast<T21*>(it->get());
+			auto p = it->get();
+			if (p->type() == node::T21 and i-- == 0) {
+				return static_cast<T21*>(p);
 			}
 		}
 		return nullptr;
 	}
 	const T21* node_by_index(std::size_t i) const {
 		for (auto it = begin(); it != end_regular(); ++it) {
-			if (type(it->get()) == node::T21 and i-- == 0) {
-				return static_cast<const T21*>(it->get());
+			auto p = it->get();
+			if (p->type() == node::T21 and i-- == 0) {
+				return static_cast<const T21*>(p);
 			}
 		}
 		return nullptr;
@@ -168,6 +166,7 @@ class field {
 	const_iterator end_regular() const noexcept {
 		return nodes.begin() + static_cast<std::ptrdiff_t>(in_nodes_offset);
 	}
+	const_iterator begin_io() const noexcept { return end_regular(); }
 	const_iterator begin_output() const noexcept {
 		return nodes.begin() + static_cast<std::ptrdiff_t>(out_nodes_offset);
 	}

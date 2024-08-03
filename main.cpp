@@ -33,13 +33,13 @@ using namespace std::literals;
 
 template <typename T>
 void print_validation_failure(field& l, T&& os, bool color) {
-	for (auto it = l.end_regular(); it != l.end(); ++it) {
+	for (auto it = l.begin_io(); it != l.end(); ++it) {
 		auto n = it->get();
-		if (type(n) == node::in) {
+		if (n->type() == node::in) {
 			auto p = static_cast<input_node*>(n);
 			os << "input " << p->x << ": ";
 			write_list(os, p->inputs, nullptr, color) << '\n';
-		} else if (type(n) == node::out) {
+		} else if (n->type() == node::out) {
 			auto p = static_cast<output_node*>(n);
 			if (p->outputs_expected != p->outputs_received) {
 				os << "validation failure for output " << p->x;
@@ -49,7 +49,7 @@ void print_validation_failure(field& l, T&& os, bool color) {
 				write_list(os, p->outputs_expected, nullptr, color);
 				os << "\n";
 			}
-		} else if (type(n) == node::image) {
+		} else if (n->type() == node::image) {
 			auto p = static_cast<image_output*>(n);
 			if (p->image_expected != p->image_received) {
 				os << "validation failure for output " << p->x << "\noutput:\n"
@@ -70,19 +70,19 @@ score run(field& l, int cycles_limit, bool print_err) {
 		log_debug("step ", sc.cycles);
 		log_debug_r([&] { return "Current state:\n" + l.state(); });
 		l.step();
-	} while ((l.active()) and std::cmp_less(sc.cycles, cycles_limit));
+	} while (l.active() and std::cmp_less(sc.cycles, cycles_limit));
 	sc.validated = true;
 
 	log_flush();
 	for (auto it = l.begin_output(); it != l.end(); ++it) {
 		auto n = it->get();
-		if (type(n) == node::out) {
+		if (n->type() == node::out) {
 			auto p = static_cast<output_node*>(n);
 			if (p->wrong) {
 				sc.validated = false;
 				break;
 			}
-		} else if (type(n) == node::image) {
+		} else if (n->type() == node::image) {
 			auto p = static_cast<image_output*>(n);
 			if (p->image_expected != p->image_received) {
 				sc.validated = false;
@@ -644,9 +644,9 @@ int generate(std::uint32_t seed) {
 		auto r = random_test(static_cast<int>(i), seed);
 		std::size_t i_idx = 0;
 		std::size_t o_idx = 0;
-		for (auto it = l.end_regular(); it != l.end(); ++it) {
+		for (auto it = l.begin_io(); it != l.end(); ++it) {
 			auto n = it->get();
-			if (type(n) == node::in) {
+			if (n->type() == node::in) {
 				auto p = static_cast<input_node*>(n);
 				auto o_path = copy(base_path).concat(p->filename);
 				log_info("writing in ", i_idx, ": ", o_path.native());
@@ -655,7 +655,7 @@ int generate(std::uint32_t seed) {
 					o_f << w << '\n';
 				}
 				++i_idx;
-			} else if (type(n) == node::out) {
+			} else if (n->type() == node::out) {
 				auto p = static_cast<output_node*>(n);
 				auto o_path = copy(base_path).concat(p->filename);
 				log_info("writing out ", o_idx, ": ", o_path.native());
@@ -664,7 +664,7 @@ int generate(std::uint32_t seed) {
 					o_f << w << '\n';
 				}
 				++o_idx;
-			} else if (type(n) == node::image) {
+			} else if (n->type() == node::image) {
 				auto p = static_cast<image_output*>(n);
 				auto o_path = copy(base_path).concat(p->filename);
 				log_info("writing image: ", o_path.native());

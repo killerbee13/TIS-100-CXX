@@ -345,23 +345,21 @@ void parse_code(field& f, std::string_view source, std::size_t T21_size) {
 }
 
 void set_expected(field& f, const single_test& expected) {
-	auto it = f.begin();
 	std::size_t in_idx{};
 	std::size_t out_idx{};
-	for (; it != f.end(); ++it) {
+	for (auto it = f.begin(); it != f.end(); ++it) {
 		auto p = it->get();
-		if (p) {
-			p->reset();
-			log_debug("reset node (", p->x, ',', p->y, ')');
-		}
-		if (type(p) == node::in) {
+		p->reset();
+		log_debug("reset node (", p->x, ',', p->y, ')');
+
+		if (p->type() == node::in) {
 			assert(in_idx < expected.inputs.size());
 			auto i = static_cast<input_node*>(p);
 			i->inputs = expected.inputs[in_idx++];
 			auto log = log_debug();
 			log << "set expected input I" << i->x << ":";
 			write_list(log, i->inputs, nullptr, use_color and log_is_tty);
-		} else if (type(p) == node::out) {
+		} else if (p->type() == node::out) {
 			assert(out_idx < expected.n_outputs.size());
 			auto o = static_cast<output_node*>(p);
 			o->outputs_expected = expected.n_outputs[out_idx++];
@@ -369,7 +367,7 @@ void set_expected(field& f, const single_test& expected) {
 			log << "set expected output O" << o->x << ":";
 			write_list(log, o->outputs_expected, nullptr,
 			           use_color and log_is_tty);
-		} else if (type(p) == node::image) {
+		} else if (p->type() == node::image) {
 			auto i = static_cast<image_output*>(p);
 			i->image_expected = expected.i_output;
 			auto log = log_debug();
@@ -736,7 +734,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 std::size_t field::instructions() const {
 	std::size_t ret{};
 	for (auto& p : nodes) {
-		if (type(p.get()) == node::T21) {
+		if (p.get()->type() == node::T21) {
 			ret += static_cast<T21*>(p.get())->code.size();
 		}
 	}
@@ -746,7 +744,7 @@ std::size_t field::instructions() const {
 std::size_t field::nodes_used() const {
 	std::size_t ret{};
 	for (auto& p : nodes) {
-		if (type(p.get()) == node::T21) {
+		if (p.get()->type() == node::T21) {
 			ret += not static_cast<T21*>(p.get())->code.empty();
 		}
 	}
@@ -755,7 +753,7 @@ std::size_t field::nodes_used() const {
 std::size_t field::nodes_avail() const {
 	std::size_t ret{};
 	for (auto& p : nodes) {
-		if (type(p.get()) == node::T21) {
+		if (p.get()->type() == node::T21) {
 			ret += 1;
 		}
 	}
@@ -771,24 +769,22 @@ std::string field::layout() const {
 			auto p = node_by_location(x, y);
 			if (not valid(p)) {
 				ret += 'D';
-			} else if (type(p) == node::T21) {
+			} else if (p->type() == node::T21) {
 				ret += 'C';
-			} else if (type(p) == node::T30) {
+			} else if (p->type() == node::T30) {
 				ret += 'S';
 			}
 		}
 		ret += '\n';
 	}
 
-	for (const auto i : range(in_nodes_offset, nodes.size())) {
-		auto p = nodes[i].get();
+	for (auto it = begin_io(); it != end(); ++it) {
+		auto p = it->get();
 
 		constexpr std::array<std::string_view, 3> io_labels{" NUMERIC ",
 		                                                    " ASCII ", " LIST "};
 
-		if (not p) {
-			continue;
-		} else if (type(p) == node::in) {
+		if (p->type() == node::in) {
 			auto in = static_cast<input_node*>(p);
 			append(ret, 'I', p->x, io_labels[in->io_type]);
 			if (in->filename.empty()) {
@@ -800,7 +796,7 @@ std::string field::layout() const {
 			} else {
 				append(ret, in->filename, '\n');
 			}
-		} else if (type(p) == node::out) {
+		} else if (p->type() == node::out) {
 			auto on = static_cast<output_node*>(p);
 			append(ret, 'O', p->x, io_labels[on->io_type]);
 			if (on->filename.empty()) {
@@ -816,7 +812,7 @@ std::string field::layout() const {
 				}
 				append(ret, '\n');
 			}
-		} else if (type(p) == node::image) {
+		} else if (p->type() == node::image) {
 			auto im = static_cast<image_output*>(p);
 			append(ret, 'O', p->x, " IMAGE ", im->width, im->height);
 			if (not im->image_expected.empty()) {
@@ -843,7 +839,6 @@ constexpr std::string type_name(node::type_t t) {
 		return "Damaged";
 	default:
 		return "null";
-		break;
 	}
 }
 
@@ -855,18 +850,18 @@ std::string field::machine_layout() const {
 		for (auto y = 0; y != 3; ++y) {
 			ret << "\t\t\t{";
 			for (auto x = 0; x != 4; ++x, ++it) {
-				ret << type_name(type(it->get())) << ", ";
+				ret << type_name((*it)->type()) << ", ";
 			}
 			ret << "},\n";
 		}
 	}
 	ret << "\t\t}}, .io = {{\n";
 	std::array<std::array<builtin_layout_spec::io_node_spec, 4>, 2> io;
-	for (auto it = end_regular(); it != end(); ++it) {
+	for (auto it = begin_io(); it != end(); ++it) {
 		auto n = it->get();
-		if (type(n) == node::in) {
+		if (n->type() == node::in) {
 			io[0][static_cast<std::size_t>(n->x)].type = node::in;
-		} else if (type(n) == node::out) {
+		} else if (n->type() == node::out) {
 			io[1][static_cast<std::size_t>(n->x)].type = node::out;
 		} else if (auto p = dynamic_cast<image_output*>(n)) {
 			io[1][static_cast<std::size_t>(p->x)].type = node::image;
