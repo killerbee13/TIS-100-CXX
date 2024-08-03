@@ -54,6 +54,10 @@ The most useful options are:
   be selected at random. In any case, a contiguous range of N seeds starting at
   S will be used for random tests, except for EXPOSURE MASK VIEWER which may
   skip some seeds.
+- `--fixed 0`: Disable fixed tests, run only random tests. This affects scoring,
+  as normally random tests do not contribute to scoring except for /c and /z
+  flags, but with this flag, the reported score will be the worst observed
+  score.
 - `-c`, `--color`: print important information in color
 - `--loglevel LEVEL`, `--debug`, `--info`: set the amount of information logged
   to stderr. The default log level is "notice", which corresponds to only
