@@ -60,6 +60,9 @@ add_executable(TIS-100-CXX main.cpp parser.hpp node.hpp T21.hpp T30.hpp io.hpp
 	logger.cpp random_levels.hpp random_levels.cpp tis_random.hpp layoutspecs.hpp
 	README.md LICENSE)
 
+# Used to generate the standalone build for the GitHub release
+# target_link_options(TIS-100-CXX PRIVATE -static-libgcc -static-libstdc++ -static)
+
 # used to add non-installed libraries
 target_include_directories(TIS-100-CXX
 	SYSTEM PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/kblib"

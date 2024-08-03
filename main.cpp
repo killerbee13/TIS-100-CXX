@@ -180,8 +180,9 @@ int main(int argc, char** argv) try {
 	layout.add(id_arg).add(level_num); //.add(layout_s);
 
 	TCLAP::ValueArg<int> cycles_limit(
-	    "", "limit", "Number of cycles to run test for before timeout", false,
-	    10'000, "integer", cmd);
+	    "", "limit",
+	    "Number of cycles to run test for before timeout. (Default 100500)",
+	    false, 100'500, "integer", cmd);
 
 	TCLAP::ValueArg<bool> fixed("", "fixed", "Run fixed tests. (Default 1)",
 	                            false, true, "[0-1]", cmd);

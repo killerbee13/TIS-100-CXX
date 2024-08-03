@@ -1,38 +1,79 @@
 # TIS-100-CXX
-A TIS-100 simulator and save validator
+A TIS-100 simulator and save validator.
 
 This is a validator for saves for the game
 [TIS-100](https://zachtronics.com/tis-100/), designed to be used for the 
 community-run leaderboard. Unlike other simulators, TIS-100-CXX includes
 definitions for the base game's levels and can generate suitable random tests
-for them.
+for them. This simulator aims for exact parity with the game in both execution
+and test generation.
 
 ## Build instructions:
 
-Ensure you have a C++23 compliant compiler (clang 16+, gcc 14+).
+Ensure you have a C++23 compliant compiler (clang 19+, gcc 14+).
 
 1. clone repository
-2. update `kblib` submodule: `git submodule update --init --recursive`
+2. update submodules: `git submodule update --init --recursive`
 2. run `cmake -B "path/to/some/build/dir" -S .`
 3. run `cmake --build "path/to/some/build/dir"`
 
+TIS-100-CXX only has two dependencies, which are header-only and will be found
+and used automatically, so no further management is needed beyond the above
+steps.
+
 ## Run instructions:
 
-The command-line API documented here is currently extremely basic and ad-hoc,
-and will be replaced soon.
+Invocation:
+`TIS-100-CXX [options] path/to/solution.txt segment`
+`segment` is the name of a segment as it appears in game, either the numeric ID
+or the human-readable name (case-sensitive). For example, `"00150"` and
+`"SELF-TEST DIAGNOSTIC"` are equivalent. There is a complete list of these in
+the `--help` output, but you will most likely find it easier to get these from
+the game or from the solution's filename. 
 
-If run with no
-arguments, TIS-100-CXX will run a very basic self-test. With the single argument
-`generate`, TIS-100-CXX will write layout and randomized input files compatible
-with [Phlarx' tis simulator](https://github.com/Phlarx/tis) for all of TIS-100's
-main and second campaign's levels.
+By default, it will run the simulation and if it passes, it will print
+"validation successful" and a score, in the format 
+cycles/nodes/instructions/flags, where flags may be a for achievement, c for
+cheat, i.e. a solution which does not pass all random tests, and z for a
+solution which failed all random tests run. (Note that the status of /z is
+currently not consensus in the community.) If it does not pass, it will instead
+print the inputs and outputs (expected and received) for the failed test, then
+"validation failed" with some more information, and finally a score in which
+the cycles count is replaced by `-` to denote a failure. The return value is 0
+on a validation, including a cheated solution, 1 on a validation failure, and 2
+on an exception.
 
-Otherwise, the first argument
-identifies a level by either name or id (for example, `00150` or
-`"SELF-TEST DIAGNOSTIC"` both refer to the first level of the main campaign)
-followed by a path to a TIS-100 source file, followed optionally by the word
-`random`, which will cause TIS-100-CXX to use a randomly generated test case.  
-Otherwise, it will use a hardcoded test case copied from the game. In any case,
-it will print whether the validation was successful or not, followed by either
-the score, or the reason it was not validated and how many cycles it took to
-fail.
+The most useful options are:
+- `--limit N`: set the timeout limit for the simulation
+- `--seeds L..H`: a comma-separated list of integer ranges, such as 0..99.
+  Ranges are inclusive on both sides. Can also specify an individual integer,
+  meaning a range of just that integer. Can be specified multiple times, which
+  is equivalent to concatenating the arguments with a comma.
+- `-r N` and `--seed S`: an alternate way to specify random tests, cannot be
+  combined with `--seeds`. If `-r` is specified by itself, a starting seed will
+  be selected at random. In any case, a contiguous range of N seeds starting at
+  S will be used for random tests, except for EXPOSURE MASK VIEWER which may
+  skip some seeds.
+- `-c`, `--color`: print important information in color
+- `--loglevel LEVEL`, `--debug`, `--info`: set the amount of information logged
+  to stderr. The default log level is "notice", which corresponds to only
+  important information. "info" includes information that may be useful but is
+  not always important, and notably the amount of information logged at level
+  "info" is bounded. "debug" includes a full trace of the execution in the
+  log and will often produce multiple MB of data.
+- `-q`, `--quiet`: reduce the amount of human-readable text printed around the
+  information. May be specified twice to remove almost all supplemental text.
+  
+Other options:
+- `--write-layouts filename`: parse all builtin level layouts and write them as
+  a C++ header file, which is suitable for directly replacing `layoutspecs.hpp`.
+- `--T21_size N` and `--T30_size M`: override the default size limits on
+  instructions in any particular T21 node and values in any particular T30 node
+  respectively.
+- `-S`, `--stats`: run all requested random tests and report the pass rate at
+  the end. Without this flag, the sim will quit as soon as it can label a
+  solution /c (that is, one pass and one failure).
+- `-L ID`, `--level ID`: As an alternative to specifying the segment as
+  described above, the numeric ID (0..50) can be used instead.
+- `--dry-run`: Mainly useful for debugging the command-line parser and initial
+  setup.
