@@ -19,6 +19,7 @@ struct level_layout1 {
 	builtin_layout_spec layout;
 };
 
+// clang-format off
 constexpr std::array<level_layout1, 51> gen_layouts() {
 	using enum node::type_t;
 	return {{
@@ -484,6 +485,7 @@ constexpr std::array<level_layout1, 51> gen_layouts() {
 }};
 }
 
+// clang-format on
 inline constexpr auto layouts1 = gen_layouts();
 
 #endif

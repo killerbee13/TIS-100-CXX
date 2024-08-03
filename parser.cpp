@@ -151,8 +151,7 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 
 template <bool use_nonstandard_rep>
 field parse_layout(std::string_view layout, std::size_t T30_size) {
-	auto ss
-	    = std::istringstream{std::string(layout)};
+	auto ss = std::istringstream{std::string(layout)};
 
 	constexpr static std::string_view cs = use_nonstandard_rep ? "BSMC" : "CSMD";
 
@@ -522,7 +521,8 @@ void push_label(std::string_view lab, int l,
                 std::vector<std::pair<std::string, word_t>>& labels) {
 	for (const auto& o : labels) {
 		if (o.first == lab) {
-			throw std::invalid_argument{""};
+			throw std::invalid_argument{
+			    concat("Label ", kblib::quoted(lab), " defined multiple times")};
 		}
 	}
 	log_debug("L: ", lab, " (", l, ")");
@@ -888,22 +888,15 @@ std::string field::machine_layout() const {
 	return std::move(ret).str();
 
 	using enum node::type_t;
-	[[maybe_unused]] builtin_layout_spec s = //
-	    {.nodes = {{
-	         {T21, T21, T21, T21},
-	         {T21, T21, T21, T21},
-	         {T21, T21, T21, T21},
-	     }},
-	     .io = {{{{
-	                 {.type = null},
-	                 {.type = in},
-	                 {.type = in},
-	                 {.type = null},
-	             }},
-	             {{
-	                 {.type = out},
-	                 {.type = image, .image_size = {{30, 18}}},
-	                 {.type = null},
-	                 {.type = null},
-	             }}}}};
+	// clang-format off
+	[[maybe_unused]] builtin_layout_spec s =
+		{.nodes = {{
+			{T21, T21, T21, T21},
+			{T21, T21, T21, T21},
+			{T21, T21, T21, T21},
+		}},
+	  .io = {{
+			{{{null, {}}, {in, {}}, {in, {}}, {null, {}}, }},
+			{{{out, {}}, {image, {{30, 18}}}, {null, {}}, {null, {}}, }}
+		}}};
 }

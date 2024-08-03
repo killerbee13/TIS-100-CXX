@@ -31,6 +31,36 @@
 
 using namespace std::literals;
 
+template <typename T>
+void print_validation_failure(field& l, T&& os) {
+	for (auto it = l.end_regular(); it != l.end(); ++it) {
+		auto n = it->get();
+		if (type(n) == node::in) {
+			auto p = static_cast<input_node*>(n);
+			os << "input " << p->x << ": ";
+			write_list(os, p->inputs) << '\n';
+		} else if (type(n) == node::out) {
+			auto p = static_cast<output_node*>(n);
+			if (p->outputs_expected != p->outputs_received) {
+				os << "validation failure for output " << p->x;
+				os << "\noutput: ";
+				write_list(os, p->outputs_received, &p->outputs_expected);
+				os << "\nexpected: ";
+				write_list(os, p->outputs_expected);
+				os << "\n";
+			}
+		} else if (type(n) == node::image) {
+			auto p = static_cast<image_output*>(n);
+			if (p->image_expected != p->image_received) {
+				os << "validation failure for output " << p->x << "\noutput:\n"
+				   << p->image_received.write_text(use_color) //
+				   << "expected:\n"
+				   << p->image_expected.write_text(use_color);
+			}
+		}
+	}
+}
+
 score run(field& l, int cycles_limit, bool print_err) {
 	score sc{};
 	sc.instructions = l.instructions();
@@ -60,33 +90,7 @@ score run(field& l, int cycles_limit, bool print_err) {
 	}
 
 	if (print_err and not sc.validated) {
-		for (auto it = l.end_regular(); it != l.end(); ++it) {
-			auto n = it->get();
-			if (type(n) == node::in) {
-				auto p = static_cast<input_node*>(n);
-				std::cout << "input " << p->x << ": ";
-				write_list(std::cout, p->inputs) << '\n';
-			} else if (type(n) == node::out) {
-				auto p = static_cast<output_node*>(n);
-				if (p->outputs_expected != p->outputs_received) {
-					std::cout << "validation failure for output " << p->x;
-					std::cout << "\noutput: ";
-					write_list(std::cout, p->outputs_received, &p->outputs_expected);
-					std::cout << "\nexpected: ";
-					write_list(std::cout, p->outputs_expected);
-					std::cout << "\n";
-				}
-			} else if (type(n) == node::image) {
-				auto p = static_cast<image_output*>(n);
-				if (p->image_expected != p->image_received) {
-					std::cout << "validation failure for output " << p->x
-					          << "\noutput:\n"
-					          << p->image_received.write_text(use_color) //
-					          << "expected:\n"
-					          << p->image_expected.write_text(use_color);
-				}
-			}
-		}
+		print_validation_failure(l, std::cout);
 	}
 
 	return sc;
@@ -340,7 +344,7 @@ int main(int argc, char** argv) try {
 	}
 
 	{
-		auto log = log_info();
+		auto log = log_debug();
 		log << "Seed ranges parsed: {\n";
 		std::uint32_t total{};
 		for (auto r : seed_ranges) {
@@ -373,7 +377,7 @@ int main(int argc, char** argv) try {
 	if (write_machine_layout.isSet()) {
 		std::ofstream out(write_machine_layout.getValue());
 
-		out << R"(#ifndef LAYOUTSPECS_HPP
+		out << R"cpp(#ifndef LAYOUTSPECS_HPP
 #define LAYOUTSPECS_HPP
 
 #include "node.hpp"
@@ -394,23 +398,25 @@ struct level_layout1 {
 	builtin_layout_spec layout;
 };
 
+// clang-format off
 constexpr std::array<level_layout1, 51> gen_layouts() {
 	using enum node::type_t;
 	return {{
-)";
+)cpp";
 		for (auto& l : layouts) {
 			out << "\t{" << std::quoted(l.segment) << ", " << std::quoted(l.name)
 			    << ",\n\t\t";
 			out << parse_layout_guess(l.layout, def_T30_size).machine_layout()
 			    << "},\n";
 		}
-		out << R"(}};
+		out << R"cpp(}};
 }
 
+// clang-format on
 inline constexpr auto layouts1 = gen_layouts();
 
 #endif
-)";
+)cpp";
 	}
 
 	log_debug_r([&] { return f.layout(); });
@@ -463,16 +469,19 @@ inline constexpr auto layouts1 = gen_layouts();
 		score worst{};
 		int count = 0;
 		int valid_count = 0;
+		bool failure_printed{};
 		[&] {
 			for (auto seed_range : seed_ranges) {
 				auto seed = seed_range.begin;
 				auto r_count = seed_range.size;
-				log_info("Seed range: ", seed, ", ", seed + seed_range.size);
-				for (; r_count != 0; ++count, ++seed, --r_count) {
+				// additional -1 to make it inclusive
+				log_info("Seed range: ", seed, ", ", seed + seed_range.size - 1);
+				for (; r_count != 0; ++seed, --r_count) {
 					auto test = random_test(id, seed);
 					if (not test) {
 						continue;
 					}
+					++count;
 					set_expected(f, *test);
 					last = run(f, cycles_limit.getValue(),
 					           not quiet.isSet() and valid_count == count);
@@ -482,6 +491,14 @@ inline constexpr auto layouts1 = gen_layouts();
 					// for random tests, only one validation is needed
 					worst.validated = worst.validated or last.validated;
 					valid_count += last.validated ? 1 : 0;
+					if (not last.validated) {
+						if (std::exchange(failure_printed, true) == false) {
+							log_info("Random test failed for seed: ", seed);
+							print_validation_failure(f, log_info());
+						} else {
+							log_debug("Random test failed for seed: ", seed);
+						}
+					}
 					if (not stats.isSet()) {
 						// at least one pass and at least one fail
 						if (valid_count > 0 and valid_count < count) {
