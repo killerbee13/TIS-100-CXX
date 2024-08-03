@@ -60,7 +60,7 @@ class field {
 		bool r{};
 		bool all_outputs_satisfied{true};
 		bool all_outputs_correct{true};
-		for (auto it = begin_io(); it != end(); ++it) {
+		for (auto it = begin_output(); it != end(); ++it) {
 			if (type(it->get()) == node::out) {
 				auto i = static_cast<const output_node*>(it->get());
 				if (i->outputs_received.size() < i->outputs_expected.size()) {
@@ -111,7 +111,7 @@ class field {
 	// Number of T21 nodes for node_by_index
 	std::size_t nodes_avail() const;
 	// Number of regular (grid) nodes
-	std::size_t nodes_total() const { return io_node_offset; }
+	std::size_t nodes_total() const { return in_nodes_offset; }
 	// Whether there are any input nodes attached to the field. Image test
 	// pattern levels do not use inputs so only need a single test run.
 	bool has_inputs() const {
@@ -178,10 +178,10 @@ class field {
 	const_iterator begin() const noexcept { return nodes.begin(); }
 	// Partition between regular and IO nodes
 	const_iterator end_regular() const noexcept {
-		return nodes.begin() + static_cast<std::ptrdiff_t>(io_node_offset);
+		return nodes.begin() + static_cast<std::ptrdiff_t>(in_nodes_offset);
 	}
-	const_iterator begin_io() const noexcept {
-		return end_regular();
+	const_iterator begin_output() const noexcept {
+		return nodes.begin() + static_cast<std::ptrdiff_t>(out_nodes_offset);
 	}
 	const_iterator end() const noexcept { return nodes.end(); }
 
@@ -190,13 +190,15 @@ class field {
 	std::vector<std::unique_ptr<node>> nodes;
 	std::size_t width{};
 	std::size_t height() const {
-		if (io_node_offset == 0) {
+		if (in_nodes_offset == 0) {
 			return 0;
 		}
-		return io_node_offset / width;
+		return in_nodes_offset / width;
 	}
 	// must be a multiple of width
-	std::size_t io_node_offset{};
+	std::size_t in_nodes_offset{};
+	// >= in_nodes_offset
+	std::size_t out_nodes_offset{};
 };
 
 /// Parse a layout string, guessing whether to use BSMC or CSMD

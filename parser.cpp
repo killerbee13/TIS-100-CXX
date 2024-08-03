@@ -53,7 +53,7 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 	}());
 
 	width = 4;
-	io_node_offset = 12;
+	in_nodes_offset = 12;
 	for (const auto y : range(3u)) {
 		for (const auto x : range(4u)) {
 			switch (spec.nodes[y][x]) {
@@ -91,6 +91,7 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 		}
 	}
 
+	out_nodes_offset = in_nodes_offset;
 	for (const auto x : range(4u)) {
 		auto in = spec.io[0][x];
 		switch (in.type) {
@@ -102,6 +103,7 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 			n->neighbors[up] = p;
 			p->filename = concat('@', x);
 			p->io_type = numeric;
+			out_nodes_offset++;
 		} break;
 		case node::null:
 			// pass
@@ -172,14 +174,14 @@ field parse_layout(std::string_view layout, std::size_t T30_size) {
 		throw std::invalid_argument{""};
 	}
 	field ret;
-	ret.io_node_offset = static_cast<std::size_t>(w * h);
-	ret.nodes.resize(ret.io_node_offset);
+	ret.in_nodes_offset = static_cast<std::size_t>(w * h);
+	ret.nodes.resize(ret.in_nodes_offset);
 	ret.width = static_cast<std::size_t>(w);
 
 	{
 		int x{};
 		int y{};
-		for (const auto i : range(ret.io_node_offset)) {
+		for (const auto i : range(ret.in_nodes_offset)) {
 			char c{};
 			ss >> std::ws >> c;
 			switch (c) {
@@ -221,6 +223,7 @@ field parse_layout(std::string_view layout, std::size_t T30_size) {
 		}
 	}
 
+	ret.out_nodes_offset = ret.in_nodes_offset;
 	std::string id;
 	while (ss >> id) {
 		if (id.empty()) {
@@ -246,6 +249,7 @@ field parse_layout(std::string_view layout, std::size_t T30_size) {
 				// not yet implemented
 				throw 0;
 			}
+			ret.out_nodes_offset++; // we assume all I nodes come before O nodes
 		} else if (id[0] == 'O') {
 			auto x = kblib::parse_integer<int>(std::string_view{id}.substr(1), 10);
 			std::string output_type;
@@ -776,7 +780,7 @@ std::string field::layout() const {
 		ret += '\n';
 	}
 
-	for (const auto i : range(io_node_offset, nodes.size())) {
+	for (const auto i : range(in_nodes_offset, nodes.size())) {
 		auto p = nodes[i].get();
 
 		constexpr std::array<std::string_view, 3> io_labels{" NUMERIC ",
