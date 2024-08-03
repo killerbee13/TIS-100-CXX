@@ -32,30 +32,30 @@
 using namespace std::literals;
 
 template <typename T>
-void print_validation_failure(field& l, T&& os) {
+void print_validation_failure(field& l, T&& os, bool color) {
 	for (auto it = l.end_regular(); it != l.end(); ++it) {
 		auto n = it->get();
 		if (type(n) == node::in) {
 			auto p = static_cast<input_node*>(n);
 			os << "input " << p->x << ": ";
-			write_list(os, p->inputs) << '\n';
+			write_list(os, p->inputs, nullptr, color) << '\n';
 		} else if (type(n) == node::out) {
 			auto p = static_cast<output_node*>(n);
 			if (p->outputs_expected != p->outputs_received) {
 				os << "validation failure for output " << p->x;
 				os << "\noutput: ";
-				write_list(os, p->outputs_received, &p->outputs_expected);
+				write_list(os, p->outputs_received, &p->outputs_expected, color);
 				os << "\nexpected: ";
-				write_list(os, p->outputs_expected);
+				write_list(os, p->outputs_expected, nullptr, color);
 				os << "\n";
 			}
 		} else if (type(n) == node::image) {
 			auto p = static_cast<image_output*>(n);
 			if (p->image_expected != p->image_received) {
 				os << "validation failure for output " << p->x << "\noutput:\n"
-				   << p->image_received.write_text(use_color) //
+				   << p->image_received.write_text(color) //
 				   << "expected:\n"
-				   << p->image_expected.write_text(use_color);
+				   << p->image_expected.write_text(color);
 			}
 		}
 	}
@@ -90,7 +90,7 @@ score run(field& l, int cycles_limit, bool print_err) {
 	}
 
 	if (print_err and not sc.validated) {
-		print_validation_failure(l, std::cout);
+		print_validation_failure(l, std::cout, use_color);
 	}
 
 	return sc;
@@ -129,6 +129,27 @@ struct ArgTraits<field> {
 } // namespace TCLAP
 
 int generate(uint32_t seed);
+
+void score_summary(score sc, score last, int fixed, int quiet,
+                   int cycles_limit) {
+	if (sc.validated) {
+		if (not quiet) {
+			std::cout << print_escape(bright_blue, bold) << "validation successful"
+			          << print_escape(none) << "\n";
+		}
+	} else if (quiet < 2) {
+		std::cout << print_escape(red) << "validation failed"
+		          << print_escape(none);
+		if (fixed != -1) {
+			std::cout << " for fixed test " << fixed;
+		}
+		std::cout << " after " << last.cycles << " cycles ";
+		if (std::cmp_equal(sc.cycles, cycles_limit)) {
+			std::cout << "[timeout]";
+		}
+		std::cout << '\n';
+	}
+}
 
 int main(int argc, char** argv) try {
 	std::ios_base::sync_with_stdio(false);
@@ -287,8 +308,8 @@ int main(int argc, char** argv) try {
 			throw std::invalid_argument{
 			    "Cannot set --seeds in combination with -r or --seed"};
 		}
-		for (auto& e : seed_exprs.getValue()) {
-			for (auto& r : kblib::split_dsv(e, ',')) {
+		for (auto& ex : seed_exprs.getValue()) {
+			for (auto& r : kblib::split_dsv(ex, ',')) {
 				std::string begin;
 				std::optional<std::string> end;
 				std::size_t i{};
@@ -448,21 +469,8 @@ inline constexpr auto layouts1 = gen_layouts();
 			}
 		}
 		sc.achievement = check_achievement(id, f, sc);
-
-		if (sc.validated) {
-			if (not quiet.getValue()) {
-				std::cout << print_escape(bright_blue, bold)
-				          << "validation successful" << print_escape(none) << "\n";
-			}
-		} else {
-			std::cout << print_escape(red) << "validation failed"
-			          << print_escape(none) << " for fixed test " << succeeded
-			          << " after " << last.cycles << " cycles ";
-			if (std::cmp_equal(sc.cycles, cycles_limit.getValue())) {
-				std::cout << "[timeout]";
-			}
-			std::cout << '\n';
-		}
+		score_summary(sc, last, succeeded, quiet.getValue(),
+		              cycles_limit.getValue());
 	}
 	if (sc.validated and not seed_ranges.empty()) {
 		score last{};
@@ -494,7 +502,8 @@ inline constexpr auto layouts1 = gen_layouts();
 					if (not last.validated) {
 						if (std::exchange(failure_printed, true) == false) {
 							log_info("Random test failed for seed: ", seed);
-							print_validation_failure(f, log_info());
+							print_validation_failure(f, log_info(),
+							                         use_color and log_is_tty);
 						} else {
 							log_debug("Random test failed for seed: ", seed);
 						}
@@ -519,21 +528,7 @@ inline constexpr auto layouts1 = gen_layouts();
 		sc.zero_random = (valid_count == 0);
 		if (not fixed.getValue()) {
 			sc = worst;
-
-			if (sc.validated and not quiet.getValue()) {
-				if (not quiet.getValue()) {
-					std::cout << print_escape(bright_blue, bold)
-					          << "validation successful" << print_escape(none)
-					          << "\n";
-				}
-			} else if (quiet.getValue() < 2) {
-				std::cout << print_escape(red) << "validation failed"
-				          << print_escape(none);
-				if (std::cmp_equal(sc.cycles, cycles_limit.getValue())) {
-					std::cout << " [timeout]";
-				}
-				std::cout << '\n';
-			}
+			score_summary(sc, last, -1, quiet.getValue(), cycles_limit.getValue());
 		}
 		if (stats.isSet()) {
 			std::cout << 100. * valid_count / count << "% (" << valid_count << '/'
