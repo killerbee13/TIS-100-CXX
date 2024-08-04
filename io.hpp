@@ -1,6 +1,6 @@
 /* *****************************************************************************
  * TIS-100-CXX
- * Copyright (c) %YEAR% killerbee, Andrea Stacchiotti
+ * Copyright (c) 2024 killerbee, Andrea Stacchiotti
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
