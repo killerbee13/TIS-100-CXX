@@ -78,7 +78,7 @@ score run(field& l, int cycles_limit, bool print_err) {
 		auto n = it->get();
 		if (n->type() == node::out) {
 			auto p = static_cast<output_node*>(n);
-			if (p->wrong || !p->complete) {
+			if (p->wrong || ! p->complete) {
 				sc.validated = false;
 				break;
 			}
@@ -185,6 +185,11 @@ int main(int argc, char** argv) try {
 	    "", "limit",
 	    "Number of cycles to run test for before timeout. (Default 100500)",
 	    false, 100'500, "integer", cmd);
+	TCLAP::ValueArg<std::size_t> total_cycles_limit(
+	    "", "total-limit",
+	    "Max number of cycles to run between all tests before determining "
+	    "cheating status. (Default no limit)",
+	    false, kblib::max, "integer", cmd);
 
 	TCLAP::ValueArg<bool> fixed("", "fixed", "Run fixed tests. (Default 1)",
 	                            false, true, "[0-1]", cmd);
@@ -446,6 +451,7 @@ inline constexpr auto layouts1 = gen_layouts();
 	log_debug_r([&] { return f.layout(); });
 
 	score sc;
+	std::size_t total_cycles{};
 	sc.validated = true;
 	if (fixed.getValue()) {
 		score last{};
@@ -457,6 +463,7 @@ inline constexpr auto layouts1 = gen_layouts();
 			sc.instructions = last.instructions;
 			sc.nodes = last.nodes;
 			sc.validated = sc.validated and last.validated;
+			total_cycles += last.cycles;
 			log_info("fixed test ", succeeded, ' ',
 			         last.validated ? "validated"sv : "failed"sv, " with score ",
 			         to_string(last, false));
@@ -502,6 +509,7 @@ inline constexpr auto layouts1 = gen_layouts();
 					// for random tests, only one validation is needed
 					worst.validated = worst.validated or last.validated;
 					valid_count += last.validated ? 1 : 0;
+					total_cycles += last.cycles;
 					if (not last.validated) {
 						if (std::exchange(failure_printed, true) == false) {
 							log_info("Random test failed for seed: ", seed);
@@ -520,6 +528,10 @@ inline constexpr auto layouts1 = gen_layouts();
 					if (not f.has_inputs()) {
 						log_info(
 						    "Secondary random tests skipped for invariant level");
+						return;
+					}
+					if (total_cycles >= total_cycles_limit.getValue()) {
+						log_info("Total cycles timeout reached, stopping tests at ", count);
 						return;
 					}
 				}
