@@ -87,6 +87,11 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 				p->neighbors[right] = node_by_location(x + 1, y);
 				p->neighbors[up] = node_by_location(x, y - 1);
 				p->neighbors[down] = node_by_location(x, y + 1);
+				for (auto& n : p->neighbors) {
+					if (n and n->type() == node::Damaged) {
+						n = nullptr;
+					}
+				}
 			}
 		}
 	}
@@ -219,6 +224,11 @@ field parse_layout(std::string_view layout, std::size_t T30_size) {
 				p->neighbors[right] = ret.node_by_location(x + 1, y);
 				p->neighbors[up] = ret.node_by_location(x, y - 1);
 				p->neighbors[down] = ret.node_by_location(x, y + 1);
+				for (auto& n : p->neighbors) {
+					if (n and n->type() == node::Damaged) {
+						n = nullptr;
+					}
+				}
 			}
 		}
 	}

@@ -162,7 +162,7 @@ struct node {
 	/// Attempt to read a value from n, coming from direction p
 	friend std::optional<word_t> do_read(node* n, port p) {
 		assert(p >= port::left and p <= port::D6);
-		if (not valid(n)) {
+		if (not n) {
 			return std::nullopt;
 		} else {
 			return n->emit(p);
@@ -424,9 +424,9 @@ inline std::string pad_left(std::integral auto input, std::size_t size,
 }
 
 template <typename Stream>
-requires requires(Stream s) {
-	{s << "" << 1};
-}
+   requires requires(Stream s) {
+	   { s << "" << 1 };
+   }
 inline Stream&& write_list(Stream&& os, const word_vec& v,
                            const word_vec* expected = nullptr,
                            bool colored = use_color) {
