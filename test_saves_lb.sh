@@ -5,7 +5,7 @@ function exists
 	or return
 end
 
-argparse --ignore-unknown --name=test_saves.sh 'i/interactive' 'd/save-dir=!exists' 's/success-file=?' 'f/fail-file=?' 'w/wrong-file=?' 'n' -- $argv
+argparse --ignore-unknown --name=test_saves.sh 'i/interactive' 'd/save-dir=!exists' 's/success-file=?' 'f/fail-file=?' 'w/wrong-file=?' 'a/all-file=?' 'n' -- $argv
 or return
 
 set -l save_dir $_flag_d
@@ -26,6 +26,11 @@ set -l wrong_file $_flag_w
 if set -q _flag_n
 	set _flag_n --fixed 0
 end
+if not set -q _flag_a
+	set all_file /dev/null
+else
+	set all_file $_flag_a
+end
 
 
 set -l files_count 0
@@ -36,11 +41,16 @@ set -l fail_count 0
 echo > $success_file
 echo > $fail_file
 echo > $wrong_file
+echo > $all_file
 
-set tmp_result (mktemp)
+set tmp_result (mktemp --suffix=TIS)
 
 function filter_result
-	tail -n 1 $tmp_result | sed -Ee 's/^score: //' | sed "s,\x1B\[[0-9;]*[a-zA-Z],,g" | tr z c
+	tail -n 1 $tmp_result | sed -Ee 's/^score: //' -e 's, PR:.*,,' | sed "s,\x1B\[[0-9;]*[a-zA-Z],,g" | tr z c
+end
+
+function filter_pr
+	tail -n 1 $tmp_result | grep 'PR:' | sed -Ee 's,(.*PR: ),,'
 end
 
 for map in $save_dir/TIS*
@@ -72,6 +82,9 @@ for map in $save_dir/TIS*
 				set fail_count (math $fail_count + 1)
 				echo $expected '!'
 			end
+			set -l result (filter_result)
+			set -l PR (filter_pr)
+			echo "$file; $result; $expected; $PR" >> $all_file
 			fgrep '##' $file
 			if set -q _flag_i
 				read _

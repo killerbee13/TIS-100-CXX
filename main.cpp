@@ -475,11 +475,11 @@ inline constexpr auto layouts1 = gen_layouts();
 		score_summary(sc, last, succeeded, quiet.getValue(),
 		              cycles_limit.getValue());
 	}
+	int count = 0;
+	int valid_count = 0;
 	if (sc.validated and not seed_ranges.empty()) {
 		score last{};
 		score worst{};
-		int count = 0;
-		int valid_count = 0;
 		bool failure_printed{};
 		[&] {
 			for (auto seed_range : seed_ranges) {
@@ -533,19 +533,16 @@ inline constexpr auto layouts1 = gen_layouts();
 			sc = worst;
 			score_summary(sc, last, -1, quiet.getValue(), cycles_limit.getValue());
 		}
-		if (stats.isSet()) {
-			std::cout << 100. * valid_count / count << "% (" << valid_count << '/'
-			          << count << ")";
-			if (not quiet.isSet()) {
-				std::cout << " of random tests passed.";
-			}
-			std::cout << "\n";
-		}
 	}
 	if (not quiet.getValue()) {
 		std::cout << "score: ";
 	}
-	std::cout << sc << '\n';
+	std::cout << sc;
+	if (count > 0 and stats.isSet()) {
+		std::cout << " PR: " << 100. * valid_count / count << "% (" << valid_count
+		          << '/' << count << ")";
+	}
+	std::cout << '\n';
 
 	// This was used to analyze the failure chance of EXPOSURE MASK VIEWER's
 	// random test generation and serves no continuing purpose.
