@@ -631,7 +631,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 		std::erase(tokens, "");
 
 		auto assert_last_operand = [&](std::size_t j) {
-			if (tokens.size() < j) {
+			if (tokens.size() < j + 1) {
 				throw std::invalid_argument{
 				    concat('@', node, ':', l, ": Expected operand")};
 			}
