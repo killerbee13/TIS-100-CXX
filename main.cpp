@@ -78,7 +78,7 @@ score run(field& l, int cycles_limit, bool print_err) {
 		auto n = it->get();
 		if (n->type() == node::out) {
 			auto p = static_cast<output_node*>(n);
-			if (p->wrong) {
+			if (p->wrong || !p->complete) {
 				sc.validated = false;
 				break;
 			}
