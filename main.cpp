@@ -531,7 +531,8 @@ inline constexpr auto layouts1 = gen_layouts();
 						return;
 					}
 					if (total_cycles >= total_cycles_limit.getValue()) {
-						log_info("Total cycles timeout reached, stopping tests at ", count);
+						log_info("Total cycles timeout reached, stopping tests at ",
+						         count);
 						return;
 					}
 				}

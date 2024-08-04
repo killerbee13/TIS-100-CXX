@@ -369,6 +369,7 @@ void set_expected(field& f, const single_test& expected) {
 			assert(out_idx < expected.n_outputs.size());
 			auto o = static_cast<output_node*>(p);
 			o->outputs_expected = expected.n_outputs[out_idx++];
+			o->complete = o->outputs_expected.empty();
 			auto log = log_debug();
 			log << "set expected output O" << o->x << ":";
 			write_list(log, o->outputs_expected, nullptr,

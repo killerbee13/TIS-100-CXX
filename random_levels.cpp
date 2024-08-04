@@ -1299,6 +1299,7 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 		assert(false);
 	}
 
+	auto log = log_debug();
 	// I don't know why the game clamp negative values to -99
 	auto clamp = [](auto& vec) {
 		std::ranges::transform(vec, vec.begin(), [](word_t v) {
@@ -1306,10 +1307,19 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 		});
 	};
 	for (auto& v : ret.inputs) {
+		log << "Clamping in: ";
+		write_list(log, v);
 		clamp(v);
+		log << " to ";
+		write_list(log, v);
 	}
 	for (auto& v : ret.n_outputs) {
+		log << "Clamping out: ";
+		write_list(log, v);
 		clamp(v);
+		log << " to ";
+		write_list(log, v);
+		log << "\n";
 	}
 
 	return ret;
