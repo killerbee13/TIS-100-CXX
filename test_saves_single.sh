@@ -44,6 +44,11 @@ echo > $wrong_file
 
 set tmp_result (mktemp --suffix=TIS)
 
+function filter_expected
+	set -l RE "s@$id\.([0-9]+)-([0-9]+)-([0-9]+)-?(a?c?).txt@\1/\2/\3/\4@"
+	basename $argv[1] | sed -Ee $RE -e 's@/$@@'
+end
+
 function filter_result
 	tail -n 1 $tmp_result | sed -Ee 's/^score: //' | sed "s,\x1B\[[0-9;]*[a-zA-Z],,g" | tr z c
 end
@@ -56,8 +61,7 @@ echo $save_dir
 set id (basename $save_dir)
 for file in $save_dir/$id*
 	set files_count (math $files_count + 1)
-	set -l RE "s@$id\.([0-9]+)-([0-9]+)-([0-9]+)-?(a?c?).txt@\1/\2/\3/\4@"
-	set -l expected (basename $file | sed -Ee $RE -e 's@/$@@')
+	set -l expected (filter_expected $file)
 	
 	echo ./TIS-100-CXX $_flag_n $argv -c (basename $file) $id
 	./TIS-100-CXX $_flag_n $argv -c $file $id | tee $tmp_result
