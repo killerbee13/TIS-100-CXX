@@ -61,9 +61,7 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 				nodes.push_back(std::make_unique<T21>(x, y));
 				break;
 			case node::T30: {
-				auto p = std::make_unique<T30>(x, y);
-				p->max_size = T30_size;
-				nodes.push_back(std::move(p));
+				nodes.push_back(std::make_unique<T30>(x, y, T30_size));
 			} break;
 			case node::Damaged:
 				nodes.push_back(std::make_unique<damaged>(x, y));
@@ -196,9 +194,7 @@ field parse_layout(std::string_view layout, std::size_t T30_size) {
 				// S (stack) and M (memory) are interchangeable
 			case cs[1]:
 			case cs[2]: {
-				auto p = std::make_unique<T30>(x, y);
-				p->max_size = T30_size;
-				ret.nodes[i] = std::move(p);
+				ret.nodes[i] = std::make_unique<T30>(x, y, T30_size);
 			} break;
 			default:
 				log_warn("unknown node type ", kblib::quoted(c), " in layout");

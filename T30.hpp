@@ -23,7 +23,12 @@
 #include <vector>
 
 struct T30 : node {
-	using node::node;
+	T30(int x, int y, std::size_t max_size)
+	    : node(x, y)
+	    , max_size(max_size) {
+		data.reserve(max_size);
+		buffer.reserve(4);
+	}
 	word_vec data;
 	word_vec buffer;
 	std::size_t max_size{def_T30_size};
