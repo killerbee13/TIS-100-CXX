@@ -44,7 +44,8 @@ on a validation, including a cheated solution, 1 on a validation failure, and 2
 on an exception.
 
 The most useful options are:
-- `--limit N`: set the timeout limit for the simulation
+- `--limit N`: set the timeout limit for the simulation. Default 100500 (enough
+  for BUSY_LOOP with a little slack)
 - `--seeds L..H`: a comma-separated list of integer ranges, such as 0..99.
   Ranges are inclusive on both sides. Can also specify an individual integer,
   meaning a range of just that integer. Can be specified multiple times, which
