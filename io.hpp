@@ -130,9 +130,6 @@ struct image_output : node {
 			} else if (not c_y) {
 				c_y = r;
 			} else {
-				if (r > 4) {
-					r = 0;
-				}
 				poke(*r);
 				++*c_x;
 			}

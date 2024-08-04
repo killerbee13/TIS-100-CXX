@@ -213,11 +213,18 @@ struct tis_pixel {
 	    // a shader that darkens them
 	};
 
+	static color normalize(color c) {
+		if (c > 3 or c < 0) {
+			return C_black;
+		}
+		return c;
+	}
+
 	tis_pixel() = default;
 	constexpr tis_pixel(color c) noexcept
-	    : val(c) {}
+	    : val(normalize(c)) {}
 	explicit(false) constexpr tis_pixel(std::integral auto c) noexcept
-	    : val(static_cast<color>(c)) {}
+	    : val(normalize(static_cast<color>(c))) {}
 
 	pnm::rgb_pixel as_rgb() const { return colors[val]; }
 	constexpr operator pnm::rgb_pixel() const { return colors[val]; }

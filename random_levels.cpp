@@ -1295,7 +1295,22 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 		}
 	} break;
 	default:
-		throw std::invalid_argument{""};
+		// no need to throw, the -L flag checks the range anyway
+		assert(false);
 	}
+
+	// I don't know why the game clamp negative values to -99
+	auto clamp = [](auto& vec) {
+		std::ranges::transform(vec, vec.begin(), [](word_t v) {
+			return std::clamp(v, word_t{-99}, word_max);
+		});
+	};
+	for (auto& v : ret.inputs) {
+		clamp(v);
+	}
+	for (auto& v : ret.n_outputs) {
+		clamp(v);
+	}
+
 	return ret;
 }
