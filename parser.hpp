@@ -79,7 +79,7 @@ class field {
 
 	/// Write the full state of all nodes, similar to what the game displays in
 	/// its debugger but in linear order
-	std::string state() {
+	std::string state() const {
 		std::string ret;
 		for (auto& n : nodes) {
 			ret += n->print();
@@ -99,14 +99,7 @@ class field {
 	// Whether there are any input nodes attached to the field. Image test
 	// pattern levels do not use inputs so only need a single test run.
 	bool has_inputs() const {
-		for (auto it = begin_io(); it != begin_output(); ++it) {
-			if (auto p = it->get(); p->type() == node::in) {
-				log_debug("Field has input at location ", p->x);
-				return true;
-			}
-		}
-		log_debug("Field has no inputs");
-		return false;
+		return begin_io() != begin_output();
 	}
 
 	/// Serialize layout as read by parse_layout
