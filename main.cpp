@@ -138,6 +138,8 @@ int generate(uint32_t seed);
 
 void score_summary(score sc, score last, int fixed, int quiet,
                    int cycles_limit) {
+	// we use stdout here, so flush logs to avoid mangled messages in the shell
+	std::clog << std::flush;
 	if (sc.validated) {
 		if (not quiet) {
 			std::cout << print_escape(bright_blue, bold) << "validation successful"
