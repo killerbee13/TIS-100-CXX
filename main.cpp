@@ -98,10 +98,10 @@ score run(field& l, int cycles_limit, bool print_err) {
 	return sc;
 }
 
-template <std::integral T>
-class range_int_constraint : public TCLAP::Constraint<T> {
+template <typename T>
+class range_constraint : public TCLAP::Constraint<T> {
  public:
-	range_int_constraint(T low, T high)
+	range_constraint(T low, T high)
 	    : low(low)
 	    , high(high) {
 		if (low > high) {
@@ -172,7 +172,7 @@ int main(int argc, char** argv) try {
 	TCLAP::UnlabeledValueArg<std::string> id_arg(
 	    "ID", "Level ID (Segment or name).", false, "", &ids_c);
 
-	range_int_constraint<int> level_nums_constraint(0, layouts.size() - 1);
+	range_constraint<int> level_nums_constraint(0, layouts.size() - 1);
 	// unused because the test case parser is not implemented
 	TCLAP::ValueArg<std::string> layout_s("l", "layout", "Layout string", false,
 	                                      "", "layout");
@@ -192,7 +192,7 @@ int main(int argc, char** argv) try {
 	    false, kblib::max, "integer", cmd);
 
 	TCLAP::ValueArg<bool> fixed("", "fixed", "Run fixed tests. (Default 1)",
-	                            false, true, "[0-1]", cmd);
+	                            false, true, "[0,1]", cmd);
 	// unused because the test case parser is not implemented
 	TCLAP::ValueArg<std::string> set_test("t", "test", "Manually set test cases",
 	                                      false, "", "test case");
@@ -208,10 +208,16 @@ int main(int argc, char** argv) try {
 	                                        false, "[range-expr...]", cmd);
 	TCLAP::AnyOf implicit_random(cmd);
 	implicit_random.add(random).add(seed_arg);
+	range_constraint percentage(0.0, 1.0);
+	TCLAP::ValueArg<double> cheat_rate(
+	    "", "cheat-rate",
+	    "Threshold between /c and /z solutions, "
+	    "as a fraction of total random tests. (Default 0.05)",
+	    false, 0.05, &percentage, cmd);
 
 	// Size constraint of word_max guarantees that JRO can reach every
 	// instruction
-	range_int_constraint<unsigned> size_constraint(0, word_max);
+	range_constraint<unsigned> size_constraint(0, word_max);
 	TCLAP::ValueArg<unsigned> T21_size(
 	    "", "T21_size",
 	    concat("Number of instructions allowed per T21 node. (Default ",
@@ -372,16 +378,16 @@ int main(int argc, char** argv) try {
 		seed_ranges.push_back({seed, random.getValue()});
 	}
 
+	std::uint32_t total_random_tests{};
 	{
 		auto log = log_debug();
 		log << "Seed ranges parsed: {\n";
-		std::uint32_t total{};
 		for (auto r : seed_ranges) {
 			log << r.begin << ".." << r.begin + r.size - 1 << " [" << r.size
 			    << "]; ";
-			total += r.size;
+			total_random_tests += r.size;
 		}
-		log << "\n} sum: " << total << " tests";
+		log << "\n} sum: " << total_random_tests << " tests";
 	}
 	if (dry_run.getValue()) {
 		return 0;
@@ -512,7 +518,11 @@ inline constexpr auto layouts1 = gen_layouts();
 					total_cycles += last.cycles;
 					if (not last.validated) {
 						if (std::exchange(failure_printed, true) == false) {
-							log_info("Random test failed for seed: ", seed);
+							log_info(
+							    "Random test failed for seed: ", seed,
+							    std::cmp_equal(last.cycles, cycles_limit.getValue())
+							        ? "[timeout]"
+							        : "");
 							print_validation_failure(f, log_info(),
 							                         use_color and log_is_tty);
 						} else {
@@ -520,8 +530,10 @@ inline constexpr auto layouts1 = gen_layouts();
 						}
 					}
 					if (not stats.isSet()) {
-						// at least one pass and at least one fail
-						if (valid_count > 0 and valid_count < count) {
+						// at least K passes and at least one fail
+						if (valid_count
+						        >= static_cast<int>(cheat_rate * total_random_tests)
+						    and valid_count < count) {
 							return;
 						}
 					}
@@ -540,19 +552,30 @@ inline constexpr auto layouts1 = gen_layouts();
 		}();
 		log_info("Random test results: ", valid_count, " passed out of ", count,
 		         " total");
+
 		sc.cheat = (count != valid_count);
-		sc.zero_random = (valid_count == 0);
+		sc.zero_random = (valid_count <= static_cast<int>(count * cheat_rate));
 		if (not fixed.getValue()) {
 			sc = worst;
 			score_summary(sc, last, -1, quiet.getValue(), cycles_limit.getValue());
 		}
 	}
+
 	if (not quiet.getValue()) {
 		std::cout << "score: ";
 	}
 	std::cout << sc;
 	if (count > 0 and stats.isSet()) {
-		std::cout << " PR: " << 100. * valid_count / count << "% (" << valid_count
+		const auto rate = 100. * valid_count / count;
+		std::cout << " PR: ";
+		if (valid_count == count) {
+			std::cout << print_escape(bright_blue, bold);
+		} else if (rate >= 100 * cheat_rate) {
+			std::cout << print_escape(yellow);
+		} else {
+			std::cout << print_escape(bright_red);
+		}
+		std::cout << rate << '%' << print_escape(none) << " (" << valid_count
 		          << '/' << count << ")";
 	}
 	std::cout << '\n';

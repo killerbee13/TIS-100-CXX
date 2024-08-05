@@ -50,11 +50,11 @@ function filter_expected
 end
 
 function filter_result
-	tail -n 1 $tmp_result | sed -Ee 's/^score: //' | sed "s,\x1B\[[0-9;]*[a-zA-Z],,g" | tr z c
+	tail -n 1 $tmp_result | sed -Ee 's,^score: ,,' -e 's, PR:.*,,' | sed "s,\x1B\[[0-9;]*[a-zA-Z],,g" | tr z c
 end
 
 function filter_pr
-	tail -n 1 $tmp_result | grep 'PR:' | sed -Ee 's,(.*PR: ),,'
+	tail -n 1 $tmp_result | grep 'PR:' | sed -Ee 's,(.*PR: ),,' | sed "s,\x1B\[[0-9;]*[a-zA-Z],,g"
 end
 
 echo $save_dir

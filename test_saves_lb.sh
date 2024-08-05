@@ -55,7 +55,7 @@ function filter_result
 end
 
 function filter_pr
-	tail -n 1 $tmp_result | grep 'PR:' | sed -Ee 's,(.*PR: ),,'
+	tail -n 1 $tmp_result | grep 'PR:' | sed -Ee 's,(.*PR: ),,' | sed "s,\x1B\[[0-9;]*[a-zA-Z],,g"
 end
 
 for map in $save_dir/TIS*
