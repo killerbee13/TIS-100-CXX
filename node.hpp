@@ -214,7 +214,7 @@ struct tis_pixel {
 	};
 
 	static color normalize(auto c) {
-		if (c > 3 or c < 0) {
+		if (c > C_red or c < 0) {
 			return C_black;
 		}
 		return static_cast<color>(c);
