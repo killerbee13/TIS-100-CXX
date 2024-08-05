@@ -1300,10 +1300,12 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 	}
 
 	auto log = log_debug();
-	// I don't know why the game clamp negative values to -99
+	// I don't know why the game clamp negative values to -99, but it breaks
+	// tests (segment 32050 seed 103061) so we're doing the sensible thing even
+	// if it's wrong as far as a simulational versimilitude is concerned
 	auto clamp = [](auto& vec) {
 		std::ranges::transform(vec, vec.begin(), [](word_t v) {
-			return std::clamp(v, word_t{-99}, word_max);
+			return std::clamp(v, word_min, word_max);
 		});
 	};
 	for (auto& v : ret.inputs) {
