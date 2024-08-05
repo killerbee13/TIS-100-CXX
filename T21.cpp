@@ -82,7 +82,7 @@ void T21::step() {
 	case instr::hcf: {
 		log << "hcf";
 		log << "\n\ts = " << state_name(s);
-		throw std::runtime_error{"HCF"};
+		throw hcf_exception{x, y, pc};
 	}
 	case instr::nop: {
 		log << "nop";
@@ -187,7 +187,8 @@ void T21::step() {
 	} break;
 	case instr::jez: {
 		auto* i = std::get_if<instr::jez>(&instr.data);
-		log << "jez (" << (acc == 0 ? "taken" : "not taken") << ") " << +i->target;
+		log << "jez (" << (acc == 0 ? "taken" : "not taken") << ") "
+		    << +i->target;
 		if (acc == 0) {
 			pc = i->target;
 		} else {
@@ -197,7 +198,8 @@ void T21::step() {
 	} break;
 	case instr::jnz: {
 		auto* i = std::get_if<instr::jnz>(&instr.data);
-		log << "jnz (" << (acc != 0 ? "taken" : "not taken") << ") " << +i->target;
+		log << "jnz (" << (acc != 0 ? "taken" : "not taken") << ") "
+		    << +i->target;
 		if (acc != 0) {
 			pc = i->target;
 		} else {

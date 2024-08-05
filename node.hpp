@@ -464,4 +464,10 @@ inline Stream&& write_list(Stream&& os, const word_vec& v,
 	return std::forward<Stream>(os);
 }
 
+struct hcf_exception {
+	int x{};
+	int y{};
+	int line{};
+};
+
 #endif // NODE_HPP

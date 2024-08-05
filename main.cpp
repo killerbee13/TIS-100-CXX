@@ -70,35 +70,40 @@ score run(field& l, int cycles_limit, bool print_err) {
 	score sc{};
 	sc.instructions = l.instructions();
 	sc.nodes = l.nodes_used();
-	do {
-		++sc.cycles;
-		log_debug("step ", sc.cycles);
-		log_debug_r([&] { return "Current state:\n" + l.state(); });
-		l.step();
-	} while (stop_requested == 0 and l.active()
-	         and std::cmp_less(sc.cycles, cycles_limit));
-	sc.validated = true;
+	try {
+		do {
+			++sc.cycles;
+			log_debug("step ", sc.cycles);
+			log_debug_r([&] { return "Current state:\n" + l.state(); });
+			l.step();
+		} while (stop_requested == 0 and l.active()
+		         and std::cmp_less(sc.cycles, cycles_limit));
+		sc.validated = true;
 
-	log_flush();
-	for (auto it = l.begin_output(); it != l.end(); ++it) {
-		auto n = it->get();
-		if (n->type() == node::out) {
-			auto p = static_cast<output_node*>(n);
-			if (p->wrong || ! p->complete) {
-				sc.validated = false;
-				break;
-			}
-		} else if (n->type() == node::image) {
-			auto p = static_cast<image_output*>(n);
-			if (p->image_expected != p->image_received) {
-				sc.validated = false;
-				break;
+		log_flush();
+		for (auto it = l.begin_output(); it != l.end(); ++it) {
+			auto n = it->get();
+			if (n->type() == node::out) {
+				auto p = static_cast<output_node*>(n);
+				if (p->wrong || ! p->complete) {
+					sc.validated = false;
+					break;
+				}
+			} else if (n->type() == node::image) {
+				auto p = static_cast<image_output*>(n);
+				if (p->image_expected != p->image_received) {
+					sc.validated = false;
+					break;
+				}
 			}
 		}
-	}
 
-	if (print_err and not sc.validated) {
-		print_validation_failure(l, std::cout, use_color);
+		if (print_err and not sc.validated) {
+			print_validation_failure(l, std::cout, use_color);
+		}
+	} catch (hcf_exception& e) {
+		log_info("Test aborted by HCF (node ", e.x, ',', e.y, ':', e.line, ')');
+		sc.validated = false;
 	}
 
 	return sc;
