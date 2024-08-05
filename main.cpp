@@ -21,6 +21,7 @@
 #include "node.hpp"
 #include "parser.hpp"
 #include "random_levels.hpp"
+#include <csignal>
 #include <iostream>
 
 #include <kblib/hash.h>
@@ -30,6 +31,10 @@
 #include <tclap/CmdLine.h>
 
 using namespace std::literals;
+
+volatile std::sig_atomic_t stop_requested;
+
+extern "C" void sigterm_handler(int signal) { stop_requested = signal; }
 
 template <typename T>
 void print_validation_failure(field& l, T&& os, bool color) {
@@ -70,7 +75,8 @@ score run(field& l, int cycles_limit, bool print_err) {
 		log_debug("step ", sc.cycles);
 		log_debug_r([&] { return "Current state:\n" + l.state(); });
 		l.step();
-	} while (l.active() and std::cmp_less(sc.cycles, cycles_limit));
+	} while (stop_requested == 0 and l.active()
+	         and std::cmp_less(sc.cycles, cycles_limit));
 	sc.validated = true;
 
 	log_flush();
@@ -122,13 +128,6 @@ class range_constraint : public TCLAP::Constraint<T> {
 	T low{};
 	T high{};
 };
-
-namespace TCLAP {
-template <>
-struct ArgTraits<field> {
-	using ValueCategory = StringLike;
-};
-} // namespace TCLAP
 
 int generate(uint32_t seed);
 
@@ -263,6 +262,10 @@ int main(int argc, char** argv) try {
 	use_color = color.isSet();
 	// Check if the log is being redirected
 	log_is_tty = log_color.isSet() or isatty(STDERR_FILENO);
+	signal(SIGTERM, sigterm_handler);
+	signal(SIGINT, sigterm_handler);
+	signal(SIGUSR1, sigterm_handler);
+	signal(SIGUSR2, sigterm_handler);
 
 	set_log_level([&] {
 		using namespace kblib::literals;
@@ -465,6 +468,10 @@ inline constexpr auto layouts1 = gen_layouts();
 		for (auto test : static_suite(id)) {
 			set_expected(f, test);
 			last = run(f, cycles_limit.getValue(), true);
+			if (stop_requested) {
+				log_notice("Stop requested");
+				break;
+			}
 			sc.cycles = std::max(sc.cycles, last.cycles);
 			sc.instructions = last.instructions;
 			sc.nodes = last.nodes;
@@ -509,6 +516,11 @@ inline constexpr auto layouts1 = gen_layouts();
 					set_expected(f, *test);
 					last = run(f, cycles_limit.getValue(),
 					           not quiet.isSet() and valid_count == count);
+					if (stop_requested) {
+						log_notice("Stop requested");
+						--count;
+						break;
+					}
 					worst.cycles = std::max(worst.cycles, last.cycles);
 					worst.instructions = last.instructions;
 					worst.nodes = last.nodes;
