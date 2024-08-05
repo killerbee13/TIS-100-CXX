@@ -367,7 +367,8 @@ int main(int argc, char** argv) try {
 						                  " in seed expr")};
 					}
 				}
-				auto e = kblib::parse_integer<std::uint32_t>(*end);
+				auto e = end->empty() ? kblib::max
+				                      : kblib::parse_integer<std::uint32_t>(*end);
 				if (e < b) {
 					throw std::invalid_argument{kblib::concat(
 					    "Seed ranges must be low..high, got: ", b, "..", e)};
