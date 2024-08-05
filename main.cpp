@@ -304,11 +304,11 @@ int main(int argc, char** argv) try {
 	field f = [&] {
 		if (id_arg.isSet()) {
 			id = level_id(id_arg.getValue());
-			return field(layouts1.at(static_cast<std::size_t>(id)).layout,
+			return field(layouts.at(static_cast<std::size_t>(id)).layout,
 			             T30_size.getValue());
 		} else if (level_num.isSet()) {
 			id = level_num.getValue();
-			return field(layouts1.at(static_cast<std::size_t>(id)).layout,
+			return field(layouts.at(static_cast<std::size_t>(id)).layout,
 			             T30_size.getValue());
 		} else if (layout_s.isSet()) {
 			id = -1;
@@ -418,6 +418,7 @@ int main(int argc, char** argv) try {
 		}
 	}
 
+#ifdef OLD_LAYOUTS
 	if (write_machine_layout.isSet()) {
 		std::ofstream out(write_machine_layout.getValue());
 
@@ -462,6 +463,7 @@ inline constexpr auto layouts1 = gen_layouts();
 #endif
 )cpp";
 	}
+#endif
 
 	log_debug_r([&] { return f.layout(); });
 
@@ -674,6 +676,7 @@ inline constexpr auto layouts1 = gen_layouts();
 	throw;
 }
 
+#ifdef OLD_LAYOUTS
 // this was mostly to check that the parser and serializer (layout())
 // round-tripped correctly
 int generate(std::uint32_t seed) {
@@ -732,3 +735,4 @@ int generate(std::uint32_t seed) {
 	}
 	return 0;
 }
+#endif
