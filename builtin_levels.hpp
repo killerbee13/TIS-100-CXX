@@ -38,6 +38,15 @@ consteval int operator""_lvl(const char* s, std::size_t size) {
 	return level_id(std::string_view(s, size));
 }
 
+constexpr std::optional<int> guess_level_id(std::string_view filename) {
+	for (auto i : range(layouts.size())) {
+		if (filename.starts_with(layouts[i].segment)) {
+			return static_cast<int>(i);
+		}
+	}
+	return std::nullopt;
+}
+
 inline image_t checkerboard(std::ptrdiff_t w, std::ptrdiff_t h) {
 	image_t ret(w, h);
 	for (const auto y : range(h)) {

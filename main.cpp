@@ -182,7 +182,7 @@ int main(int argc, char** argv) try {
 	                                      "", "layout");
 	TCLAP::ValueArg<int> level_num("L", "level", "Numeric level ID", false, 0,
 	                               &level_nums_constraint);
-	TCLAP::OneOf layout(cmd);
+	TCLAP::EitherOf layout(cmd);
 	layout.add(id_arg).add(level_num); //.add(layout_s);
 
 	TCLAP::ValueArg<int> cycles_limit(
@@ -313,8 +313,18 @@ int main(int argc, char** argv) try {
 		} else if (layout_s.isSet()) {
 			id = -1;
 			return parse_layout_guess(layout_s.getValue(), T30_size.getValue());
+		} else if (auto filename = std::filesystem::path(solution.getValue())
+		                               .filename()
+		                               .string();
+		           auto maybeId = guess_level_id(filename)) {
+			id = *maybeId;
+			log_debug("Deduced level ", layouts[id].segment, " from filename \"",
+			          filename, "\"");
+			return field(layouts.at(static_cast<std::size_t>(id)).layout,
+			             T30_size.getValue());
 		} else {
-			abort();
+			throw std::invalid_argument{
+			    "Impossible to determine the level ID from information given"};
 		}
 	}();
 
