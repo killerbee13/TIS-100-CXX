@@ -243,7 +243,6 @@ void T21::step() {
 	default:
 		std::unreachable();
 	}
-	log << "\n                    s = " << state_name(s);
 }
 void T21::finalize() {
 	if (code.empty()) {
