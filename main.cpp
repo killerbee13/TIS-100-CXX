@@ -217,7 +217,7 @@ int main(int argc, char** argv) try {
 	range_constraint percentage(0.0, 1.0);
 	TCLAP::ValueArg<double> cheat_rate(
 	    "", "cheat-rate",
-	    "Threshold between /c and /z solutions, "
+	    "Threshold between /c and /h solutions, "
 	    "as a fraction of total random tests. (Default 0.05)",
 	    false, 0.05, &percentage, cmd);
 
@@ -586,7 +586,7 @@ inline constexpr auto layouts1 = gen_layouts();
 		         " total");
 
 		sc.cheat = (count != valid_count);
-		sc.zero_random = (valid_count <= static_cast<int>(count * cheat_rate));
+		sc.hardcoded = (valid_count <= static_cast<int>(count * cheat_rate));
 		if (not fixed.getValue()) {
 			sc = worst;
 			score_summary(sc, last, -1, quiet.getValue(), cycles_limit.getValue());

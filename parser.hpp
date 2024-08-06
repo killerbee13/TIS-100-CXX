@@ -198,7 +198,7 @@ struct score {
 	bool validated{};
 	bool achievement{};
 	bool cheat{};
-	bool zero_random{};
+	bool hardcoded{};
 
 	friend std::ostream& operator<<(std::ostream& os, score sc) {
 		if (sc.validated) {
@@ -214,8 +214,8 @@ struct score {
 			if (sc.achievement) {
 				os << print_escape(bright_blue, bold) << 'a' << print_escape(none);
 			}
-			if (sc.zero_random) {
-				os << print_escape(red) << 'z';
+			if (sc.hardcoded) {
+				os << print_escape(red) << 'h';
 			} else if (sc.cheat) {
 				os << print_escape(yellow) << 'c';
 			}
