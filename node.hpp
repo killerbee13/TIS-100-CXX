@@ -138,11 +138,7 @@ struct node {
 	/// Attempt to answer a read from this node, coming from direction p
 	virtual std::optional<word_t> emit(port p) = 0;
 	/// Generate a string representation of the current state of the node
-	virtual std::string print() const = 0;
-
-	// Damaged and stack nodes are always idle, so this default simplifies them.
-	// Used to determine if the field has fully stalled.
-	virtual activity state() const noexcept { return activity::idle; };
+	virtual std::string state() const = 0;
 
 	// In theory this may be expanded to a "TIS-3D" simulator which will have 6
 	// neighbors for each node.
@@ -183,7 +179,7 @@ struct damaged : node {
 	void finalize() override {}
 	void reset() noexcept override {}
 	std::optional<word_t> emit(port) override { return std::nullopt; }
-	std::string print() const override {
+	std::string state() const override {
 		return concat("(", x, ',', y, ") {Damaged}");
 	}
 };

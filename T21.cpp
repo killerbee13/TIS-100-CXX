@@ -293,7 +293,7 @@ std::optional<word_t> T21::emit(port p) {
 	}
 }
 
-std::string T21::print() const {
+std::string T21::state() const {
 	return concat('(', x, ',', y, ") T21 { ", pad_right(acc, 4), " (",
 	              pad_right(bak, 4), ") ", pad_right(port_name(last), 5), ' ',
 	              pad_right(state_name(s), 4), ' ', pad_left(pc, 2), " [",

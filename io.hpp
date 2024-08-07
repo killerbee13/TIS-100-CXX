@@ -52,7 +52,7 @@ struct input_node : node {
 		writing = bool(wrt);
 		return std::exchange(wrt, std::nullopt);
 	}
-	std::string print() const override {
+	std::string state() const override {
 		return concat("I", x, " NUMERIC { ", state_name(s), " emitted:(", idx,
 		              "/", inputs.size(), ") }");
 	}
@@ -93,7 +93,7 @@ struct output_node : node {
 		complete = false;
 	}
 	std::optional<word_t> emit(port) override { return std::nullopt; }
-	std::string print() const override {
+	std::string state() const override {
 		std::ostringstream ret;
 		ret << concat("O", x, " NUMERIC {\nreceived:");
 		write_list(ret, outputs_received, &outputs_expected,
@@ -142,7 +142,7 @@ struct image_output : node {
 		c_y.reset();
 	}
 	std::optional<word_t> emit(port) override { return std::nullopt; }
-	std::string print() const override {
+	std::string state() const override {
 		return concat("O", x, " IMAGE {\n", image_received.write_text(), "}");
 	}
 

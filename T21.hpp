@@ -124,8 +124,7 @@ struct T21 : node {
 		s = activity::idle;
 	}
 	std::optional<word_t> emit(port) override;
-	activity state() const noexcept override { return s; }
-	std::string print() const override;
+	std::string state() const override;
 
 	word_t acc{}, bak{}, wrt{};
 	word_t pc{};

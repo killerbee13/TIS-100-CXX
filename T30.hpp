@@ -71,7 +71,7 @@ struct T30 : node {
 			return std::nullopt;
 		}
 	}
-	std::string print() const override {
+	std::string state() const override {
 		std::string ret = concat('(', x, ',', y, ") T30 {");
 		for (auto w : data) {
 			append(ret, w, ", ");

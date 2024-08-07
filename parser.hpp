@@ -82,7 +82,7 @@ class field {
 	std::string state() const {
 		std::string ret;
 		for (auto& n : nodes) {
-			ret += n->print();
+			ret += n->state();
 			ret += '\n';
 		}
 		return ret;
