@@ -20,6 +20,7 @@
 
 #include "node.hpp"
 
+#include <span>
 #include <string>
 #include <vector>
 
@@ -106,8 +107,11 @@ struct T21 : node {
 	word_t acc{}, bak{}, wrt{};
 	word_t pc{};
 	port write_port{port::nil}, last{port::nil};
-	std::vector<instr> code;
+	std::span<instr> code;
 	activity s{activity::idle};
+
+	std::unique_ptr<instr[]> large_;
+	std::array<instr, def_T21_size> small_;
 
  private:
 	/// Increment the program counter, wrapping to beginning.
