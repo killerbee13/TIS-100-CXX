@@ -21,32 +21,13 @@
 #include "node.hpp"
 
 #include <string>
-#include <variant>
 #include <vector>
-
-struct seq_instr {};
-struct mov_instr {
-	port src{}, dst{};
-	word_t val;
-};
-struct arith_instr {
-	port src{};
-	word_t val;
-};
-// Note that label names are not stored
-struct jmp_instr {
-	word_t target;
-};
-struct jro_instr {
-	port src{};
-	word_t val;
-};
 
 struct T21;
 
 struct instr {
 	// HCF as opcode 0 makes crashes more likely on OOB code reads
-	enum op {
+	enum op : std::int8_t {
 		hcf,
 		nop,
 		swp,
@@ -62,15 +43,11 @@ struct instr {
 		jlz, // 5
 		jro, // 1
 	};
-	// variant index corresponds to instruction op
-	std::variant<seq_instr, seq_instr, seq_instr, seq_instr, seq_instr, //
-	             mov_instr,                                             //
-	             arith_instr, arith_instr,                              //
-	             jmp_instr, jmp_instr, jmp_instr, jmp_instr, jmp_instr, //
-	             jro_instr>
-	    data;
-
-	op get_op() const { return static_cast<op>(data.index()); }
+	op op_;
+	port src{immediate};
+	word_t val{};
+	// stores either MOV dst or jump target
+	word_t data{};
 };
 constexpr std::string to_string(instr::op o) {
 	switch (o) {

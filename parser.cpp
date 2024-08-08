@@ -414,40 +414,36 @@ std::string to_string(port p) {
 	}
 }
 
-std::string to_string(seq_instr) { return {}; }
-std::string to_string(mov_instr i) {
-	if (i.src == immediate) {
-		return concat(i.val, ',', to_string(i.dst));
-	} else {
-		return concat(to_string(i.src), ',', to_string(i.dst));
-	}
-}
-std::string to_string(arith_instr i) {
-	if (i.src == immediate) {
-		return std::to_string(i.val);
-	} else {
-		return to_string(i.src);
-	}
-}
-std::string to_string(jmp_instr i) { return concat('L', i.target); }
-std::string to_string(jro_instr i) {
-	if (i.src == immediate) {
-		return std::to_string(i.val);
-	} else {
-		return to_string(i.src);
-	}
-}
-
 std::string to_string(instr i) {
-	return kblib::visit2(
-	    i.data,
-	    [&](seq_instr) {
-		    return to_string(static_cast<instr::op>(i.data.index()));
-	    },
-	    [&](auto d) {
-		    return concat(to_string(static_cast<instr::op>(i.data.index())), ' ',
-		                  to_string(d));
-	    });
+	using enum instr::op;
+	if (i.op_ <= neg) {
+		return to_string(i.op_);
+	} else if (i.op_ == mov) {
+		if (i.src == immediate) {
+			return concat(to_string(i.op_), ' ', i.val, ',',
+			              to_string(static_cast<port>(i.data)));
+		} else {
+			return concat(to_string(i.op_), ' ', to_string(i.src), ',',
+			              to_string(static_cast<port>(i.data)));
+		}
+	} else if (i.op_ <= sub) {
+		if (i.src == immediate) {
+			return concat(to_string(i.op_), ' ', std::to_string(i.val));
+		} else {
+			return concat(to_string(i.op_), ' ', to_string(i.src));
+		}
+	} else if (i.op_ <= jlz) {
+		return concat(to_string(i.op_), ' ', 'L', i.data);
+	} else if (i.op_ == jro) {
+		if (i.src == immediate) {
+			return concat(to_string(i.op_), ' ', std::to_string(i.val));
+		} else {
+			return concat(to_string(i.op_), ' ', to_string(i.src));
+		}
+	} else {
+		throw std::invalid_argument{"Unknown instruction "
+		                            + std::to_string(i.op_)};
+	}
 }
 
 instr::op parse_op(std::string_view str) {
@@ -512,7 +508,7 @@ port parse_port(std::string_view str) {
 }
 
 std::pair<port, word_t> parse_port_or_immediate(const std::string& token) {
-	std::pair<port, word_t> ret;
+	std::pair<port, word_t> ret{};
 	if ("-0123456789"sv.contains(token.front())) {
 		ret.first = port::immediate;
 		ret.second = kblib::parse_integer<word_t>(token);
@@ -650,65 +646,65 @@ std::vector<instr> assemble(std::string_view source, int node,
 			auto& i = tmp.emplace();
 			using enum instr::op;
 			if (tok == "HCF") {
-				i.data.emplace<static_cast<std::size_t>(hcf)>();
+				i.op_ = hcf;
 				assert_last_operand(j);
 			} else if (tok == "NOP") {
-				i.data.emplace<static_cast<std::size_t>(nop)>();
+				i.op_ = nop;
 				assert_last_operand(j);
 			} else if (tok == "SWP") {
-				i.data.emplace<static_cast<std::size_t>(swp)>();
+				i.op_ = swp;
 				assert_last_operand(j);
 			} else if (tok == "SAV") {
-				i.data.emplace<static_cast<std::size_t>(sav)>();
+				i.op_ = sav;
 				assert_last_operand(j);
 			} else if (tok == "NEG") {
-				i.data.emplace<static_cast<std::size_t>(neg)>();
+				i.op_ = neg;
 				assert_last_operand(j);
 			} else if (tok == "MOV") {
-				auto& d = i.data.emplace<static_cast<std::size_t>(mov)>();
+				i.op_ = mov;
 				assert_last_operand(j + 2);
 				auto r = parse_port_or_immediate(tokens[j + 1]);
-				d.src = r.first;
-				d.val = r.second;
-				d.dst = parse_port(tokens[j + 2]);
+				i.src = r.first;
+				i.val = r.second;
+				i.data = parse_port(tokens[j + 2]);
 			} else if (tok == "ADD") {
-				auto& d = i.data.emplace<static_cast<std::size_t>(add)>();
+				i.op_ = add;
 				assert_last_operand(j + 1);
 				auto r = parse_port_or_immediate(tokens[j + 1]);
-				d.src = r.first;
-				d.val = r.second;
+				i.src = r.first;
+				i.val = r.second;
 			} else if (tok == "SUB") {
-				auto& d = i.data.emplace<static_cast<std::size_t>(sub)>();
+				i.op_ = sub;
 				assert_last_operand(j + 1);
 				auto r = parse_port_or_immediate(tokens[j + 1]);
-				d.src = r.first;
-				d.val = r.second;
+				i.src = r.first;
+				i.val = r.second;
 			} else if (tok == "JMP") {
-				auto& d = i.data.emplace<static_cast<std::size_t>(jmp)>();
+				i.op_ = jmp;
 				assert_last_operand(j + 1);
-				d.target = parse_label(tokens[j + 1], labels);
+				i.data = parse_label(tokens[j + 1], labels);
 			} else if (tok == "JEZ") {
-				auto& d = i.data.emplace<static_cast<std::size_t>(jez)>();
+				i.op_ = jez;
 				assert_last_operand(j + 1);
-				d.target = parse_label(tokens[j + 1], labels);
+				i.data = parse_label(tokens[j + 1], labels);
 			} else if (tok == "JNZ") {
-				auto& d = i.data.emplace<static_cast<std::size_t>(jnz)>();
+				i.op_ = jnz;
 				assert_last_operand(j + 1);
-				d.target = parse_label(tokens[j + 1], labels);
+				i.data = parse_label(tokens[j + 1], labels);
 			} else if (tok == "JGZ") {
-				auto& d = i.data.emplace<static_cast<std::size_t>(jgz)>();
+				i.op_ = jgz;
 				assert_last_operand(j + 1);
-				d.target = parse_label(tokens[j + 1], labels);
+				i.data = parse_label(tokens[j + 1], labels);
 			} else if (tok == "JLZ") {
-				auto& d = i.data.emplace<static_cast<std::size_t>(jlz)>();
+				i.op_ = jlz;
 				assert_last_operand(j + 1);
-				d.target = parse_label(tokens[j + 1], labels);
+				i.data = parse_label(tokens[j + 1], labels);
 			} else if (tok == "JRO") {
-				auto& d = i.data.emplace<static_cast<std::size_t>(jro)>();
+				i.op_ = jro;
 				assert_last_operand(j + 1);
 				auto r = parse_port_or_immediate(tokens[j + 1]);
-				d.src = r.first;
-				d.val = r.second;
+				i.src = r.first;
+				i.val = r.second;
 			} else {
 				throw std::invalid_argument{
 				    concat('@', node, ':', l, ": ", kblib::quoted(tok),
@@ -724,16 +720,12 @@ std::vector<instr> assemble(std::string_view source, int node,
 
 	// normalize labels at the end of the code
 	for (auto& i : ret) {
-		kblib::visit2(
-		    i.data,
-		    [&](jmp_instr& j) {
-			    if (std::cmp_greater_equal(j.target, ret.size())) {
-				    log_debug("Normalized label ", j.target, "/", ret.size(),
-				              "->0");
-				    j.target = 0;
-			    }
-		    },
-		    [](auto&) {});
+		if (i.op_ >= instr::jmp and i.op_ <= instr::jlz) {
+			if (std::cmp_greater_equal(i.data, ret.size())) {
+				log_debug("Normalized label ", i.data, "/", ret.size(), "->0");
+				i.data = 0;
+			}
+		}
 	}
 	return ret;
 }

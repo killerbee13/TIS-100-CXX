@@ -79,7 +79,7 @@ inline bool check_achievement(int id, const field& solve, score sc) {
 					log << "empty";
 				} else if (std::any_of(
 				               p->code.begin(), p->code.end(), [&](const instr& i) {
-					               auto op = i.get_op();
+					               auto op = i.op_;
 					               log << to_string(op) << ';';
 					               return op == instr::jez or op == instr::jnz
 					                      or op == instr::jgz or op == instr::jlz;
