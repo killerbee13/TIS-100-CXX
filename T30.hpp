@@ -27,10 +27,9 @@ struct T30 : node {
 	    : node(x, y)
 	    , max_size(max_size) {
 		data.reserve(max_size);
-		buffer.reserve(4);
 	}
 	word_vec data;
-	word_vec buffer;
+	std::size_t division{};
 	std::size_t max_size{def_T30_size};
 	bool wrote{};
 	bool used{};
@@ -43,28 +42,27 @@ struct T30 : node {
 		               port::D6}) {
 			if (auto r
 			    = do_read(neighbors[static_cast<std::size_t>(p)], invert(p))) {
-				buffer.push_back(*r);
+				data.push_back(*r);
 				used = true;
-				if (data.size() + buffer.size() == max_size) {
+				if (data.size() == max_size) {
 					break;
 				}
 			}
 		}
 	}
 	void finalize() override {
-		data.insert(data.end(), buffer.begin(), buffer.end());
-		buffer.clear();
+		division = data.size();
 		wrote = false;
 	}
 	void reset() noexcept override {
 		data.clear();
-		buffer.clear();
+		division = 0;
 		wrote = false;
 	}
 	std::optional<word_t> emit(port) override {
-		if (not wrote and not data.empty()) {
-			auto v = data.back();
-			data.pop_back();
+		if (not wrote and division != 0) {
+			auto v = data[--division];
+			data.erase(data.begin() + division);
 			wrote = true;
 			return v;
 		} else {

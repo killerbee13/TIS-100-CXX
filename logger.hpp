@@ -164,9 +164,7 @@ auto log_info_r(std::invocable<> auto supplier) -> void {
 }
 
 template <typename T>
-concept streamable_out = requires(std::ostream& os, const T& v) {
-	os << v;
-};
+concept streamable_out = requires(std::ostream& os, const T& v) { os << v; };
 
 class logger {
  public:
@@ -223,15 +221,17 @@ inline auto log_notice() {
 }
 
 inline auto log_warn() {
-	return (get_log_level() >= log_level::warn) ? logger(
-	           log_print_escape(yellow) + "WARNING: " + log_print_escape(none))
-	                                            : logger(nullptr);
+	return (get_log_level() >= log_level::warn)
+	           ? logger(log_print_escape(yellow)
+	                    + "WARNING: " + log_print_escape(none))
+	           : logger(nullptr);
 }
 
 inline auto log_err() {
-	return (get_log_level() >= log_level::err) ? logger(
-	           log_print_escape(yellow) + "ERROR: " + log_print_escape(none))
-	                                           : logger(nullptr);
+	return (get_log_level() >= log_level::err)
+	           ? logger(log_print_escape(yellow)
+	                    + "ERROR: " + log_print_escape(none))
+	           : logger(nullptr);
 }
 
 #endif // LOGGER_HPP
