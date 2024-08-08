@@ -1310,17 +1310,17 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 	};
 	for (auto& v : ret.inputs) {
 		log << "Clamping in: ";
-		write_list(log, v);
+		write_list(log, v, nullptr, use_color and log_is_tty);
 		clamp(v);
 		log << " to ";
-		write_list(log, v);
+		write_list(log, v, nullptr, use_color and log_is_tty);
 	}
 	for (auto& v : ret.n_outputs) {
 		log << "Clamping out: ";
-		write_list(log, v);
+		write_list(log, v, nullptr, use_color and log_is_tty);
 		clamp(v);
 		log << " to ";
-		write_list(log, v);
+		write_list(log, v, nullptr, use_color and log_is_tty);
 		log << "\n";
 	}
 
