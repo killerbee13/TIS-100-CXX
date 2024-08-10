@@ -32,10 +32,16 @@
 #include <vector>
 
 using word_t = std::int16_t;
-using word_vec = std::vector<word_t>;
 constexpr inline word_t word_min = -999;
 constexpr inline word_t word_max = 999;
 static_assert(word_min == -word_max);
+
+/// we don't use a whole 16bit for a word, roll out a faster optional<word_t>
+using optional_word = word_t;
+constexpr inline optional_word word_empty = kblib::min;
+static_assert(word_empty < word_min);
+
+using word_vec = std::vector<word_t>;
 
 constexpr inline int def_T21_size = 15;
 constexpr inline int def_T30_size = 15;
@@ -136,7 +142,7 @@ struct node {
 	virtual void reset() noexcept = 0;
 
 	/// Attempt to answer a read from this node, coming from direction p
-	virtual std::optional<word_t> emit(port p) = 0;
+	virtual optional_word emit(port p) = 0;
 	/// Generate a string representation of the current state of the node
 	virtual std::string state() const = 0;
 
@@ -156,10 +162,10 @@ struct node {
 	// (0 is unallocated)
 	friend bool valid(const node* n) { return n and etoi(n->type()) > 0; }
 	/// Attempt to read a value from n, coming from direction p
-	friend std::optional<word_t> do_read(node* n, port p) {
+	friend optional_word do_read(node* n, port p) {
 		assert(p >= port::left and p <= port::D6);
 		if (not n) {
-			return std::nullopt;
+			return word_empty;
 		} else {
 			return n->emit(p);
 		}
@@ -178,7 +184,7 @@ struct damaged : node {
 	void step() override {}
 	void finalize() override {}
 	void reset() noexcept override {}
-	std::optional<word_t> emit(port) override { return std::nullopt; }
+	optional_word emit(port) override { return word_empty; }
 	std::string state() const override {
 		return concat("(", x, ',', y, ") {Damaged}");
 	}

@@ -38,7 +38,7 @@ void T21::next() {
 	return;
 }
 
-std::optional<word_t> T21::read(port p, word_t imm) {
+optional_word T21::read(port p, word_t imm) {
 	switch (p) {
 	[[likely]] case port::immediate:
 		return imm;
@@ -56,12 +56,12 @@ std::optional<word_t> T21::read(port p, word_t imm) {
 	case port::any:
 		for (auto p_ : {port::left, port::right, port::up, port::down, port::D5,
 		                port::D6}) {
-			if (auto r = read(p_)) {
+			if (auto r = read(p_); r != word_empty) {
 				last = p_;
 				return r;
 			}
 		}
-		return std::nullopt;
+		return word_empty;
 	case port::last:
 		return read(last);
 	default:
@@ -86,7 +86,7 @@ void T21::step() {
 		return;
 	}
 	auto r = read(instr.src, instr.val);
-	if (not r) {
+	if (r == word_empty) {
 		log << " stalled[R]";
 		s = activity::read;
 		return;
@@ -119,11 +119,11 @@ void T21::step() {
 		next();
 	} break;
 	[[likely]] case instr::mov: {
-		log << " (" << *r << ") ";
+		log << " (" << r << ") ";
 		switch (static_cast<port>(instr.data)) {
 		case port::acc:
-			log << "acc = " << *r;
-			acc = *r;
+			log << "acc = " << r;
+			acc = r;
 			[[fallthrough]];
 		case port::nil:
 			// log << "nil = " << *r;
@@ -132,7 +132,7 @@ void T21::step() {
 			break;
 		case port::last:
 			if (last == port::nil) {
-				log << "last[N/A] = " << *r;
+				log << "last[N/A] = " << r;
 				s = activity::run;
 				next();
 				break;
@@ -146,7 +146,7 @@ void T21::step() {
 		case port::D6:
 		case port::any:
 			s = activity::write;
-			wrt = *r;
+			wrt = r;
 			log << "stalling[W]";
 			// writes don't happen until next cycle
 			break;
@@ -156,15 +156,15 @@ void T21::step() {
 	} break;
 	case instr::add: {
 		log << " (" << acc << ") ";
-		log << *r;
-		acc = sat_add(acc, *r);
+		log << r;
+		acc = sat_add(acc, r);
 		s = activity::run;
 		next();
 	} break;
 	case instr::sub: {
 		log << " (" << acc << ") ";
-		log << *r;
-		acc = sat_sub(acc, *r);
+		log << r;
+		acc = sat_sub(acc, r);
 		s = activity::run;
 		next();
 	} break;
@@ -210,8 +210,8 @@ void T21::step() {
 	} break;
 	case instr::jro: {
 		log << " ";
-		log << '(' << +pc << '+' << *r << " -> ";
-		pc = sat_add(pc, *r, word_t{}, static_cast<word_t>(code.size() - 1));
+		log << '(' << +pc << '+' << r << " -> ";
+		pc = sat_add(pc, r, word_t{}, static_cast<word_t>(code.size() - 1));
 		log << +pc << ")";
 		s = activity::run;
 	} break;
@@ -253,7 +253,7 @@ void T21::finalize() {
 	}
 }
 
-std::optional<word_t> T21::emit(port p) {
+optional_word T21::emit(port p) {
 	assert(p >= port::left and p <= port::D6);
 	if (write_port == port::any or write_port == p) {
 		auto r = std::exchange(wrt, word_t{});
@@ -264,7 +264,7 @@ std::optional<word_t> T21::emit(port p) {
 		write_port = port::immediate;
 		return r;
 	} else {
-		return std::nullopt;
+		return word_empty;
 	}
 }
 

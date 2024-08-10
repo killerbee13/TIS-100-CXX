@@ -37,20 +37,20 @@ struct input_node : node {
 		} else {
 			s = activity::idle;
 			// ready a value if we don't have one
-			if (not wrt and idx != inputs.size()) {
-				log_debug("I: ", not wrt, ',', idx != inputs.size());
-				wrt.emplace(inputs[idx++]);
+			if (wrt == word_empty and idx != inputs.size()) {
+				log_debug("I: ", wrt != word_empty, ',', idx != inputs.size());
+				wrt = inputs[idx++];
 			}
 		}
 	}
 	void reset() noexcept override {
 		idx = 0;
-		wrt.reset();
+		wrt = word_empty;
 		s = activity::idle;
 	}
-	std::optional<word_t> emit(port) override {
-		writing = bool(wrt);
-		return std::exchange(wrt, std::nullopt);
+	optional_word emit(port) override {
+		writing = wrt != word_empty;
+		return std::exchange(wrt, word_empty);
 	}
 	std::string state() const override {
 		return concat("I", x, " NUMERIC { ", state_name(s), " emitted:(", idx,
@@ -61,7 +61,7 @@ struct input_node : node {
 	std::size_t idx{};
 	std::string filename{};
 	io_type_t io_type{};
-	std::optional<word_t> wrt;
+	optional_word wrt;
 	activity s{activity::idle};
 
  private:
@@ -75,10 +75,10 @@ struct output_node : node {
 		if (complete) {
 			return;
 		}
-		if (auto r = do_read(neighbors[port::up], port::down)) {
+		if (auto r = do_read(neighbors[port::up], port::down); r != word_empty) {
 			log_debug("O", x, ": read");
 			auto i = outputs_received.size();
-			outputs_received.push_back(*r);
+			outputs_received.push_back(r);
 			if (outputs_received[i] != outputs_expected[i]) {
 				wrong = true;
 				log_debug("incorrect value written");
@@ -92,7 +92,7 @@ struct output_node : node {
 		wrong = false;
 		complete = false;
 	}
-	std::optional<word_t> emit(port) override { return std::nullopt; }
+	optional_word emit(port) override { return word_empty; }
 	std::string state() const override {
 		std::ostringstream ret;
 		ret << concat("O", x, " NUMERIC {\nreceived:");
@@ -121,34 +121,35 @@ struct image_output : node {
 
 	type_t type() const noexcept override { return image; }
 	void step() override {
-		if (auto r = do_read(neighbors[port::up], port::down)) {
+		if (auto r = do_read(neighbors[port::up], port::down); r != word_empty) {
 			if (r < 0) {
-				c_x.reset();
-				c_y.reset();
-			} else if (not c_x) {
+				c_x = word_empty;
+				c_y = word_empty;
+			} else if (c_x == word_empty) {
 				c_x = r;
-			} else if (not c_y) {
+			} else if (c_y == word_empty) {
 				c_y = r;
 			} else {
-				poke(*r);
-				++*c_x;
+				poke(r);
+				++c_x;
 			}
 		}
 	}
 	void finalize() override {}
 	void reset() noexcept override {
 		image_received.fill(tis_pixel::C_black);
-		c_x.reset();
-		c_y.reset();
+		c_x = word_empty;
+		c_y = word_empty;
 	}
-	std::optional<word_t> emit(port) override { return std::nullopt; }
+	optional_word emit(port) override { return word_empty; }
 	std::string state() const override {
 		return concat("O", x, " IMAGE {\n", image_received.write_text(), "}");
 	}
 
 	void poke(tis_pixel p) {
-		if (c_x and c_y and c_x < width and c_y < height) {
-			image_received.at(*c_x, *c_y) = p;
+		if (c_x != word_empty and c_y != word_empty and c_x < width
+		    and c_y < height) {
+			image_received.at(c_x, c_y) = p;
 		}
 	}
 	image_t image_expected;
@@ -156,8 +157,8 @@ struct image_output : node {
 	std::string filename;
 	std::ptrdiff_t width;
 	std::ptrdiff_t height;
-	std::optional<word_t> c_x;
-	std::optional<word_t> c_y;
+	optional_word c_x;
+	optional_word c_y;
 };
 
 #endif // IO_HPP

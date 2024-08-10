@@ -40,9 +40,9 @@ struct T30 : node {
 		}
 		for (auto p : {port::left, port::right, port::up, port::down, port::D5,
 		               port::D6}) {
-			if (auto r
-			    = do_read(neighbors[static_cast<std::size_t>(p)], invert(p))) {
-				data.push_back(*r);
+			if (auto r = do_read(neighbors[to_unsigned(p)], invert(p));
+			    r != word_empty) {
+				data.push_back(r);
 				used = true;
 				if (data.size() == max_size) {
 					break;
@@ -59,14 +59,14 @@ struct T30 : node {
 		division = 0;
 		wrote = false;
 	}
-	std::optional<word_t> emit(port) override {
+	optional_word emit(port) override {
 		if (not wrote and division != 0) {
 			auto v = data[--division];
 			data.erase(data.begin() + division);
 			wrote = true;
 			return v;
 		} else {
-			return std::nullopt;
+			return word_empty;
 		}
 	}
 	std::string state() const override {

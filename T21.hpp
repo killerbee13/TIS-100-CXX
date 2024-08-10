@@ -101,7 +101,7 @@ struct T21 : node {
 		last = port::nil;
 		s = activity::idle;
 	}
-	std::optional<word_t> emit(port) override;
+	optional_word emit(port) override;
 	std::string state() const override;
 
 	word_t acc{}, bak{}, wrt{};
@@ -117,9 +117,9 @@ struct T21 : node {
 	/// Increment the program counter, wrapping to beginning.
 	void next();
 	/// Attempt to read a value from this node's port p, which may be
-	/// any, last, or immediate, unlike the general do_read and read_
+	/// any, last, or immediate, unlike the general do_read and emit
 	/// functions
-	std::optional<word_t> read(port p, word_t imm = 0);
+	optional_word read(port p, word_t imm = 0);
 };
 
 #endif // T21_HPP
