@@ -95,7 +95,7 @@ struct T21 : node {
 	void reset() noexcept override {
 		acc = 0;
 		bak = 0;
-		wrt = 0;
+		wrt = word_empty;
 		pc = 0;
 		write_port = port::nil;
 		last = port::nil;
@@ -104,7 +104,8 @@ struct T21 : node {
 	optional_word emit(port) override;
 	std::string state() const override;
 
-	word_t acc{}, bak{}, wrt{};
+	word_t acc{}, bak{};
+	optional_word wrt = word_empty;
 	word_t pc{};
 	port write_port{port::nil}, last{port::nil};
 	std::span<instr> code;

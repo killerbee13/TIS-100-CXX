@@ -256,7 +256,7 @@ void T21::finalize() {
 optional_word T21::emit(port p) {
 	assert(p >= port::left and p <= port::D6);
 	if (write_port == port::any or write_port == p) {
-		auto r = std::exchange(wrt, word_t{});
+		auto r = std::exchange(wrt, word_empty);
 		if (write_port == port::any) {
 			last = p;
 		}
@@ -269,9 +269,11 @@ optional_word T21::emit(port p) {
 }
 
 std::string T21::state() const {
-	return concat('(', x, ',', y, ") T21 { ", pad_right(acc, 4), " (",
-	              pad_right(bak, 4), ") ", pad_right(port_name(last), 5), ' ',
-	              pad_right(state_name(s), 4), ' ', pad_left(pc, 2), " [",
-	              code.empty() ? "" : to_string(code[to_unsigned(pc)]), "] ",
-	              wrt, "->", port_name(write_port), " }");
+	return concat(
+	    '(', x, ',', y, ") T21 { ", pad_right(acc, 4), " (", pad_right(bak, 4),
+	    ") ", pad_right(port_name(last), 5), ' ', pad_right(state_name(s), 4),
+	    ' ', pad_left(pc, 2), " [",
+	    code.empty() ? "" : to_string(code[to_unsigned(pc)]), "]",
+	    wrt == word_empty ? "" : concat(" ", wrt, "->", port_name(write_port)),
+	    " }");
 }
