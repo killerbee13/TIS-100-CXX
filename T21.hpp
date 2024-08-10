@@ -49,6 +49,11 @@ struct instr {
 	word_t val{};
 	// stores either MOV dst or jump target
 	word_t data{};
+
+	inline port dst() const {
+		assert(op_ == mov);
+		return static_cast<port>(data);
+	}
 };
 constexpr std::string to_string(instr::op o) {
 	switch (o) {

@@ -120,7 +120,7 @@ void T21::step() {
 	} break;
 	[[likely]] case instr::mov: {
 		log << " (" << r << ") ";
-		switch (static_cast<port>(instr.data)) {
+		switch (instr.dst()) {
 		case port::acc:
 			log << "acc = " << r;
 			acc = r;
@@ -151,7 +151,7 @@ void T21::step() {
 			// writes don't happen until next cycle
 			break;
 		case port::immediate:
-			assert(i->dst != port::immediate);
+			std::unreachable();
 		}
 	} break;
 	case instr::add: {
@@ -223,30 +223,26 @@ void T21::finalize() {
 	if (code.empty()) {
 		return;
 	}
-	auto& i = code[to_unsigned(pc)];
-	if (i.op_ == instr::mov) {
+	if (s == activity::write) {
 		auto log = log_debug();
 		log << "finalize(" << x << ',' << y << ',' << +pc << "): mov ";
-		if (s == activity::write) {
-			// if write just started
-			if (write_port == port::nil) {
-				log << "started";
-				if (static_cast<port>(i.data) == port::last) {
-					write_port = last;
-				} else {
-					write_port = static_cast<port>(i.data);
-				}
-				// if write completed
-			} else if (write_port == port::immediate) {
-				log << "completed";
-				write_port = port::nil;
-				s = activity::run;
-				next();
+		// if write just started
+		if (write_port == port::nil) {
+			log << "started";
+			port p = code[to_unsigned(pc)].dst();
+			if (p == port::last) {
+				write_port = last;
 			} else {
-				log << "in progress";
+				write_port = p;
 			}
+			// if write completed
+		} else if (write_port == port::immediate) {
+			log << "completed";
+			write_port = port::nil;
+			s = activity::run;
+			next();
 		} else {
-			log << "skipped";
+			log << "in progress";
 		}
 	} else {
 		log_debug("finalize(", x, ',', y, ',', +pc, "): skipped");

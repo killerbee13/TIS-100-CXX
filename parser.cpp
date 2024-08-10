@@ -429,10 +429,10 @@ std::string to_string(instr i) {
 	} else if (i.op_ == mov) {
 		if (i.src == immediate) {
 			return concat(to_string(i.op_), ' ', i.val, ',',
-			              to_string(static_cast<port>(i.data)));
+			              to_string(i.dst()));
 		} else {
 			return concat(to_string(i.op_), ' ', to_string(i.src), ',',
-			              to_string(static_cast<port>(i.data)));
+			              to_string(i.dst()));
 		}
 	} else if (i.op_ <= sub) {
 		if (i.src == immediate) {
