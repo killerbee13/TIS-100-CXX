@@ -438,7 +438,7 @@ template <typename Stream>
    }
 inline Stream&& write_list(Stream&& os, const word_vec& v,
                            const word_vec* expected = nullptr,
-                           bool colored = use_color) {
+                           bool colored = color_logs) {
 	if (colored and expected and v.size() != expected->size()) {
 		os << print_escape(bright_red);
 	}

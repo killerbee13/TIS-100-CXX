@@ -372,7 +372,7 @@ void set_expected(field& f, const single_test& expected) {
 			i->inputs = expected.inputs[in_idx++];
 			auto log = log_debug();
 			log << "set expected input I" << i->x << ":";
-			write_list(log, i->inputs, nullptr, use_color and log_is_tty);
+			write_list(log, i->inputs);
 		} else if (p->type() == node::out) {
 			assert(out_idx < expected.n_outputs.size());
 			auto o = static_cast<output_node*>(p);
@@ -380,16 +380,13 @@ void set_expected(field& f, const single_test& expected) {
 			o->complete = o->outputs_expected.empty();
 			auto log = log_debug();
 			log << "set expected output O" << o->x << ":";
-			write_list(log, o->outputs_expected, nullptr,
-			           use_color and log_is_tty);
+			write_list(log, o->outputs_expected);
 		} else if (p->type() == node::image) {
 			auto i = static_cast<image_output*>(p);
 			i->image_expected = expected.i_output;
 			auto log = log_debug();
 			log << "set expected image O" << i->x << ": {\n";
-			log.log_r([&] {
-				return i->image_expected.write_text(use_color and log_is_tty);
-			});
+			log.log_r([&] { return i->image_expected.write_text(color_logs); });
 			log << '}';
 		}
 	}
@@ -428,8 +425,7 @@ std::string to_string(instr i) {
 		return to_string(i.op_);
 	} else if (i.op_ == mov) {
 		if (i.src == immediate) {
-			return concat(to_string(i.op_), ' ', i.val, ',',
-			              to_string(i.dst()));
+			return concat(to_string(i.op_), ' ', i.val, ',', to_string(i.dst()));
 		} else {
 			return concat(to_string(i.op_), ' ', to_string(i.src), ',',
 			              to_string(i.dst()));

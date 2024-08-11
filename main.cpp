@@ -99,7 +99,7 @@ score run(field& l, int cycles_limit, bool print_err) {
 		}
 
 		if (print_err and not sc.validated) {
-			print_validation_failure(l, std::cout, use_color);
+			print_validation_failure(l, std::cout, color_stdout);
 		}
 	} catch (hcf_exception& e) {
 		log_info("Test aborted by HCF (node ", e.x, ',', e.y, ':', e.line, ')');
@@ -161,7 +161,7 @@ void score_summary(score sc, score last, int fixed, int quiet,
 
 int main(int argc, char** argv) try {
 	std::ios_base::sync_with_stdio(false);
-	log_flush(not RELEASE);
+	set_log_flush(not RELEASE);
 
 	TCLAP::CmdLine cmd("TIS-100 simulator and validator");
 
@@ -251,11 +251,14 @@ int main(int argc, char** argv) try {
 	                            "Suppress printing anything but score and "
 	                            "errors. A second flag suppresses errors.",
 	                            cmd);
-	TCLAP::SwitchArg color("c", "color", "Print in color.", cmd);
+	TCLAP::SwitchArg color("c", "color",
+	                       "Print in color. "
+	                       "(Defaults on if STDOUT is a tty.)",
+	                       cmd);
 	// TODO: implement log coloring detection
 	TCLAP::SwitchArg log_color("C", "log-color",
-	                           "In combination with -c, enable colors in the "
-	                           "log. (Defaults on if STDERR is a tty.)",
+	                           "Enable colors in the log. "
+	                           "(Defaults on if STDERR is a tty.)",
 	                           cmd);
 
 	TCLAP::ValueArg<std::string> write_machine_layout(
@@ -266,9 +269,10 @@ int main(int argc, char** argv) try {
 	    "", "dry-run", "Parse the command line, but don't run any tests", cmd);
 
 	cmd.parse(argc, argv);
-	use_color = color.isSet();
-	// Check if the log is being redirected
-	log_is_tty = log_color.isSet() or isatty(STDERR_FILENO);
+	// Color output on interactive shells or when explicitely requested
+	color_stdout = color.isSet() or isatty(STDOUT_FILENO);
+	//  Color logs on interactive shells or when explicitely requested
+	color_logs = log_color.isSet() or isatty(STDERR_FILENO);
 	signal(SIGTERM, sigterm_handler);
 	signal(SIGINT, sigterm_handler);
 	signal(SIGUSR1, sigterm_handler);
@@ -555,8 +559,7 @@ inline constexpr auto layouts1 = gen_layouts();
 							    std::cmp_equal(last.cycles, cycles_limit.getValue())
 							        ? "[timeout]"
 							        : "");
-							print_validation_failure(f, log_info(),
-							                         use_color and log_is_tty);
+							print_validation_failure(f, log_info(), color_logs);
 						} else {
 							log_debug("Random test failed for seed: ", seed);
 						}

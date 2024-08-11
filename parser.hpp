@@ -224,7 +224,7 @@ struct score {
 		return os;
 	}
 
-	friend std::string to_string(score sc, bool colored = use_color) {
+	friend std::string to_string(score sc, bool colored = color_stdout) {
 		std::string ret;
 		if (sc.validated) {
 			append(ret, sc.cycles);

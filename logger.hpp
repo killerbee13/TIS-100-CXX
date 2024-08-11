@@ -37,14 +37,11 @@ enum class log_level {
 auto set_log_level(log_level) -> void;
 auto get_log_level() -> log_level;
 
-auto set_log_output(std::ostream&) -> void;
-auto set_log_output(const std::ostream&&) -> void = delete;
-
 auto log_flush() -> void;
-auto log_flush(bool do_flush) -> void;
+auto set_log_flush(bool do_flush) -> void;
 
-inline bool use_color{false};
-inline bool log_is_tty{false};
+inline bool color_stdout{false};
+inline bool color_logs{false};
 
 enum SGR_code {
 	none,
@@ -91,7 +88,7 @@ enum SGR_code {
 
 std::string print_escape(SGR_code first,
                          std::same_as<SGR_code> auto... colors) {
-	if (not use_color) {
+	if (not color_stdout) {
 		return {};
 	}
 	if (first == none and sizeof...(colors) == 0) {
@@ -105,7 +102,7 @@ std::string print_escape(SGR_code first,
 }
 std::string log_print_escape(SGR_code first,
                              std::same_as<SGR_code> auto... colors) {
-	if (log_is_tty) {
+	if (color_logs) {
 		return print_escape(first, colors...);
 	} else {
 		return {};

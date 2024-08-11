@@ -59,8 +59,8 @@ for id in $saves
 			set -l expected (egrep "# [0-9]+ / [0-9]+ / [0-9]+" $file | sed -Ee 's@# ([0-9]+) / ([0-9]+) / ([0-9]+)@\1/\2/\3@')
 			# echo ./TIS-100-CXX $id $s
 			# ./TIS-100-CXX $id $s
-			echo ./TIS-100-CXX $_flag_n $argv -c (basename $file) $id
-			./TIS-100-CXX $_flag_n $argv -c $file $id | tee $tmp_result
+			echo ./TIS-100-CXX $_flag_n $argv (basename $file) $id
+			./TIS-100-CXX $_flag_n $argv $file $id | tee $tmp_result
 			if test $pipestatus[1] -eq 0
 				set -l result (filter_result)
 				if test -z $expected 
@@ -97,4 +97,3 @@ end
 
 echo "$files_count saves tested. $success_count validated, $unmarked_count passed with unknown validity, $wrong_count scored incorrectly, $fail_count failed."
 rm $tmp_result
-

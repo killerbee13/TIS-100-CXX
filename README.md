@@ -33,15 +33,17 @@ the game or from the solution's filename.
 
 By default, it will run the simulation and if it passes, it will print
 "validation successful" and a score, in the format 
-cycles/nodes/instructions/flags, where flags may be a for achievement, c for
-cheat, i.e. a solution which does not pass all random tests, and z for a
-solution which failed all random tests run. (Note that the status of /z is
-currently not consensus in the community.) If it does not pass, it will instead
-print the inputs and outputs (expected and received) for the failed test, then
+`cycles/nodes/instructions/flags`, where flags may be `a` for achievement,
+`c` for cheat, i.e. a solution which does not pass all random tests,
+and `z` for a solution that passes < 5% of the random tests
+(meaning that it made no real effort to pass any).
+
+If it does not pass, it will instead print the inputs and outputs
+(expected and received) for the failed test, then
 "validation failed" with some more information, and finally a score in which
-the cycles count is replaced by `-` to denote a failure. The return value is 0
-on a validation, including a cheated solution, 1 on a validation failure, and 2
-on an exception.
+the cycles count is replaced by `-` to denote a failure. The return value is `0`
+on a validation, including a cheated solution, `1` on a validation failure,
+and `2` on an exception.
 
 The most useful options are:
 - `--limit N`: set the timeout limit for the simulation. Default 100500 (enough
@@ -59,7 +61,6 @@ The most useful options are:
   as normally random tests do not contribute to scoring except for /c and /z
   flags, but with this flag, the reported score will be the worst observed
   score.
-- `-c`, `--color`: print important information in color
 - `--loglevel LEVEL`, `--debug`, `--info`: set the amount of information logged
   to stderr. The default log level is "notice", which corresponds to only
   important information. "info" includes information that may be useful but is
@@ -75,6 +76,8 @@ Other options:
 - `--T21_size N` and `--T30_size M`: override the default size limits on
   instructions in any particular T21 node and values in any particular T30 node
   respectively.
+- `-c`, `--color`: force color for important info even when redirecting output
+- `-C`, `--log-color`: force color for logs even when redirecting stderr
 - `-S`, `--stats`: run all requested random tests and report the pass rate at
   the end. Without this flag, the sim will quit as soon as it can label a
   solution /c (that is, one pass and one failure).

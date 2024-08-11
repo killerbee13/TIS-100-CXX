@@ -22,28 +22,14 @@
 
 static log_level current = log_level::notice;
 static std::ostream* output = &std::clog;
-static bool flush;
 
 auto set_log_level(log_level new_level) -> void { current = new_level; }
 
 auto get_log_level() -> log_level { return current; }
 
-auto set_log_output(std::ostream& os) -> void {
-	output = &os;
-	// This is kinda hacky but should generally work.
-	// This function is never used anyway.
-	if (&os == &std::cout) {
-		log_is_tty = isatty(STDOUT_FILENO);
-	} else if (&os == &std::cerr or &os == &std::clog) {
-		log_is_tty = isatty(STDERR_FILENO);
-	}
-}
-
-auto log_flush() -> void { output->flush(); }
-
-auto log_flush(bool do_flush) -> void { flush = do_flush; }
-
 namespace detail {
+
+static bool flush;
 
 auto log(std::string_view str) -> void {
 	(*output) << str << '\n';
@@ -53,6 +39,10 @@ auto log(std::string_view str) -> void {
 }
 
 } // namespace detail
+
+auto log_flush() -> void { output->flush(); }
+
+auto set_log_flush(bool do_flush) -> void { detail::flush = do_flush; }
 
 logger::logger(std::string_view prefix)
     : formatter_{std::make_unique<std::ostringstream>()}

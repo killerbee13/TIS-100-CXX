@@ -96,8 +96,7 @@ struct output_node : node {
 	std::string state() const override {
 		std::ostringstream ret;
 		ret << concat("O", x, " NUMERIC {\nreceived:");
-		write_list(ret, outputs_received, &outputs_expected,
-		           use_color and log_is_tty);
+		write_list(ret, outputs_received, &outputs_expected);
 		ret << '}';
 		return std::move(ret).str();
 	}

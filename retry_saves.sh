@@ -37,8 +37,8 @@ cat $_flag_l | while read -l s
 		set files_count (math $files_count + 1)
 		# echo ./TIS-100-CXX $id $s
 		# ./TIS-100-CXX $id $s
-		echo ./TIS-100-CXX $argv $_flag_n -c (basename $file) $id
-		if ./TIS-100-CXX $argv $_flag_n -c $file $id
+		echo ./TIS-100-CXX $argv $_flag_n (basename $file) $id
+		if ./TIS-100-CXX $argv $_flag_n $file $id
 			echo $s >> $success_file
 			set success_count (math $success_count + 1)
 		else 
