@@ -18,6 +18,7 @@
 #ifndef IMAGE_HPP
 #define IMAGE_HPP
 #include "logger.hpp"
+#include "utils.hpp"
 
 #include <kblib/convert.h>
 #include <kblib/simple.h>
