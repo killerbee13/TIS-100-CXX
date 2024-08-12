@@ -18,12 +18,12 @@
 #ifndef IO_HPP
 #define IO_HPP
 
+#include "image.hpp"
 #include "logger.hpp"
 #include "node.hpp"
-#include <string>
-#include <vector>
+#include "utils.hpp"
 
-enum io_type_t { numeric, ascii, list };
+#include <string>
 
 struct input_node : node {
 	using node::node;
@@ -60,7 +60,6 @@ struct input_node : node {
 	word_vec inputs;
 	std::size_t idx{};
 	std::string filename{};
-	io_type_t io_type{};
 	optional_word wrt;
 	activity s{activity::idle};
 
@@ -103,7 +102,6 @@ struct output_node : node {
 	word_vec outputs_expected;
 	word_vec outputs_received;
 	std::string filename;
-	io_type_t io_type;
 	char d{' '};
 	bool wrong{false};
 	bool complete{false};

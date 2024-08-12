@@ -2,6 +2,7 @@
 #define LAYOUTSPECS_HPP
 
 #include "node.hpp"
+#include "utils.hpp"
 
 struct builtin_layout_spec {
 	struct io_node_spec {

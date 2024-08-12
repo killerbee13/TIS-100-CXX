@@ -1,6 +1,6 @@
 /* *****************************************************************************
- * TIS-100-CXX
- * Copyright (c) 2024 killerbee, Andrea Stacchiotti
+ * %{QMAKE_PROJECT_NAME}
+ * Copyright (c) %YEAR% killerbee
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,27 +15,35 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * ****************************************************************************/
-#ifndef RANDOM_LEVELS_HPP
-#define RANDOM_LEVELS_HPP
+#ifndef UTILS_HPP
+#define UTILS_HPP
 
-#include "image.hpp"
-#include "utils.hpp"
+#include <kblib/convert.h>
+#include <kblib/stats.h>
 
-struct single_test {
-	std::vector<word_vec> inputs{};
-	std::vector<word_vec> n_outputs{};
-	image_t i_output{};
-};
-struct inputs_outputs {
-	using list = std::array<word_t, 39>;
-	std::array<single_test, 3> data;
-};
+#include <cstdint>
+#include <vector>
 
-std::array<single_test, 3> static_suite(int id);
-std::optional<single_test> random_test(int id, std::uint32_t seed);
-
-#if HISTOGRAM
-inline std::array<std::vector<std::size_t>, 9> histogram;
+#if NDEBUG
+#	define RELEASE 1
+#else
+#	define RELEASE 0
 #endif
 
-#endif // RANDOM_LEVELS_HPP
+using kblib::append, kblib::concat, kblib::etoi, kblib::range, kblib::to_signed,
+    kblib::to_unsigned;
+
+using word_t = std::int16_t;
+constexpr inline word_t word_min = -999;
+constexpr inline word_t word_max = 999;
+static_assert(word_min == -word_max);
+
+/// we don't use a whole 16bit for a word, roll out a faster optional<word_t>
+using optional_word = word_t;
+constexpr inline optional_word word_empty = kblib::min;
+static_assert(word_empty < word_min);
+static_assert(word_empty < word_min + word_min);
+
+using word_vec = std::vector<word_t>;
+
+#endif // UTILS_HPP

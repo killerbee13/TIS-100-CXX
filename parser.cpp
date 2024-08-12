@@ -22,10 +22,7 @@
 #include "io.hpp"
 
 #include <kblib/convert.h>
-#include <kblib/io.h>
-#include <kblib/simple.h>
 #include <kblib/stringops.h>
-#include <kblib/variant.h>
 
 #include <set>
 
@@ -105,7 +102,6 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 			p->neighbors[down] = n;
 			n->neighbors[up] = p;
 			p->filename = concat('@', x);
-			p->io_type = numeric;
 			out_nodes_offset++;
 		} break;
 		case node::null:
@@ -125,7 +121,6 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 			assert(valid(n));
 			p->neighbors[up] = n;
 			n->neighbors[down] = p;
-			p->io_type = numeric;
 			p->filename = concat('@', 4 + x);
 			if (in.image_size) {
 				throw std::invalid_argument{"invalid layout spec: image size "
@@ -246,12 +241,9 @@ field parse_layout(std::string_view layout, std::size_t T30_size) {
 			ss >> input_type;
 			if (input_type == "NUMERIC") {
 				ss >> p->filename;
-				p->io_type = numeric;
 			} else if (input_type == "ASCII") {
 				ss >> p->filename;
-				p->io_type = ascii;
 			} else if (input_type == "LIST") {
-				p->io_type = list;
 				// not yet implemented
 				throw 0;
 			}
@@ -280,7 +272,6 @@ field parse_layout(std::string_view layout, std::size_t T30_size) {
 				n->neighbors[down] = p;
 				if (output_type == "NUMERIC") {
 					ss >> p->filename;
-					p->io_type = numeric;
 					ss >> std::ws;
 					auto c = ss.peek();
 					if (c >= '0' and c <= '9') {
@@ -290,9 +281,7 @@ field parse_layout(std::string_view layout, std::size_t T30_size) {
 					}
 				} else if (output_type == "ASCII") {
 					ss >> p->filename;
-					p->io_type = ascii;
 				} else if (output_type == "LIST") {
-					p->io_type = list;
 				}
 			}
 		} else {
@@ -732,173 +721,4 @@ std::vector<instr> assemble(std::string_view source, int node,
 		}
 	}
 	return ret;
-}
-
-std::size_t field::instructions() const {
-	std::size_t ret{};
-	for (auto& p : nodes) {
-		if (p.get()->type() == node::T21) {
-			ret += static_cast<T21*>(p.get())->code.size();
-		}
-	}
-	return ret;
-}
-
-std::size_t field::nodes_used() const {
-	std::size_t ret{};
-	for (auto& p : nodes) {
-		if (p.get()->type() == node::T21) {
-			ret += not static_cast<T21*>(p.get())->code.empty();
-		}
-	}
-	return ret;
-}
-std::size_t field::nodes_avail() const {
-	std::size_t ret{};
-	for (auto& p : nodes) {
-		if (p.get()->type() == node::T21) {
-			ret += 1;
-		}
-	}
-	return ret;
-}
-
-std::string field::layout() const {
-
-	auto h = height();
-	std::string ret = concat(h, ' ', width, '\n');
-	for (const auto y : range(h)) {
-		for (const auto x : range(width)) {
-			auto p = node_by_location(x, y);
-			if (not valid(p)) {
-				ret += 'D';
-			} else if (p->type() == node::T21) {
-				ret += 'C';
-			} else if (p->type() == node::T30) {
-				ret += 'S';
-			}
-		}
-		ret += '\n';
-	}
-
-	for (auto it = begin_io(); it != end(); ++it) {
-		auto p = it->get();
-
-		constexpr std::array<std::string_view, 3> io_labels{" NUMERIC ",
-		                                                    " ASCII ", " LIST "};
-
-		if (p->type() == node::in) {
-			auto in = static_cast<input_node*>(p);
-			append(ret, 'I', p->x, io_labels[in->io_type]);
-			if (in->filename.empty()) {
-				append(ret, "[");
-				for (auto v : in->inputs) {
-					append(ret, v, ", ");
-				}
-				append(ret, "]\n");
-			} else {
-				append(ret, in->filename, '\n');
-			}
-		} else if (p->type() == node::out) {
-			auto on = static_cast<output_node*>(p);
-			append(ret, 'O', p->x, io_labels[on->io_type]);
-			if (on->filename.empty()) {
-				append(ret, "[");
-				for (auto v : on->outputs_expected) {
-					append(ret, v, ", ");
-				}
-				append(ret, "]\n");
-			} else {
-				append(ret, on->filename);
-				if (on->d != ' ') {
-					append(ret, ' ', +on->d);
-				}
-				append(ret, '\n');
-			}
-		} else if (p->type() == node::image) {
-			auto im = static_cast<image_output*>(p);
-			append(ret, 'O', p->x, " IMAGE ", im->width, im->height);
-			if (not im->image_expected.empty()) {
-			}
-		}
-	}
-
-	return ret;
-}
-
-constexpr std::string type_name(node::type_t t) {
-	switch (t) {
-	case node::T21:
-		return "T21";
-	case node::T30:
-		return "T30";
-	case node::in:
-		return "in";
-	case node::out:
-		return "out";
-	case node::image:
-		return "image";
-	case node::Damaged:
-		return "Damaged";
-	default:
-		return "null";
-	}
-}
-
-std::string field::machine_layout() const {
-	std::ostringstream ret;
-	ret << "{.nodes = {{\n";
-	{
-		auto it = begin();
-		for (auto y = 0; y != 3; ++y) {
-			ret << "\t\t\t{";
-			for (auto x = 0; x != 4; ++x, ++it) {
-				ret << type_name((*it)->type()) << ", ";
-			}
-			ret << "},\n";
-		}
-	}
-	ret << "\t\t}}, .io = {{\n";
-	std::array<std::array<builtin_layout_spec::io_node_spec, 4>, 2> io;
-	for (auto it = begin_io(); it != end(); ++it) {
-		auto n = it->get();
-		if (n->type() == node::in) {
-			io[0][static_cast<std::size_t>(n->x)].type = node::in;
-		} else if (n->type() == node::out) {
-			io[1][static_cast<std::size_t>(n->x)].type = node::out;
-		} else if (auto p = dynamic_cast<image_output*>(n)) {
-			io[1][static_cast<std::size_t>(p->x)].type = node::image;
-			io[1][static_cast<std::size_t>(p->x)].image_size
-			    = {p->width, p->height};
-		}
-	}
-	for (auto t : io) {
-		ret << "\t\t\t{{";
-		for (auto n : t) {
-			ret << "{" << type_name(n.type);
-			if (n.image_size) {
-				ret << ", {{" << n.image_size.value().first << ", "
-				    << n.image_size.value().second << "}}";
-			} else {
-				ret << ", {}";
-			}
-			ret << "}, ";
-		}
-		ret << "}},\n";
-	}
-	ret << "\t}}}";
-	return std::move(ret).str();
-
-	using enum node::type_t;
-	// clang-format off
-	[[maybe_unused]] builtin_layout_spec s =
-		{.nodes = {{
-			{T21, T21, T21, T21},
-			{T21, T21, T21, T21},
-			{T21, T21, T21, T21},
-		}},
-	  .io = {{
-			{{{null, {}}, {in, {}}, {in, {}}, {null, {}}, }},
-			{{{out, {}}, {image, {{30, 18}}}, {null, {}}, {null, {}}, }}
-		}}};
 }

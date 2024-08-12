@@ -19,10 +19,10 @@
 #define T21_HPP
 
 #include "node.hpp"
+#include "utils.hpp"
 
 #include <span>
 #include <string>
-#include <vector>
 
 struct T21;
 

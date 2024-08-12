@@ -19,8 +19,7 @@
 #define T30_HPP
 
 #include "node.hpp"
-
-#include <vector>
+#include "utils.hpp"
 
 struct T30 : node {
 	T30(int x, int y, std::size_t max_size)

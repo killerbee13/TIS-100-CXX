@@ -21,6 +21,8 @@
 #include "kblib/stringops.h"
 #include <sstream>
 
+using kblib::concat;
+
 namespace detail {
 auto log(std::string_view str) -> void;
 } // namespace detail

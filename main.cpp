@@ -17,14 +17,14 @@
  * ****************************************************************************/
 
 #include "builtin_levels.hpp"
-#include "io.hpp"
 #include "node.hpp"
 #include "parser.hpp"
 #include "random_levels.hpp"
+
 #include <csignal>
 #include <iostream>
-
 #include <kblib/hash.h>
+#include <kblib/io.h>
 #include <kblib/stringops.h>
 #include <random>
 #define TCLAP_SETBASE_ZERO 1

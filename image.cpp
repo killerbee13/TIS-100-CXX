@@ -18,6 +18,8 @@
 
 #include "image.hpp"
 
+#include <kblib/io.h>
+
 std::error_code extract_comment_from_file(const char* filename,
                                           std::string& out) {
 	using namespace std::literals;
