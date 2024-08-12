@@ -163,6 +163,17 @@ auto log_info_r(std::invocable<> auto supplier) -> void {
 template <typename T>
 concept streamable_out = requires(std::ostream& os, const T& v) { os << v; };
 
+struct null_logger {
+	null_logger() = default;
+	null_logger(std::string_view) {}
+	null_logger(std::nullptr_t) {}
+	null_logger(null_logger&&) = default;
+
+	auto log_r(std::invocable<> auto) -> void {}
+	auto log(auto&&...) -> void {}
+	auto operator<<(const streamable_out auto&) -> null_logger& { return *this; }
+};
+
 class logger {
  public:
 	logger(std::string_view prefix);
@@ -202,9 +213,14 @@ class logger {
 	std::ostream* log_;
 };
 
+template <bool active = true>
 inline auto log_debug() {
-	return (get_log_level() >= log_level::debug) ? logger("DEBUG: ")
-	                                             : logger(nullptr);
+	if constexpr (active) {
+		return (get_log_level() >= log_level::debug) ? logger("DEBUG: ")
+		                                             : logger(nullptr);
+	} else {
+		return null_logger{};
+	}
 }
 
 inline auto log_info() {

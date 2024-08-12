@@ -70,7 +70,16 @@ optional_word T21::read(port p, word_t imm) {
 }
 
 void T21::step() {
-	auto log = log_debug();
+	if (get_log_level() >= log_level::debug) {
+		do_step<true>();
+	} else {
+		do_step<false>();
+	}
+}
+
+template <bool do_log>
+void T21::do_step() {
+	auto log = log_debug<do_log>();
 	log << "step(" << x << ',' << y << ',' << +pc << "): ";
 	if (code.empty()) {
 		log << "empty";
@@ -220,11 +229,20 @@ void T21::step() {
 	}
 }
 void T21::finalize() {
+	if (get_log_level() >= log_level::debug) {
+		do_finalize<true>();
+	} else {
+		do_finalize<false>();
+	}
+}
+
+template <bool do_log>
+void T21::do_finalize() {
 	if (code.empty()) {
 		return;
 	}
 	if (s == activity::write) {
-		auto log = log_debug();
+		auto log = log_debug<do_log>();
 		log << "finalize(" << x << ',' << y << ',' << +pc << "): mov ";
 		// if write just started
 		if (write_port == port::nil) {
