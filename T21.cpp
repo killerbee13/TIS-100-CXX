@@ -69,31 +69,57 @@ optional_word T21::read(port p, word_t imm) {
 	}
 }
 
+#define LOG(log, do_log, ...)  \
+	do                          \
+		if constexpr (do_log) {  \
+			(log << __VA_ARGS__); \
+		} else {                 \
+			(void)log;            \
+		}                        \
+	while (false)
+#define LOG_R(log, do_log, ...)  \
+	do                            \
+		if constexpr (do_log) {    \
+			log.log_r(__VA_ARGS__); \
+		} else {                   \
+			(void)log;              \
+		}                          \
+	while (false)
+
 void T21::step() {
-	auto log = log_debug();
-	log << "step(" << x << ',' << y << ',' << +pc << "): ";
+	if (get_log_level() >= log_level::debug) {
+		do_step<true>();
+	} else {
+		do_step<false>();
+	}
+}
+
+template <bool do_log>
+void T21::do_step() {
+	auto log = log_debug<do_log>();
+	LOG(log, do_log, "step(" << x << ',' << y << ',' << +pc << "): ");
 	if (code.empty()) {
-		log << "empty";
+		LOG(log, do_log, "empty");
 		return;
 	}
 	auto& instr = code[to_unsigned(pc)];
-	log << "instruction type: ";
-	log.log_r([&] { return to_string(instr.op_); });
+	LOG(log, do_log, "instruction type: ");
+	LOG_R(log, do_log, [&] { return to_string(instr.op_); });
 	if (s == activity::write) {
 		// if waiting for a write, then this instruction's read already
 		// happened
-		log << " stalled[W]";
+		LOG(log, do_log, " stalled[W]");
 		return;
 	}
 	auto r = read(instr.src, instr.val);
 	if (r == word_empty) {
-		log << " stalled[R]";
+		LOG(log, do_log, " stalled[R]");
 		s = activity::read;
 		return;
 	}
 	switch (instr.op_) {
 	case instr::hcf: {
-		log << "\n\ts = " << state_name(s);
+		LOG(log, do_log, "\n\ts = " << state_name(s));
 		throw hcf_exception{x, y, pc};
 	}
 	case instr::nop: {
@@ -101,38 +127,38 @@ void T21::step() {
 		s = activity::run;
 	} break;
 	case instr::swp: {
-		log << " (" << acc << "<->" << bak << ')';
+		LOG(log, do_log, " (" << acc << "<->" << bak << ')');
 		std::swap(acc, bak);
 		s = activity::run;
 		next();
 	} break;
 	case instr::sav: {
-		log << " (" << acc << "->" << bak << ')';
+		LOG(log, do_log, " (" << acc << "->" << bak << ')');
 		bak = acc;
 		s = activity::run;
 		next();
 	} break;
 	case instr::neg: {
-		log << " (" << acc << ')';
+		LOG(log, do_log, " (" << acc << ')');
 		acc = -acc;
 		s = activity::run;
 		next();
 	} break;
 	[[likely]] case instr::mov: {
-		log << " (" << r << ") ";
+		LOG(log, do_log, " (" << r << ") ");
 		switch (instr.dst()) {
 		case port::acc:
-			log << "acc = " << r;
+			LOG(log, do_log, "acc = " << r);
 			acc = r;
 			[[fallthrough]];
 		case port::nil:
-			// log << "nil = " << *r;
+			// log(log, do_log,  "nil = " << *r);
 			s = activity::run;
 			next();
 			break;
 		case port::last:
 			if (last == port::nil) {
-				log << "last[N/A] = " << r;
+				LOG(log, do_log, "last[N/A] = " << r);
 				s = activity::run;
 				next();
 				break;
@@ -147,7 +173,7 @@ void T21::step() {
 		case port::any:
 			s = activity::write;
 			wrt = r;
-			log << "stalling[W]";
+			LOG(log, do_log, "stalling[W]");
 			// writes don't happen until next cycle
 			break;
 		case port::immediate:
@@ -155,25 +181,26 @@ void T21::step() {
 		}
 	} break;
 	case instr::add: {
-		log << " (" << acc << ") ";
-		log << r;
+		LOG(log, do_log, " (" << acc << ") ");
+		LOG(log, do_log, r);
 		acc = sat_add(acc, r);
 		s = activity::run;
 		next();
 	} break;
 	case instr::sub: {
-		log << " (" << acc << ") ";
-		log << r;
+		LOG(log, do_log, " (" << acc << ") ");
+		LOG(log, do_log, r);
 		acc = sat_sub(acc, r);
 		s = activity::run;
 		next();
 	} break;
 	case instr::jmp: {
-		log << " " << +instr.data;
+		LOG(log, do_log, " " << +instr.data);
 		pc = instr.data;
 	} break;
 	case instr::jez: {
-		log << " (" << (acc == 0 ? "taken" : "not taken") << ") " << instr.data;
+		LOG(log, do_log,
+		    " (" << (acc == 0 ? "taken" : "not taken") << ") " << instr.data);
 		if (acc == 0) {
 			pc = instr.data;
 		} else {
@@ -182,7 +209,8 @@ void T21::step() {
 		s = activity::run;
 	} break;
 	case instr::jnz: {
-		log << " (" << (acc != 0 ? "taken" : "not taken") << ") " << instr.data;
+		LOG(log, do_log,
+		    " (" << (acc != 0 ? "taken" : "not taken") << ") " << instr.data);
 		if (acc != 0) {
 			pc = instr.data;
 		} else {
@@ -191,7 +219,8 @@ void T21::step() {
 		s = activity::run;
 	} break;
 	case instr::jgz: {
-		log << " (" << (acc > 0 ? "taken" : "not taken") << ") " << instr.data;
+		LOG(log, do_log,
+		    " (" << (acc > 0 ? "taken" : "not taken") << ") " << instr.data);
 		if (acc > 0) {
 			pc = instr.data;
 		} else {
@@ -200,7 +229,8 @@ void T21::step() {
 		s = activity::run;
 	} break;
 	case instr::jlz: {
-		log << " (" << (acc < 0 ? "taken" : "not taken") << ") " << instr.data;
+		LOG(log, do_log,
+		    " (" << (acc < 0 ? "taken" : "not taken") << ") " << instr.data);
 		if (acc < 0) {
 			pc = instr.data;
 		} else {
@@ -209,10 +239,10 @@ void T21::step() {
 		s = activity::run;
 	} break;
 	case instr::jro: {
-		log << " ";
-		log << '(' << +pc << '+' << r << " -> ";
+		LOG(log, do_log, " ");
+		LOG(log, do_log, '(' << +pc << '+' << r << " -> ");
 		pc = sat_add(pc, r, word_t{}, static_cast<word_t>(code.size() - 1));
-		log << +pc << ")";
+		LOG(log, do_log, +pc << ")");
 		s = activity::run;
 	} break;
 	default:
@@ -220,15 +250,24 @@ void T21::step() {
 	}
 }
 void T21::finalize() {
+	if (get_log_level() >= log_level::debug) {
+		do_finalize<true>();
+	} else {
+		do_finalize<false>();
+	}
+}
+
+template <bool do_log>
+void T21::do_finalize() {
 	if (code.empty()) {
 		return;
 	}
 	if (s == activity::write) {
 		auto log = log_debug();
-		log << "finalize(" << x << ',' << y << ',' << +pc << "): mov ";
+		LOG(log, do_log, "finalize(" << x << ',' << y << ',' << +pc << "): mov ");
 		// if write just started
 		if (write_port == port::nil) {
-			log << "started";
+			LOG(log, do_log, "started");
 			port p = code[to_unsigned(pc)].dst();
 			if (p == port::last) {
 				write_port = last;
@@ -237,12 +276,12 @@ void T21::finalize() {
 			}
 			// if write completed
 		} else if (write_port == port::immediate) {
-			log << "completed";
+			LOG(log, do_log, "completed");
 			write_port = port::nil;
 			s = activity::run;
 			next();
 		} else {
-			log << "in progress";
+			LOG(log, do_log, "in progress");
 		}
 	} else {
 		log_debug("finalize(", x, ',', y, ',', +pc, "): skipped");

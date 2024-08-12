@@ -200,14 +200,21 @@ class logger {
 		}
 	}
 
+	struct null_logger {};
+
  private:
 	std::unique_ptr<std::ostringstream> formatter_;
 	std::ostream* log_;
 };
 
+template <bool active = true>
 inline auto log_debug() {
-	return (get_log_level() >= log_level::debug) ? logger("DEBUG: ")
-	                                             : logger(nullptr);
+	if constexpr (active) {
+		return (get_log_level() >= log_level::debug) ? logger("DEBUG: ")
+		                                             : logger(nullptr);
+	} else {
+		return logger::null_logger{};
+	}
 }
 
 inline auto log_info() {

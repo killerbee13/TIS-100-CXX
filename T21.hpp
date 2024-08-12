@@ -96,7 +96,11 @@ struct T21 : node {
 	using node::node;
 	type_t type() const noexcept override { return type_t::T21; }
 	void step() override;
+	template <bool log>
+	void do_step();
 	void finalize() override;
+	template <bool log>
+	void do_finalize();
 	void reset() noexcept override {
 		acc = 0;
 		bak = 0;
