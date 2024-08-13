@@ -26,10 +26,6 @@ struct single_test {
 	std::vector<word_vec> n_outputs{};
 	image_t i_output{};
 };
-struct inputs_outputs {
-	using list = std::array<word_t, 39>;
-	std::array<single_test, 3> data;
-};
 
 std::array<single_test, 3> static_suite(int id);
 std::optional<single_test> random_test(int id, std::uint32_t seed);

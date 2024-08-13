@@ -146,9 +146,6 @@ class field {
 		return nullptr;
 	}
 
-	template <bool use_nonstandard_rep>
-	friend field parse_layout(std::string_view layout, std::size_t T30_size);
-
 	const_iterator begin() const noexcept { return nodes.begin(); }
 	// Partition between regular and IO nodes
 	const_iterator end_regular() const noexcept {
