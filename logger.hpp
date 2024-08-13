@@ -186,11 +186,9 @@ class logger {
  public:
 	logger(std::string_view prefix);
 	logger(std::nullptr_t)
-	    : formatter_{}
-	    , log_(nullptr) {}
+	    : formatter_{} {}
 	logger(logger&& o)
-	    : formatter_{std::move(o.formatter_)}
-	    , log_(o.log_) {}
+	    : formatter_{std::move(o.formatter_)} {}
 
 	auto log_r(std::invocable<> auto supplier) -> void {
 		if (formatter_) {
@@ -212,13 +210,12 @@ class logger {
 
 	~logger() {
 		if (formatter_) {
-			(*log_) << formatter_->view() << '\n';
+			detail::log(formatter_->view());
 		}
 	}
 
  private:
 	std::unique_ptr<std::ostringstream> formatter_;
-	std::ostream* log_;
 };
 
 inline auto log_debug() {

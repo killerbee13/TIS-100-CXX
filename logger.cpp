@@ -45,7 +45,6 @@ auto log_flush() -> void { output->flush(); }
 auto set_log_flush(bool do_flush) -> void { detail::flush = do_flush; }
 
 logger::logger(std::string_view prefix)
-    : formatter_{std::make_unique<std::ostringstream>()}
-    , log_{output} {
+    : formatter_{std::make_unique<std::ostringstream>()} {
 	(*formatter_) << prefix;
 }
