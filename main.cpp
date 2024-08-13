@@ -31,6 +31,9 @@
 #define TCLAP_SETBASE_ZERO 1
 #include <tclap/CmdLine.h>
 
+#include <cxxabi.h>
+#include <typeinfo>
+
 using namespace std::literals;
 
 volatile std::sig_atomic_t stop_requested;
@@ -559,7 +562,16 @@ int main(int argc, char** argv) try {
 
 	return (sc.validated) ? 0 : 1;
 } catch (const std::exception& e) {
-	log_err("failed with exception: ", e.what());
+	int status{};
+	auto type_name
+	    = abi::__cxa_demangle(typeid(e).name(), nullptr, nullptr, &status);
+	if (status != 0) {
+		log_err("Unexpected error occured while handling exception: ", e.what());
+		log_flush();
+		return 2;
+	}
+
+	log_err("Failed with exception of type ", type_name, ": ", e.what());
 	log_flush();
-	throw;
+	return 2;
 }
