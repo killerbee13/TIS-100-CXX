@@ -59,7 +59,7 @@ struct input_node : node {
 
 	word_vec inputs;
 	std::size_t idx{};
-	optional_word wrt;
+	optional_word wrt = word_empty;
 	activity s{activity::idle};
 
  private:
@@ -149,10 +149,10 @@ struct image_output : node {
 	}
 	image_t image_expected;
 	image_t image_received;
-	std::ptrdiff_t width;
-	std::ptrdiff_t height;
-	optional_word c_x;
-	optional_word c_y;
+	std::ptrdiff_t width{};
+	std::ptrdiff_t height{};
+	optional_word c_x = word_empty;
+	optional_word c_y = word_empty;
 };
 
 #endif // IO_HPP
