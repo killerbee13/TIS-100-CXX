@@ -328,7 +328,7 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 				// iteration, but a proper largest_contiguous_rectangle check would
 				// be slower and need more code.
 				if (iterations > 250) {
-					log_debug("skipped placing rectangle ", i);
+					log_trace("skipped while placing rectangle ", i);
 					return std::nullopt;
 				}
 				w = engine.next_int(3, 6);

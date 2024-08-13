@@ -77,8 +77,8 @@ score run(field& l, int cycles_limit, bool print_err) {
 	try {
 		do {
 			++sc.cycles;
-			log_debug("step ", sc.cycles);
-			log_debug_r([&] { return "Current state:\n" + l.state(); });
+			log_trace("step ", sc.cycles);
+			log_trace_r([&] { return "Current state:\n" + l.state(); });
 			l.step();
 		} while (stop_requested == 0 and l.active()
 		         and std::cmp_less(sc.cycles, cycles_limit));
@@ -237,17 +237,22 @@ int main(int argc, char** argv) try {
 	    concat("Memory capacity of T30 nodes. (Default ", def_T30_size, ")"),
 	    false, def_T30_size, "integer", cmd);
 
-	std::vector<std::string> loglevels_allowed{"none",   "err",  "error", "warn",
-	                                           "notice", "info", "debug"};
+	std::vector<std::string> loglevels_allowed{
+	    "none", "err", "error", "warn", "notice", "info", "trace", "debug"};
 	TCLAP::ValuesConstraint<std::string> loglevels(loglevels_allowed);
 	TCLAP::ValueArg<std::string> loglevel(
 	    "", "loglevel", "Set the logging level. (Default 'notice')", false,
 	    "notice", &loglevels);
 	TCLAP::SwitchArg debug_loglevel("", "debug",
 	                                "Equivalent to --loglevel debug");
+	TCLAP::SwitchArg trace_loglevel("", "trace",
+	                                "Equivalent to --loglevel trace");
 	TCLAP::SwitchArg info_loglevel("", "info", "Equivalent to --loglevel info");
 	TCLAP::EitherOf log_arg(cmd);
-	log_arg.add(loglevel).add(info_loglevel).add(debug_loglevel);
+	log_arg.add(loglevel)
+	    .add(info_loglevel)
+	    .add(trace_loglevel)
+	    .add(debug_loglevel);
 
 	TCLAP::MultiSwitchArg quiet("q", "quiet",
 	                            "Suppress printing anything but score and "
@@ -280,6 +285,8 @@ int main(int argc, char** argv) try {
 		using namespace kblib::literals;
 		if (debug_loglevel.isSet()) {
 			return log_level::debug;
+		} else if (trace_loglevel.isSet()) {
+			return log_level::trace;
 		} else if (info_loglevel.isSet()) {
 			return log_level::info;
 		}
@@ -295,6 +302,8 @@ int main(int argc, char** argv) try {
 			return log_level::notice;
 		case "info"_fnv32:
 			return log_level::info;
+		case "trace"_fnv32:
+			return log_level::trace;
 		case "debug"_fnv32:
 			return log_level::debug;
 		default:

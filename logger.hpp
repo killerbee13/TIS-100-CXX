@@ -28,12 +28,13 @@ auto log(std::string_view str) -> void;
 } // namespace detail
 
 enum class log_level {
-	silent = 0,
-	err = 1,
-	warn = 2,
-	notice = 3,
-	info = 4,
-	debug = 5,
+	silent,
+	err,
+	warn,
+	notice,
+	info,
+	trace,
+	debug,
 };
 
 auto set_log_level(log_level) -> void;
@@ -122,6 +123,12 @@ auto log_debug(Strings&&... strings) -> void {
 		detail::log(concat("DEBUG: ", strings...));
 	}
 }
+template <typename... Strings>
+auto log_trace(Strings&&... strings) -> void {
+	if (get_log_level() >= log_level::trace) {
+		detail::log(concat("TRACE: ", strings...));
+	}
+}
 
 template <typename... Strings>
 auto log_info(Strings&&... strings) -> void {
@@ -158,6 +165,11 @@ auto log_err(Strings&&... strings) -> void {
 auto log_debug_r(std::invocable<> auto supplier) -> void {
 	if (get_log_level() >= log_level::debug) {
 		detail::log(concat("DEBUG: ", supplier()));
+	}
+}
+auto log_trace_r(std::invocable<> auto supplier) -> void {
+	if (get_log_level() >= log_level::trace) {
+		detail::log(concat("TRACE: ", supplier()));
 	}
 }
 
@@ -211,6 +223,10 @@ class logger {
 
 inline auto log_debug() {
 	return (get_log_level() >= log_level::debug) ? logger("DEBUG: ")
+	                                             : logger(nullptr);
+}
+inline auto log_trace() {
+	return (get_log_level() >= log_level::trace) ? logger("TRACE: ")
 	                                             : logger(nullptr);
 }
 
