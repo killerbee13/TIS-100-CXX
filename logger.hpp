@@ -88,11 +88,7 @@ enum SGR_code {
 	bg_bright_white,
 };
 
-std::string print_escape(SGR_code first,
-                         std::same_as<SGR_code> auto... colors) {
-	if (not color_stdout) {
-		return {};
-	}
+std::string escape_code(SGR_code first, std::same_as<SGR_code> auto... colors) {
 	if (first == none and sizeof...(colors) == 0) {
 		return "\033[m";
 	}
@@ -102,10 +98,19 @@ std::string print_escape(SGR_code first,
 	ret += 'm';
 	return ret;
 }
+
+std::string print_escape(SGR_code first,
+                         std::same_as<SGR_code> auto... colors) {
+	if (color_stdout) {
+		return escape_code(first, colors...);
+	} else {
+		return {};
+	}
+}
 std::string log_print_escape(SGR_code first,
                              std::same_as<SGR_code> auto... colors) {
 	if (color_logs) {
-		return print_escape(first, colors...);
+		return escape_code(first, colors...);
 	} else {
 		return {};
 	}
