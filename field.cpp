@@ -17,6 +17,125 @@
  * ****************************************************************************/
 
 #include "field.hpp"
+#include "T30.hpp"
+
+template <typename Node>
+Node* do_insert(std::vector<std::unique_ptr<node>>& v, int x) {
+	auto _ = std::make_unique<Node>(x, -1);
+	auto p = _.get();
+	v.emplace_back(std::move(_));
+	return p;
+}
+
+field::field(builtin_layout_spec spec, std::size_t T30_size) {
+	nodes.reserve([&] {
+		std::size_t r = 12;
+		for (auto t : spec.io) {
+			for (auto i : t) {
+				if (i.type != node::null) {
+					++r;
+				}
+			}
+		}
+		return r;
+	}());
+
+	width = 4;
+	in_nodes_offset = 12;
+	for (const auto y : range(3u)) {
+		for (const auto x : range(4u)) {
+			switch (spec.nodes[y][x]) {
+			case node::T21:
+				nodes.push_back(std::make_unique<T21>(x, y));
+				break;
+			case node::T30: {
+				nodes.push_back(std::make_unique<T30>(x, y, T30_size));
+			} break;
+			case node::Damaged:
+				nodes.push_back(std::make_unique<damaged>(x, y));
+				break;
+			case node::in:
+			case node::out:
+			case node::image:
+				throw std::invalid_argument{
+				    "invalid layout spec: IO node as regular node"};
+			case node::null:
+				throw std::invalid_argument{
+				    "invalid layout spec: null node as regular node"};
+			}
+		}
+	}
+	for (const auto y : range(3u)) {
+		for (const auto x : range(4u)) {
+			if (auto p = node_by_location(x, y); valid(p)) {
+				// safe because node_by_location returns nullptr on OOB
+				p->neighbors[left] = node_by_location(x - 1, y);
+				p->neighbors[right] = node_by_location(x + 1, y);
+				p->neighbors[up] = node_by_location(x, y - 1);
+				p->neighbors[down] = node_by_location(x, y + 1);
+				for (auto& n : p->neighbors) {
+					if (n and n->type() == node::Damaged) {
+						n = nullptr;
+					}
+				}
+			}
+		}
+	}
+
+	out_nodes_offset = in_nodes_offset;
+	for (const auto x : range(4u)) {
+		auto in = spec.io[0][x];
+		switch (in.type) {
+		case node::in: {
+			auto p = do_insert<input_node>(nodes, to_signed(x));
+			auto n = node_by_location(x, 0);
+			assert(valid(n));
+			p->neighbors[down] = n;
+			n->neighbors[up] = p;
+			out_nodes_offset++;
+		} break;
+		case node::null:
+			// pass
+			break;
+		default:
+			throw std::invalid_argument{"invalid layout spec: illegal input node"};
+		}
+	}
+
+	for (const auto x : range(4u)) {
+		auto in = spec.io[1][x];
+		switch (in.type) {
+		case node::out: {
+			auto p = do_insert<output_node>(nodes, to_signed(x));
+			auto n = node_by_location(x, 2);
+			assert(valid(n));
+			p->neighbors[up] = n;
+			n->neighbors[down] = p;
+			if (in.image_size) {
+				throw std::invalid_argument{"invalid layout spec: image size "
+				                            "specified for numeric output node"};
+			}
+		} break;
+		case node::image: {
+			auto p = do_insert<image_output>(nodes, to_signed(x));
+			auto n = node_by_location(x, 2);
+			assert(valid(n));
+			p->neighbors[up] = n;
+			n->neighbors[down] = p;
+			if (not in.image_size) {
+				throw std::invalid_argument{
+				    "invalid layout spec: no size specified for image"};
+			}
+			p->reshape(in.image_size.value().first, in.image_size.value().second);
+		} break;
+		case node::null:
+			// pass
+			break;
+		default:
+			throw std::invalid_argument{"invalid layout spec: illegal input node"};
+		}
+	}
+}
 
 std::size_t field::instructions() const {
 	std::size_t ret{};
@@ -71,31 +190,19 @@ std::string field::layout() const {
 		if (p->type() == node::in) {
 			auto in = static_cast<input_node*>(p);
 			append(ret, 'I', p->x, " LIST ");
-			if (in->filename.empty()) {
-				append(ret, "[");
-				for (auto v : in->inputs) {
-					append(ret, v, ", ");
-				}
-				append(ret, "]\n");
-			} else {
-				append(ret, in->filename, '\n');
+			append(ret, "[");
+			for (auto v : in->inputs) {
+				append(ret, v, ", ");
 			}
+			append(ret, "]\n");
 		} else if (p->type() == node::out) {
 			auto on = static_cast<output_node*>(p);
 			append(ret, 'O', p->x, " LIST ");
-			if (on->filename.empty()) {
-				append(ret, "[");
-				for (auto v : on->outputs_expected) {
-					append(ret, v, ", ");
-				}
-				append(ret, "]\n");
-			} else {
-				append(ret, on->filename);
-				if (on->d != ' ') {
-					append(ret, ' ', +on->d);
-				}
-				append(ret, '\n');
+			append(ret, "[");
+			for (auto v : on->outputs_expected) {
+				append(ret, v, ", ");
 			}
+			append(ret, "]\n");
 		} else if (p->type() == node::image) {
 			auto im = static_cast<image_output*>(p);
 			append(ret, 'O', p->x, " IMAGE ", im->width, im->height);

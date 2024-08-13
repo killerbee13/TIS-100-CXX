@@ -17,6 +17,7 @@
  * ****************************************************************************/
 
 #include "builtin_levels.hpp"
+#include "logger.hpp"
 #include "node.hpp"
 #include "parser.hpp"
 #include "random_levels.hpp"
@@ -304,24 +305,18 @@ int main(int argc, char** argv) try {
 	field f = [&] {
 		if (id_arg.isSet()) {
 			id = level_id(id_arg.getValue());
-			return field(layouts.at(static_cast<std::size_t>(id)).layout,
-			             T30_size.getValue());
+			return field(layouts.at(to_unsigned(id)).layout, T30_size.getValue());
 		} else if (level_num.isSet()) {
 			id = level_num.getValue();
-			return field(layouts.at(static_cast<std::size_t>(id)).layout,
-			             T30_size.getValue());
-		} else if (layout_s.isSet()) {
-			id = -1;
-			return parse_layout_guess(layout_s.getValue(), T30_size.getValue());
+			return field(layouts.at(to_unsigned(id)).layout, T30_size.getValue());
 		} else if (auto filename = std::filesystem::path(solution.getValue())
 		                               .filename()
 		                               .string();
 		           auto maybeId = guess_level_id(filename)) {
 			id = *maybeId;
-			log_debug("Deduced level ", layouts[id].segment, " from filename \"",
-			          filename, "\"");
-			return field(layouts.at(static_cast<std::size_t>(id)).layout,
-			             T30_size.getValue());
+			log_debug("Deduced level ", layouts.at(to_unsigned(id)).segment,
+			          " from filename \"", filename, "\"");
+			return field(layouts.at(to_unsigned(id)).layout, T30_size.getValue());
 		} else {
 			throw std::invalid_argument{
 			    "Impossible to determine the level ID from information given"};
@@ -347,7 +342,7 @@ int main(int argc, char** argv) try {
 				std::size_t i{};
 				for (; i != r.size(); ++i) {
 					if (r[i] == '.') {
-						if (i + 1 < r.size()) {
+						if (i + 1 < r.size() and r[i + 1] == '.') {
 							end.emplace();
 							i += 2;
 							break;

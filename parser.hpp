@@ -27,8 +27,6 @@
 #include <string>
 #include <vector>
 
-/// Parse a layout string, guessing whether to use BSMC or CSMD
-field parse_layout_guess(std::string_view layout, std::size_t T30_size);
 /// Assemble a single node's code
 std::vector<instr> assemble(std::string_view source, int node,
                             std::size_t T21_size = def_T21_size);

@@ -61,7 +61,7 @@ struct T30 : node {
 	optional_word emit(port) override {
 		if (not wrote and division != 0) {
 			auto v = data[--division];
-			data.erase(data.begin() + division);
+			data.erase(data.begin() + to_signed(division));
 			wrote = true;
 			return v;
 		} else {

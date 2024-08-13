@@ -59,7 +59,6 @@ struct input_node : node {
 
 	word_vec inputs;
 	std::size_t idx{};
-	std::string filename{};
 	optional_word wrt;
 	activity s{activity::idle};
 
@@ -101,7 +100,6 @@ struct output_node : node {
 	}
 	word_vec outputs_expected;
 	word_vec outputs_received;
-	std::string filename;
 	char d{' '};
 	bool wrong{false};
 	bool complete{false};
@@ -151,7 +149,6 @@ struct image_output : node {
 	}
 	image_t image_expected;
 	image_t image_received;
-	std::string filename;
 	std::ptrdiff_t width;
 	std::ptrdiff_t height;
 	optional_word c_x;
