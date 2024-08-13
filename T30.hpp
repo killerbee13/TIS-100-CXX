@@ -58,6 +58,9 @@ struct T30 : node {
 		division = 0;
 		wrote = false;
 	}
+	std::unique_ptr<node> clone() const override {
+		return std::make_unique<T30>(x, y, max_size);
+	}
 	optional_word emit(port) override {
 		if (not wrote and division != 0) {
 			auto v = data[--division];

@@ -48,6 +48,11 @@ struct input_node : node {
 		wrt = word_empty;
 		s = activity::idle;
 	}
+	std::unique_ptr<node> clone() const override {
+		auto ret = std::make_unique<input_node>(x, y);
+		ret->inputs = inputs;
+		return ret;
+	}
 	optional_word emit(port) override {
 		writing = wrt != word_empty;
 		return std::exchange(wrt, word_empty);
@@ -89,6 +94,11 @@ struct output_node : node {
 		outputs_received.clear();
 		wrong = false;
 		complete = false;
+	}
+	std::unique_ptr<node> clone() const override {
+		auto ret = std::make_unique<output_node>(x, y);
+		ret->outputs_expected = outputs_expected;
+		return ret;
 	}
 	optional_word emit(port) override { return word_empty; }
 	std::string state() const override {
@@ -135,6 +145,11 @@ struct image_output : node {
 		image_received.fill(tis_pixel::C_black);
 		c_x = word_empty;
 		c_y = word_empty;
+	}
+	std::unique_ptr<node> clone() const override {
+		auto ret = std::make_unique<image_output>(x, y);
+		ret->image_expected = image_expected;
+		return ret;
 	}
 	optional_word emit(port) override { return word_empty; }
 	std::string state() const override {

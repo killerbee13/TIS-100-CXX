@@ -27,6 +27,43 @@ Node* do_insert(std::vector<std::unique_ptr<node>>& v, int x) {
 	return p;
 }
 
+void field::set_neighbors() {
+	for (const auto y : range(height())) {
+		for (const auto x : range(width)) {
+			if (auto p = node_by_location(x, y); valid(p)) {
+				// safe because node_by_location returns nullptr on OOB
+				p->neighbors[left] = node_by_location(x - 1, y);
+				p->neighbors[right] = node_by_location(x + 1, y);
+				p->neighbors[up] = node_by_location(x, y - 1);
+				p->neighbors[down] = node_by_location(x, y + 1);
+				for (auto& n : p->neighbors) {
+					if (n and n->type() == node::Damaged) {
+						n = nullptr;
+					}
+				}
+			}
+		}
+	}
+
+	for (const auto x : range(in_nodes_offset, out_nodes_offset)) {
+		auto p = nodes[x].get();
+		assert(valid(p));
+		auto n = node_by_location(p->x, 0);
+		assert(valid(n));
+		p->neighbors[down] = n;
+		n->neighbors[up] = p;
+	}
+
+	for (const auto x : range(out_nodes_offset, nodes.size())) {
+		auto p = nodes[x].get();
+		assert(valid(p));
+		auto n = node_by_location(p->x, height() - 1);
+		assert(valid(n));
+		p->neighbors[up] = n;
+		n->neighbors[down] = p;
+	}
+}
+
 field::field(builtin_layout_spec spec, std::size_t T30_size) {
 	nodes.reserve([&] {
 		std::size_t r = 12;
@@ -42,6 +79,7 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 
 	width = 4;
 	in_nodes_offset = 12;
+	out_nodes_offset = in_nodes_offset;
 	for (const auto y : range(3u)) {
 		for (const auto x : range(4u)) {
 			switch (spec.nodes[y][x]) {
@@ -65,25 +103,10 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 			}
 		}
 	}
-	for (const auto y : range(3u)) {
-		for (const auto x : range(4u)) {
-			if (auto p = node_by_location(x, y); valid(p)) {
-				// safe because node_by_location returns nullptr on OOB
-				p->neighbors[left] = node_by_location(x - 1, y);
-				p->neighbors[right] = node_by_location(x + 1, y);
-				p->neighbors[up] = node_by_location(x, y - 1);
-				p->neighbors[down] = node_by_location(x, y + 1);
-				for (auto& n : p->neighbors) {
-					if (n and n->type() == node::Damaged) {
-						n = nullptr;
-					}
-				}
-			}
-		}
-	}
 
-	out_nodes_offset = in_nodes_offset;
-	for (const auto x : range(4u)) {
+	set_neighbors();
+
+	for (const auto x : range(width)) {
 		auto in = spec.io[0][x];
 		switch (in.type) {
 		case node::in: {
@@ -102,12 +125,12 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 		}
 	}
 
-	for (const auto x : range(4u)) {
+	for (const auto x : range(width)) {
 		auto in = spec.io[1][x];
 		switch (in.type) {
 		case node::out: {
 			auto p = do_insert<output_node>(nodes, to_signed(x));
-			auto n = node_by_location(x, 2);
+			auto n = node_by_location(x, height() - 1);
 			assert(valid(n));
 			p->neighbors[up] = n;
 			n->neighbors[down] = p;
@@ -118,7 +141,7 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 		} break;
 		case node::image: {
 			auto p = do_insert<image_output>(nodes, to_signed(x));
-			auto n = node_by_location(x, 2);
+			auto n = node_by_location(x, height() - 1);
 			assert(valid(n));
 			p->neighbors[up] = n;
 			n->neighbors[down] = p;
@@ -288,5 +311,22 @@ std::string field::machine_layout() const {
 	  .io = {{
 			{{{null, {}}, {in, {}}, {in, {}}, {null, {}}, }},
 			{{{out, {}}, {image, {{30, 18}}}, {null, {}}, {null, {}}, }}
-		}}};
+	         }}};
+}
+
+field field::clone() const
+{
+	field ret;
+
+	for (auto& n : nodes) {
+		ret.nodes.push_back(n->clone());
+	}
+
+	ret.width = width;
+	ret.in_nodes_offset = in_nodes_offset;
+	ret.out_nodes_offset = out_nodes_offset;
+
+	ret.set_neighbors();
+
+	return ret;
 }

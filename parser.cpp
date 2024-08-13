@@ -57,15 +57,7 @@ void parse_code(field& f, std::string_view source, std::size_t T21_size) {
 		if (not p) {
 			throw std::invalid_argument{concat("node label ", i, " out of range")};
 		}
-		auto code = assemble(section, i, T21_size);
-		if (code.size() <= p->small_.size()) {
-			p->code = {p->small_.begin(),
-			           std::copy(code.begin(), code.end(), p->small_.begin())};
-		} else {
-			p->large_.reset(new instr[code.size()]);
-			p->code
-			    = {p->large_.get(), std::ranges::copy(code, p->large_.get()).out};
-		}
+		p->set_code(assemble(section, i, T21_size));
 	}
 }
 

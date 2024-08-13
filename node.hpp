@@ -120,6 +120,9 @@ struct node {
 	/// Reset the node to its default (startup) configuration. Do not erase code
 	/// or expected values.
 	virtual void reset() noexcept = 0;
+	/// Return a new node initialized in the same way as *this.
+	/// (Not a copy constructor; new node is as if reset() and has no neighbors)
+	virtual std::unique_ptr<node> clone() const = 0;
 
 	/// Attempt to answer a read from this node, coming from direction p
 	virtual optional_word emit(port p) = 0;
@@ -164,6 +167,9 @@ struct damaged : node {
 	void step() override {}
 	void finalize() override {}
 	void reset() noexcept override {}
+	std::unique_ptr<node> clone() const override {
+		return std::make_unique<damaged>(x, y);
+	}
 	optional_word emit(port) override { return word_empty; }
 	std::string state() const override {
 		return concat("(", x, ',', y, ") {Damaged}");

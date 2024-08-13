@@ -100,6 +100,8 @@ class field {
 	/// Serialize layout as a C++ builtin_layout_spec initializer
 	std::string machine_layout() const;
 
+	field clone() const;
+
 	// returns the node at the (x,y) coordinates, Nullable
 	node* node_by_location(std::size_t x, std::size_t y) {
 		if (x > width) {
@@ -157,6 +159,8 @@ class field {
 		return nodes.begin() + static_cast<std::ptrdiff_t>(out_nodes_offset);
 	}
 	const_iterator end() const noexcept { return nodes.end(); }
+
+	void set_neighbors();
 
  private:
 	// w*h regulars, 0..w inputs, 1..w outputs

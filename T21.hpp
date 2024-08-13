@@ -106,6 +106,7 @@ struct T21 : node {
 		last = port::nil;
 		s = activity::idle;
 	}
+	std::unique_ptr<node> clone() const override;
 	optional_word emit(port) override;
 	std::string state() const override;
 
@@ -116,10 +117,19 @@ struct T21 : node {
 	std::span<instr> code;
 	activity s{activity::idle};
 
-	std::unique_ptr<instr[]> large_;
-	std::array<instr, def_T21_size> small_;
+	void set_code(std::span<const instr> new_code) {
+		if (new_code.size() <= small_.size()) {
+			code = {small_.begin(),
+			        std::ranges::copy(new_code, small_.begin()).out};
+		} else {
+			large_.reset(new instr[code.size()]);
+			code = {large_.get(), std::ranges::copy(new_code, large_.get()).out};
+		}
+	}
 
  private:
+	std::unique_ptr<instr[]> large_;
+	std::array<instr, def_T21_size> small_;
 	/// Increment the program counter, wrapping to beginning.
 	void next();
 	/// Attempt to read a value from this node's port p, which may be

@@ -250,6 +250,12 @@ void T21::finalize() {
 	}
 }
 
+std::unique_ptr<node> T21::clone() const {
+	auto ret = std::make_unique<T21>(x, y);
+	ret->set_code(code);
+	return ret;
+}
+
 optional_word T21::emit(port p) {
 	assert(p >= port::left and p <= port::D6);
 	if (write_port == port::any or write_port == p) {
