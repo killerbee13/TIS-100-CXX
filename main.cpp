@@ -134,8 +134,6 @@ class range_constraint : public TCLAP::Constraint<T> {
 	T high{};
 };
 
-int generate(uint32_t seed);
-
 void score_summary(score sc, score last, int fixed, int quiet,
                    int cycles_limit) {
 	// we use stdout here, so flush logs to avoid mangled messages in the shell
@@ -260,10 +258,6 @@ int main(int argc, char** argv) try {
 	                           "Enable colors in the log. "
 	                           "(Defaults on if STDERR is a tty.)",
 	                           cmd);
-
-	TCLAP::ValueArg<std::string> write_machine_layout(
-	    "", "write-layouts", "write the C++-parsable layouts to [filename]",
-	    false, "", "filename", cmd);
 
 	TCLAP::SwitchArg dry_run(
 	    "", "dry-run", "Parse the command line, but don't run any tests", cmd);
@@ -434,53 +428,6 @@ int main(int argc, char** argv) try {
 		}
 	}
 
-#ifdef OLD_LAYOUTS
-	if (write_machine_layout.isSet()) {
-		std::ofstream out(write_machine_layout.getValue());
-
-		out << R"cpp(#ifndef LAYOUTSPECS_HPP
-#define LAYOUTSPECS_HPP
-
-#include "node.hpp"
-
-struct builtin_layout_spec {
-	struct io_node_spec {
-		node::type_t type;
-		std::optional<std::pair<word_t, word_t>> image_size;
-	};
-
-	std::array<std::array<node::type_t, 4>, 3> nodes;
-	std::array<std::array<io_node_spec, 4>, 2> io;
-};
-
-struct level_layout1 {
-	std::string_view segment;
-	std::string_view name;
-	builtin_layout_spec layout;
-};
-
-// clang-format off
-constexpr std::array<level_layout1, 51> gen_layouts() {
-	using enum node::type_t;
-	return {{
-)cpp";
-		for (auto& l : layouts) {
-			out << "\t{" << std::quoted(l.segment) << ", " << std::quoted(l.name)
-			    << ",\n\t\t";
-			out << parse_layout_guess(l.layout, def_T30_size).machine_layout()
-			    << "},\n";
-		}
-		out << R"cpp(}};
-}
-
-// clang-format on
-inline constexpr auto layouts1 = gen_layouts();
-
-#endif
-)cpp";
-	}
-#endif
-
 	log_debug_r([&] { return f.layout(); });
 
 	score sc;
@@ -615,139 +562,9 @@ inline constexpr auto layouts1 = gen_layouts();
 	}
 	std::cout << '\n';
 
-	// This was used to analyze the failure chance of EXPOSURE MASK VIEWER's
-	// random test generation and serves no continuing purpose.
-#if HISTOGRAM
-	if (not histogram[0].empty()) {
-		for (auto i : kblib::range(histogram.size())) {
-			std::cerr << histogram[i].size() << '\n';
-			std::ranges::sort(histogram[i]);
-			auto average
-			    = std::accumulate(histogram[i].begin(), histogram[i].end(), 0.0)
-			      / histogram[i].size();
-			auto variance
-			    = std::accumulate(histogram[i].begin(), histogram[i].end(), 0.0,
-			                      [&](double acc, std::size_t val) {
-				                      return acc
-				                             + ((val - average) * (val - average)
-				                                / (histogram[i].size() - 1));
-			                      });
-			auto minmax = std::ranges::minmax_element(histogram[i]);
-			auto midpoint = histogram[i].begin() + (histogram[i].size() / 2);
-			auto get_pct = [&](double pct) -> double {
-				auto pos = histogram[i].size() * pct;
-				if (pos == histogram[i].size() - 1) {
-					return histogram[i].back();
-				}
-				double posi{};
-				double posf = std::modf(pos, &posi);
-				auto point = histogram[i].begin() + posi;
-				return std::lerp(point[0], point[1], posf);
-			};
-
-			std::cout << "rectangle " << i
-			          << " stats: average/stddev/median/min/max: " << average
-			          << '/' << std::sqrt(variance) << '/' << get_pct(.5) << '/'
-			          << *minmax.min << '/' << *minmax.max << '\n';
-			std::cout << "\t5%t/95%t/99%t: " << get_pct(.05) << '/' << get_pct(.95)
-			          << '/' << get_pct(.99) << '\n';
-		}
-	}
-#endif
 	return (sc.validated) ? 0 : 1;
-
-#if 0
-	// tiny self-test
-	auto l = parse(
-		 "1 1 B I0 NUMERIC @0 O0 NUMERIC @5",
-		 "@0\nMOV UP,ACC\nADD ACC\nMOV ACC,DOWN",
-		 single_test{
-			  .inputs = {{51, 62, 16, 83, 61, 14, 35, 17, 63, 48, 22, 40, 29,
-							  50, 77, 32, 31, 49, 89, 89, 12, 59, 53, 75, 37, 78,
-							  57, 38, 44, 98, 85, 25, 80, 39, 20, 16, 91, 81, 84}},
-			  .n_outputs = {{102, 124, 32,  166, 122, 28,  70,  34,  126, 96,
-								  44,  80,  58,  100, 154, 64,  62,  98,  178, 178,
-								  24,  118, 106, 150, 74,  156, 114, 76,  88,  196,
-								  170, 50,  160, 78,  40,  32,  182, 162, 168}},
-			  .i_output = {}});
-	sc = run(l, cycles_limit.getValue());
-
-	if (sc.validated) {
-		std::cout << "validation successful\n";
-		std::cout << "score: " << sc << '\n';
-	} else {
-		std::cout << "validation failed after " << sc.cycles << " cycles ";
-		if (sc.cycles == cycles_limit) {
-			std::cout << "[timeout]";
-		}
-		std::cout << '\n';
-	}
-	return (sc.validated) ? 0 : 1;
-#endif
-
 } catch (const std::exception& e) {
 	log_err("failed with exception: ", e.what());
 	log_flush();
 	throw;
 }
-
-#ifdef OLD_LAYOUTS
-// this was mostly to check that the parser and serializer (layout())
-// round-tripped correctly
-int generate(std::uint32_t seed) {
-	auto copy = [](auto x) { return x; };
-	for (auto [lvl, i] : kblib::enumerate(layouts)) {
-		auto base_path = std::filesystem::path(std::filesystem::current_path()
-		                                       / lvl.segment);
-		log_info("writing cfg: ", copy(base_path).concat(".tiscfg").native());
-		log_flush();
-		std::ofstream layout_f(copy(base_path).concat(".tiscfg"),
-		                       std::ios_base::trunc);
-		auto l = parse_layout_guess(lvl.layout, def_T30_size);
-		std::string layout;
-		kblib::search_replace_copy(l.layout(), "@"s,
-		                           std::string(lvl.segment) + "@",
-		                           std::back_inserter(layout));
-		layout_f << layout;
-
-		auto r = random_test(static_cast<int>(i), seed);
-		std::size_t i_idx = 0;
-		std::size_t o_idx = 0;
-		for (auto it = l.begin_io(); it != l.end(); ++it) {
-			auto n = it->get();
-			if (n->type() == node::in) {
-				auto p = static_cast<input_node*>(n);
-				auto o_path = copy(base_path).concat(p->filename);
-				log_info("writing in ", i_idx, ": ", o_path.native());
-				std::ofstream o_f(o_path, std::ios_base::trunc);
-				for (auto w : r->inputs[i_idx]) {
-					o_f << w << '\n';
-				}
-				++i_idx;
-			} else if (n->type() == node::out) {
-				auto p = static_cast<output_node*>(n);
-				auto o_path = copy(base_path).concat(p->filename);
-				log_info("writing out ", o_idx, ": ", o_path.native());
-				std::ofstream o_f(o_path, std::ios_base::trunc);
-				for (auto w : r->n_outputs[o_idx]) {
-					o_f << w << '\n';
-				}
-				++o_idx;
-			} else if (n->type() == node::image) {
-				auto p = static_cast<image_output*>(n);
-				auto o_path = copy(base_path).concat(p->filename);
-				log_info("writing image: ", o_path.native());
-				std::ofstream o_f(o_path, std::ios_base::trunc);
-				o_f << r->i_output;
-				o_f.close();
-
-				o_path += ".pnm";
-				log_info("writing scaled image: ", o_path.native());
-				o_f.open(o_path, std::ios_base::trunc);
-				r->i_output.write(o_f, 11, 17);
-			}
-		}
-	}
-	return 0;
-}
-#endif

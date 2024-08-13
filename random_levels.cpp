@@ -346,9 +346,7 @@ std::optional<single_test> random_test(int id, uint32_t seed) {
 					}
 				}
 			}
-#if HISTOGRAM
-			histogram[i].push_back(iterations);
-#endif
+
 			ret.inputs[0].push_back(x_c);
 			ret.inputs[0].push_back(y_c);
 			ret.inputs[0].push_back(w);

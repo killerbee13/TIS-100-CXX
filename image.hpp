@@ -414,13 +414,6 @@ std::error_code finalize_to_png(const image<pixel>& img,
 			return ec;
 		}
 
-#if 0
-		std::cerr << concat("Calling:\n\t", kblib::quoted(convert_path.native()),
-		                    ' ', kblib::quoted(std::string_view(comment_arg)),
-		                    ' ', kblib::quoted(comments), ' ', kblib::quoted(p),
-		                    ' ', kblib::quoted(d), '\n');
-#endif
-
 		execv(convert_path.c_str(), cargs);
 		{
 			std::cerr << "Exec failure: " << errno_to_message() << '\n';
