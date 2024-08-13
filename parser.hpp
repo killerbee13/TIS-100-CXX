@@ -79,23 +79,30 @@ struct score {
 			ret += "-";
 		}
 		append(ret, '/', sc.nodes, '/', sc.instructions);
-		if (sc.validated and (sc.achievement or sc.cheat)) {
-			ret += '/';
-		}
-		if (sc.validated and sc.achievement) {
-			if (colored) {
-				ret += print_escape(bright_blue, bold);
+		if (sc.validated) {
+			if (sc.achievement or sc.cheat) {
+				ret += '/';
 			}
-			ret += 'a';
-			if (colored) {
-				ret += print_escape(none);
+			if (sc.achievement) {
+				if (colored) {
+					ret += print_escape(bright_blue, bold);
+				}
+				ret += 'a';
+				if (colored) {
+					ret += print_escape(none);
+				}
 			}
-		}
-		if (sc.validated and sc.cheat) {
-			if (colored) {
-				ret += print_escape(yellow);
+			if (sc.hardcoded) {
+				if (colored) {
+					ret += print_escape(red);
+				}
+				ret += 'h';
+			} else if (sc.cheat) {
+				if (colored) {
+					ret += print_escape(yellow);
+				}
+				ret += 'c';
 			}
-			ret += 'c';
 		}
 		if (colored) {
 			ret += print_escape(none);
