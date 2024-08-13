@@ -34,17 +34,18 @@ class field {
 
 	/// Advance the field one full cycle (step and finalize)
 	void step() {
+		auto log = log_debug();
+		log << "Field step\n";
 		// evaluate code
 		for (auto& p : nodes) {
-			p->step();
+			p->step(log);
 		}
-		log_debug("");
+		log << '\n';
 		// execute writes
 		// this is a separate step to ensure a consistent propagation delay
 		for (auto& p : nodes) {
-			p->finalize();
+			p->finalize(log);
 		}
-		log_debug("");
 	}
 
 	bool active() const {

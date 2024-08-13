@@ -95,8 +95,8 @@ std::string to_string(instr i);
 struct T21 : node {
 	using node::node;
 	type_t type() const noexcept override { return type_t::T21; }
-	void step() override;
-	void finalize() override;
+	void step(logger&) override;
+	void finalize(logger&) override;
 	void reset() noexcept override {
 		acc = 0;
 		bak = 0;

@@ -114,9 +114,9 @@ struct node {
 	/// Returns the type of the node
 	virtual type_t type() const noexcept = 0;
 	/// Begin processing a cycle. Do not perform writes.
-	virtual void step() = 0;
+	virtual void step(logger& debug) = 0;
 	/// Finish processing a cycle. Writes are completed here.
-	virtual void finalize() = 0;
+	virtual void finalize(logger& debug) = 0;
 	/// Reset the node to its default (startup) configuration. Do not erase code
 	/// or expected values.
 	virtual void reset() noexcept = 0;
@@ -164,8 +164,8 @@ struct node {
 struct damaged : node {
 	using node::node;
 	type_t type() const noexcept override { return Damaged; }
-	void step() override {}
-	void finalize() override {}
+	void step(logger&) override {}
+	void finalize(logger&) override {}
 	void reset() noexcept override {}
 	std::unique_ptr<node> clone() const override {
 		return std::make_unique<damaged>(x, y);

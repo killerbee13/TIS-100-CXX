@@ -33,7 +33,7 @@ struct T30 : node {
 	bool wrote{};
 	bool used{};
 	type_t type() const noexcept override { return type_t::T30; }
-	void step() override {
+	void step(logger&) override {
 		if (data.size() == max_size) {
 			return;
 		}
@@ -49,7 +49,7 @@ struct T30 : node {
 			}
 		}
 	}
-	void finalize() override {
+	void finalize(logger&) override {
 		division = data.size();
 		wrote = false;
 	}

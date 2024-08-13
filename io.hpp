@@ -28,20 +28,25 @@
 struct input_node : node {
 	using node::node;
 	type_t type() const noexcept override { return in; }
-	void step() override {}
-	void finalize() override {
+	void step(logger&) override {}
+	void finalize(logger& debug) override {
+		debug << "I" << x << ": ";
 		if (writing) {
 			// writing this turn
 			s = activity::write;
 			writing = false;
+			debug << "writing";
 		} else {
 			s = activity::idle;
 			// ready a value if we don't have one
 			if (wrt == word_empty and idx != inputs.size()) {
-				log_debug("I: ", wrt != word_empty, ',', idx != inputs.size());
+				debug << "reloading";
 				wrt = inputs[idx++];
+			} else {
+				debug << "waiting";
 			}
 		}
+		debug << '\n';
 	}
 	void reset() noexcept override {
 		idx = 0;
@@ -74,22 +79,23 @@ struct output_node : node {
 	using node::node;
 	type_t type() const noexcept override { return out; }
 	// Attempt to read from neighbor every step
-	void step() override {
+	void step(logger& debug) override {
 		if (complete) {
 			return;
 		}
 		if (auto r = do_read(neighbors[port::up], port::down); r != word_empty) {
-			log_debug("O", x, ": read");
+			debug << "O" << x << ": read";
 			auto i = outputs_received.size();
 			outputs_received.push_back(r);
 			if (outputs_received[i] != outputs_expected[i]) {
 				wrong = true;
-				log_debug("incorrect value written");
+				debug << "incorrect value written";
 			}
 			complete = (outputs_expected.size() == outputs_received.size());
+			debug << '\n';
 		}
 	}
-	void finalize() override {}
+	void finalize(logger&) override {}
 	void reset() noexcept override {
 		outputs_received.clear();
 		wrong = false;
@@ -125,7 +131,7 @@ struct image_output : node {
 	}
 
 	type_t type() const noexcept override { return image; }
-	void step() override {
+	void step(logger&) override {
 		if (auto r = do_read(neighbors[port::up], port::down); r != word_empty) {
 			if (r < 0) {
 				c_x = word_empty;
@@ -140,7 +146,7 @@ struct image_output : node {
 			}
 		}
 	}
-	void finalize() override {}
+	void finalize(logger&) override {}
 	void reset() noexcept override {
 		image_received.fill(tis_pixel::C_black);
 		c_x = word_empty;

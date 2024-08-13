@@ -70,31 +70,31 @@ optional_word T21::read(port p, word_t imm) {
 	}
 }
 
-void T21::step() {
-	auto log = log_debug();
-	log << "step(" << x << ',' << y << ',' << +pc << "): ";
+void T21::step(logger& debug) {
+	debug << "step(" << x << ',' << y << ',' << +pc << "): ";
 	if (code.empty()) {
-		log << "empty";
+		debug << "empty" << '\n';
 		return;
 	}
 	auto& instr = code[to_unsigned(pc)];
-	log << "instruction type: ";
-	log.log_r([&] { return to_string(instr.op_); });
+	debug << "instruction type: ";
+	debug.log_r([&] { return to_string(instr.op_); });
 	if (s == activity::write) {
 		// if waiting for a write, then this instruction's read already
 		// happened
-		log << " stalled[W]";
+		debug << " stalled[W]" << '\n';
 		return;
 	}
 	auto r = read(instr.src, instr.val);
 	if (r == word_empty) {
-		log << " stalled[R]";
+		debug << " stalled[R]" << '\n';
 		s = activity::read;
 		return;
 	}
+
 	switch (instr.op_) {
 	case instr::hcf: {
-		log << "\n\ts = " << state_name(s);
+		debug << "\n\ts = " << state_name(s);
 		throw hcf_exception{x, y, pc};
 	}
 	case instr::nop: {
@@ -102,28 +102,28 @@ void T21::step() {
 		s = activity::run;
 	} break;
 	case instr::swp: {
-		log << " (" << acc << "<->" << bak << ')';
+		debug << " (" << acc << "<->" << bak << ')';
 		std::swap(acc, bak);
 		s = activity::run;
 		next();
 	} break;
 	case instr::sav: {
-		log << " (" << acc << "->" << bak << ')';
+		debug << " (" << acc << "->" << bak << ')';
 		bak = acc;
 		s = activity::run;
 		next();
 	} break;
 	case instr::neg: {
-		log << " (" << acc << ')';
+		debug << " (" << acc << ')';
 		acc = -acc;
 		s = activity::run;
 		next();
 	} break;
 	[[likely]] case instr::mov: {
-		log << " (" << r << ") ";
+		debug << " (" << r << ") ";
 		switch (instr.dst()) {
 		case port::acc:
-			log << "acc = " << r;
+			debug << "acc = " << r;
 			acc = r;
 			[[fallthrough]];
 		case port::nil:
@@ -133,7 +133,7 @@ void T21::step() {
 			break;
 		case port::last:
 			if (last == port::nil) {
-				log << "last[N/A] = " << r;
+				debug << "last[N/A] = " << r;
 				s = activity::run;
 				next();
 				break;
@@ -148,7 +148,7 @@ void T21::step() {
 		case port::any:
 			s = activity::write;
 			wrt = r;
-			log << "stalling[W]";
+			debug << "stalling[W]";
 			// writes don't happen until next cycle
 			break;
 		case port::immediate:
@@ -156,25 +156,25 @@ void T21::step() {
 		}
 	} break;
 	case instr::add: {
-		log << " (" << acc << ") ";
-		log << r;
+		debug << " (" << acc << ") ";
+		debug << r;
 		acc = sat_add(acc, r);
 		s = activity::run;
 		next();
 	} break;
 	case instr::sub: {
-		log << " (" << acc << ") ";
-		log << r;
+		debug << " (" << acc << ") ";
+		debug << r;
 		acc = sat_sub(acc, r);
 		s = activity::run;
 		next();
 	} break;
 	case instr::jmp: {
-		log << " " << +instr.data;
+		debug << " " << +instr.data;
 		pc = instr.data;
 	} break;
 	case instr::jez: {
-		log << " (" << (acc == 0 ? "taken" : "not taken") << ") " << instr.data;
+		debug << " (" << (acc == 0 ? "taken" : "not taken") << ") " << instr.data;
 		if (acc == 0) {
 			pc = instr.data;
 		} else {
@@ -183,7 +183,7 @@ void T21::step() {
 		s = activity::run;
 	} break;
 	case instr::jnz: {
-		log << " (" << (acc != 0 ? "taken" : "not taken") << ") " << instr.data;
+		debug << " (" << (acc != 0 ? "taken" : "not taken") << ") " << instr.data;
 		if (acc != 0) {
 			pc = instr.data;
 		} else {
@@ -192,7 +192,7 @@ void T21::step() {
 		s = activity::run;
 	} break;
 	case instr::jgz: {
-		log << " (" << (acc > 0 ? "taken" : "not taken") << ") " << instr.data;
+		debug << " (" << (acc > 0 ? "taken" : "not taken") << ") " << instr.data;
 		if (acc > 0) {
 			pc = instr.data;
 		} else {
@@ -201,7 +201,7 @@ void T21::step() {
 		s = activity::run;
 	} break;
 	case instr::jlz: {
-		log << " (" << (acc < 0 ? "taken" : "not taken") << ") " << instr.data;
+		debug << " (" << (acc < 0 ? "taken" : "not taken") << ") " << instr.data;
 		if (acc < 0) {
 			pc = instr.data;
 		} else {
@@ -210,26 +210,27 @@ void T21::step() {
 		s = activity::run;
 	} break;
 	case instr::jro: {
-		log << " ";
-		log << '(' << +pc << '+' << r << " -> ";
+		debug << " ";
+		debug << '(' << +pc << '+' << r << " -> ";
 		pc = sat_add(pc, r, word_t{}, static_cast<word_t>(code.size() - 1));
-		log << +pc << ")";
+		debug << +pc << ")";
 		s = activity::run;
 	} break;
 	default:
 		std::unreachable();
 	}
+	debug << '\n';
 }
-void T21::finalize() {
+
+void T21::finalize(logger& debug) {
 	if (code.empty()) {
 		return;
 	}
 	if (s == activity::write) {
-		auto log = log_debug();
-		log << "finalize(" << x << ',' << y << ',' << +pc << "): mov ";
+		debug << "finalize(" << x << ',' << y << ',' << +pc << "): mov ";
 		// if write just started
 		if (write_port == port::nil) {
-			log << "started";
+			debug << "started";
 			port p = code[to_unsigned(pc)].dst();
 			if (p == port::last) {
 				write_port = last;
@@ -238,16 +239,17 @@ void T21::finalize() {
 			}
 			// if write completed
 		} else if (write_port == port::immediate) {
-			log << "completed";
+			debug << "completed";
 			write_port = port::nil;
 			s = activity::run;
 			next();
 		} else {
-			log << "in progress";
+			debug << "in progress";
 		}
 	} else {
-		log_debug("finalize(", x, ',', y, ',', +pc, "): skipped");
+		debug << "finalize(" << x << ',' << y << ',' << +pc << "): skipped";
 	}
+	debug << '\n';
 }
 
 std::unique_ptr<node> T21::clone() const {
