@@ -35,7 +35,7 @@ By default, it will run the simulation and if it passes, it will print
 "validation successful" and a score, in the format 
 `cycles/nodes/instructions/flags`, where flags may be `a` for achievement,
 `c` for cheat, i.e. a solution which does not pass all random tests,
-and `z` for a solution that passes < 5% of the random tests
+and `h` for a solution that passes < 5% of the random tests
 (meaning that it made no real effort to pass any).
 
 If it does not pass, it will instead print the inputs and outputs
@@ -71,8 +71,6 @@ The most useful options are:
   information. May be specified twice to remove almost all supplemental text.
   
 Other options:
-- `--write-layouts filename`: parse all builtin level layouts and write them as
-  a C++ header file, which is suitable for directly replacing `layoutspecs.hpp`.
 - `--T21_size N` and `--T30_size M`: override the default size limits on
   instructions in any particular T21 node and values in any particular T30 node
   respectively.
