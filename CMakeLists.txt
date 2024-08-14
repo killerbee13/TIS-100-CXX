@@ -63,7 +63,7 @@ add_executable(TIS-100-CXX main.cpp parser.hpp node.hpp T21.hpp T30.hpp io.hpp
 	README.md LICENSE)
 
 # Used to generate the standalone build for the GitHub release
-# target_link_options(TIS-100-CXX PRIVATE -static-libgcc -static-libstdc++ -static)
+target_link_options(TIS-100-CXX PRIVATE -static-libgcc -static-libstdc++ -static)
 
 # used to add non-installed libraries
 target_include_directories(TIS-100-CXX
