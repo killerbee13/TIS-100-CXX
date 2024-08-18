@@ -23,6 +23,7 @@
 #include "parser.hpp"
 
 #include <array>
+#include <ranges>
 #include <string_view>
 
 constexpr int level_id(std::string_view s) {
@@ -59,58 +60,52 @@ inline image_t checkerboard(std::ptrdiff_t w, std::ptrdiff_t h) {
 }
 
 inline bool check_achievement(int id, const field& solve, score sc) {
-	auto log = log_debug();
-	log << "check_achievement " << layouts[static_cast<std::size_t>(id)].name
+	auto debug = log_debug();
+	debug << "check_achievement " << layouts[static_cast<std::size_t>(id)].name
 	    << ": ";
 	// SELF-TEST DIAGNOSTIC
 	if (id == "00150"_lvl) {
 		// BUSY_LOOP
-		log << "BUSY_LOOP: " << sc.cycles << ((sc.cycles > 100000) ? ">" : "<=")
+		debug << "BUSY_LOOP: " << sc.cycles << ((sc.cycles > 100000) ? ">" : "<=")
 		    << 100000;
 		return sc.cycles > 100000;
 		// SIGNAL COMPARATOR
 	} else if (id == "21340"_lvl) {
 		// UNCONDITIONAL
-		log << "UNCONDITIONAL:\n";
-		for (std::size_t i = 0; i < solve.nodes_avail(); ++i) {
-			if (auto p = solve.node_by_index(i)) {
-				log << '@' << i << " T20 (" << p->x << ',' << p->y << "): ";
-				if (p->code.empty()) {
-					log << "empty";
-				} else if (std::any_of(
-				               p->code.begin(), p->code.end(), [&](const instr& i) {
-					               auto op = i.op_;
-					               log << to_string(op) << ';';
-					               return op == instr::jez or op == instr::jnz
-					                      or op == instr::jgz or op == instr::jlz;
-				               })) {
-					log << " conditional found";
-					return false;
-				}
-				log << '\n';
+		debug << "UNCONDITIONAL:\n";
+		for (auto [i, n] : std::views::enumerate(solve.nodes_T21)) {
+			debug << '@' << i << " T20 (" << n.x << ',' << n.y << "): ";
+			if (n.code.empty()) {
+				debug << "empty";
+			} else if (std::any_of(
+							n.code.begin(), n.code.end(), [&](const instr& i) {
+								auto op = i.op_;
+								debug << to_string(op) << ';';
+								return op == instr::jez or op == instr::jnz
+										or op == instr::jgz or op == instr::jlz;
+							})) {
+				debug << " conditional found";
+				return false;
 			}
+			debug << '\n';
 		}
-		log << " no conditionals found";
+		debug << " no conditionals found";
 		return true;
 		// SEQUENCE REVERSER
 	} else if (id == "42656"_lvl) {
 		// NO_MEMORY
-		log << "NO_MEMORY: ";
+		debug << "NO_MEMORY: ";
 
-		for (auto it = solve.begin(); it != solve.end_regular(); ++it) {
-			auto p = it->get();
-			if (p->type() == node::T30) {
-				auto n = static_cast<const T30*>(p);
-				log << "T30 (" << n->x << ',' << n->y << "): " << n->used << '\n';
-				if (n->used) {
-					return false;
-				}
+		for (auto& n: solve.nodes_T30) {
+			debug << "T30 (" << n.x << ',' << n.y << "): " << n.used << '\n';
+			if (n.used) {
+				return false;
 			}
 		}
-		log << "no stacks used";
+		debug << "no stacks used";
 		return true;
 	} else {
-		log << "no achievement";
+		debug << "no achievement";
 		return false;
 	}
 }

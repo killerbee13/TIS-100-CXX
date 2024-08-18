@@ -42,30 +42,26 @@ extern "C" void sigterm_handler(int signal) { stop_requested = signal; }
 
 template <typename T>
 void print_validation_failure(field& l, T&& os, bool color) {
-	for (auto it = l.begin_io(); it != l.end(); ++it) {
-		auto n = it->get();
-		if (n->type() == node::in) {
-			auto p = static_cast<input_node*>(n);
-			os << "input " << p->x << ": ";
-			write_list(os, p->inputs, nullptr, color) << '\n';
-		} else if (n->type() == node::out) {
-			auto p = static_cast<output_node*>(n);
-			if (p->outputs_expected != p->outputs_received) {
-				os << "validation failure for output " << p->x;
-				os << "\noutput: ";
-				write_list(os, p->outputs_received, &p->outputs_expected, color);
-				os << "\nexpected: ";
-				write_list(os, p->outputs_expected, nullptr, color);
-				os << "\n";
-			}
-		} else if (n->type() == node::image) {
-			auto p = static_cast<image_output*>(n);
-			if (p->image_expected != p->image_received) {
-				os << "validation failure for output " << p->x << "\noutput:\n"
-				   << p->image_received.write_text(color) //
-				   << "expected:\n"
-				   << p->image_expected.write_text(color);
-			}
+	for (auto& in : l.nodes_input) {
+		os << "input " << in.x << ": ";
+		write_list(os, in.inputs, nullptr, color) << '\n';
+	}
+	for (auto& on : l.nodes_output) {
+		if (on.outputs_expected != on.outputs_received) {
+			os << "validation failure for output " << on.x;
+			os << "\noutput: ";
+			write_list(os, on.outputs_received, &on.outputs_expected, color);
+			os << "\nexpected: ";
+			write_list(os, on.outputs_expected, nullptr, color);
+			os << "\n";
+		}
+	}
+	for (auto& im : l.nodes_image) {
+		if (im.image_expected != im.image_received) {
+			os << "validation failure for output " << im.x << "\noutput:\n"
+			   << im.image_received.write_text(color) //
+			   << "expected:\n"
+			   << im.image_expected.write_text(color);
 		}
 	}
 }
@@ -85,20 +81,16 @@ score run(field& l, int cycles_limit, bool print_err) {
 		sc.validated = true;
 
 		log_flush();
-		for (auto it = l.begin_output(); it != l.end(); ++it) {
-			auto n = it->get();
-			if (n->type() == node::out) {
-				auto p = static_cast<output_node*>(n);
-				if (p->wrong || ! p->complete) {
-					sc.validated = false;
-					break;
-				}
-			} else if (n->type() == node::image) {
-				auto p = static_cast<image_output*>(n);
-				if (p->image_expected != p->image_received) {
-					sc.validated = false;
-					break;
-				}
+		for (auto& on : l.nodes_output) {
+			if (on.wrong || not on.complete) {
+				sc.validated = false;
+				break;
+			}
+		}
+		for (auto& im : l.nodes_image) {
+			if (im.image_expected != im.image_received) {
+				sc.validated = false;
+				break;
 			}
 		}
 

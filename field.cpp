@@ -19,16 +19,8 @@
 #include "field.hpp"
 #include "T30.hpp"
 
-template <typename Node>
-Node* do_insert(std::vector<std::unique_ptr<node>>& v, int x) {
-	auto _ = std::make_unique<Node>(x, -1);
-	auto p = _.get();
-	v.emplace_back(std::move(_));
-	return p;
-}
-
 void field::set_neighbors() {
-	for (const auto y : range(height())) {
+	for (const auto y : range(height)) {
 		for (const auto x : range(width)) {
 			if (auto p = node_by_location(x, y); valid(p)) {
 				// safe because node_by_location returns nullptr on OOB
@@ -37,7 +29,7 @@ void field::set_neighbors() {
 				p->neighbors[up] = node_by_location(x, y - 1);
 				p->neighbors[down] = node_by_location(x, y + 1);
 				for (auto& n : p->neighbors) {
-					if (n and n->type() == node::Damaged) {
+					if (not valid(n)) {
 						n = nullptr;
 					}
 				}
@@ -45,19 +37,24 @@ void field::set_neighbors() {
 		}
 	}
 
-	for (const auto x : range(in_nodes_offset, out_nodes_offset)) {
-		auto p = nodes[x].get();
-		assert(valid(p));
+	for (auto& i : nodes_input) {
+		auto* p = &i;
 		auto n = node_by_location(p->x, 0);
 		assert(valid(n));
 		p->neighbors[down] = n;
 		n->neighbors[up] = p;
 	}
 
-	for (const auto x : range(out_nodes_offset, nodes.size())) {
-		auto p = nodes[x].get();
-		assert(valid(p));
-		auto n = node_by_location(p->x, height() - 1);
+	for (auto& i : nodes_output) {
+		auto* p = &i;
+		auto n = node_by_location(p->x, height - 1);
+		assert(valid(n));
+		p->neighbors[up] = n;
+		n->neighbors[down] = p;
+	}
+	for (auto& i : nodes_image) {
+		auto* p = &i;
+		auto n = node_by_location(p->x, height - 1);
 		assert(valid(n));
 		p->neighbors[up] = n;
 		n->neighbors[down] = p;
@@ -65,7 +62,14 @@ void field::set_neighbors() {
 }
 
 field::field(builtin_layout_spec spec, std::size_t T30_size) {
-	nodes.reserve([&] {
+	nodes_T21.reserve(12);
+	nodes_T30.reserve(12);
+	nodes_damaged.reserve(12);
+	nodes_input.reserve(4);
+	nodes_output.reserve(4);
+	nodes_image.reserve(4);
+
+	all_nodes.reserve([&] {
 		std::size_t r = 12;
 		for (auto t : spec.io) {
 			for (auto i : t) {
@@ -77,21 +81,25 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 		return r;
 	}());
 
+	height = 3;
 	width = 4;
-	in_nodes_offset = 12;
-	out_nodes_offset = in_nodes_offset;
-	for (const auto y : range(3u)) {
-		for (const auto x : range(4u)) {
+	for (const auto y : range(height)) {
+		for (const auto x : range(width)) {
 			switch (spec.nodes[y][x]) {
-			case node::T21:
-				nodes.push_back(std::make_unique<T21>(x, y));
-				break;
-			case node::T30: {
-				nodes.push_back(std::make_unique<T30>(x, y, T30_size));
+			case node::T21: {
+				auto p = &nodes_T21.emplace_back(x, y);
+				all_nodes.push_back(p);
+				nodes_active.push_back(p);
 			} break;
-			case node::Damaged:
-				nodes.push_back(std::make_unique<damaged>(x, y));
-				break;
+			case node::T30: {
+				auto p = &nodes_T30.emplace_back(x, y, T30_size);
+				all_nodes.push_back(p);
+				nodes_active.push_back(p);
+			} break;
+			case node::Damaged: {
+				auto p = &nodes_damaged.emplace_back(x, y);
+				all_nodes.push_back(p);
+			} break;
 			case node::in:
 			case node::out:
 			case node::image:
@@ -104,18 +112,13 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 		}
 	}
 
-	set_neighbors();
-
 	for (const auto x : range(static_cast<int>(width))) {
 		auto in = spec.io[0][x];
 		switch (in.type) {
 		case node::in: {
-			auto p = do_insert<input_node>(nodes, x);
-			auto n = node_by_location(x, 0);
-			assert(valid(n));
-			p->neighbors[down] = n;
-			n->neighbors[up] = p;
-			out_nodes_offset++;
+			auto p = &nodes_input.emplace_back(x, -1);
+			all_nodes.push_back(p);
+			nodes_active.push_back(p);
 		} break;
 		case node::null:
 			// pass
@@ -126,30 +129,27 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 	}
 
 	for (const auto x : range(static_cast<int>(width))) {
-		auto in = spec.io[1][x];
-		switch (in.type) {
+		auto out = spec.io[1][x];
+		switch (out.type) {
 		case node::out: {
-			auto p = do_insert<output_node>(nodes, x);
-			auto n = node_by_location(x, height() - 1);
-			assert(valid(n));
-			p->neighbors[up] = n;
-			n->neighbors[down] = p;
-			if (in.image_size) {
+			auto p = &nodes_output.emplace_back(x, height);
+			all_nodes.push_back(p);
+			nodes_active.push_back(p);
+			if (out.image_size) {
 				throw std::invalid_argument{"invalid layout spec: image size "
 				                            "specified for numeric output node"};
 			}
 		} break;
 		case node::image: {
-			auto p = do_insert<image_output>(nodes, x);
-			auto n = node_by_location(x, height() - 1);
-			assert(valid(n));
-			p->neighbors[up] = n;
-			n->neighbors[down] = p;
-			if (not in.image_size) {
+			auto p = &nodes_image.emplace_back(x, height);
+			all_nodes.push_back(p);
+			nodes_active.push_back(p);
+			if (not out.image_size) {
 				throw std::invalid_argument{
 				    "invalid layout spec: no size specified for image"};
 			}
-			p->reshape(in.image_size.value().first, in.image_size.value().second);
+			p->reshape(out.image_size.value().first,
+			           out.image_size.value().second);
 		} break;
 		case node::null:
 			// pass
@@ -158,42 +158,30 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 			throw std::invalid_argument{"invalid layout spec: illegal input node"};
 		}
 	}
+
+	set_neighbors();
 }
 
 std::size_t field::instructions() const {
 	std::size_t ret{};
-	for (auto& p : nodes) {
-		if (p.get()->type() == node::T21) {
-			ret += static_cast<T21*>(p.get())->code.size();
-		}
+	for (auto& n : nodes_T21) {
+		ret += n.code.size();
 	}
 	return ret;
 }
 
 std::size_t field::nodes_used() const {
 	std::size_t ret{};
-	for (auto& p : nodes) {
-		if (p.get()->type() == node::T21) {
-			ret += not static_cast<T21*>(p.get())->code.empty();
-		}
-	}
-	return ret;
-}
-std::size_t field::nodes_avail() const {
-	std::size_t ret{};
-	for (auto& p : nodes) {
-		if (p.get()->type() == node::T21) {
-			ret += 1;
-		}
+	for (auto& n : nodes_T21) {
+		ret += not n.code.empty();
 	}
 	return ret;
 }
 
 std::string field::layout() const {
 
-	auto h = height();
-	std::string ret = concat(h, ' ', width, '\n');
-	for (const auto y : range(h)) {
+	std::string ret = concat(height, ' ', width, '\n');
+	for (const auto y : range(height)) {
 		for (const auto x : range(width)) {
 			auto p = node_by_location(x, y);
 			if (not valid(p)) {
@@ -207,30 +195,25 @@ std::string field::layout() const {
 		ret += '\n';
 	}
 
-	for (auto it = begin_io(); it != end(); ++it) {
-		auto p = it->get();
-
-		if (p->type() == node::in) {
-			auto in = static_cast<input_node*>(p);
-			append(ret, 'I', p->x, " LIST ");
-			append(ret, "[");
-			for (auto v : in->inputs) {
-				append(ret, v, ", ");
-			}
-			append(ret, "]\n");
-		} else if (p->type() == node::out) {
-			auto on = static_cast<output_node*>(p);
-			append(ret, 'O', p->x, " LIST ");
-			append(ret, "[");
-			for (auto v : on->outputs_expected) {
-				append(ret, v, ", ");
-			}
-			append(ret, "]\n");
-		} else if (p->type() == node::image) {
-			auto im = static_cast<image_output*>(p);
-			append(ret, 'O', p->x, " IMAGE ", im->width, im->height);
-			if (not im->image_expected.empty()) {
-			}
+	for (auto& in : nodes_input) {
+		append(ret, 'I', in.x, " LIST ");
+		append(ret, "[");
+		for (auto v : in.inputs) {
+			append(ret, v, ", ");
+		}
+		append(ret, "]\n");
+	}
+	for (auto& on : nodes_output) {
+		append(ret, 'O', on.x, " LIST ");
+		append(ret, "[");
+		for (auto v : on.outputs_expected) {
+			append(ret, v, ", ");
+		}
+		append(ret, "]\n");
+	}
+	for (auto& im : nodes_image) {
+		append(ret, 'O', im.x, " IMAGE ", im.width, im.height);
+		if (not im.image_expected.empty()) {
 		}
 	}
 
@@ -260,7 +243,7 @@ std::string field::machine_layout() const {
 	std::ostringstream ret;
 	ret << "{.nodes = {{\n";
 	{
-		auto it = begin();
+		auto it = all_nodes.begin();
 		for (auto y = 0; y != 3; ++y) {
 			ret << "\t\t\t{";
 			for (auto x = 0; x != 4; ++x, ++it) {
@@ -271,17 +254,15 @@ std::string field::machine_layout() const {
 	}
 	ret << "\t\t}}, .io = {{\n";
 	std::array<std::array<builtin_layout_spec::io_node_spec, 4>, 2> io;
-	for (auto it = begin_io(); it != end(); ++it) {
-		auto n = it->get();
-		if (n->type() == node::in) {
-			io[0][static_cast<std::size_t>(n->x)].type = node::in;
-		} else if (n->type() == node::out) {
-			io[1][static_cast<std::size_t>(n->x)].type = node::out;
-		} else if (auto p = dynamic_cast<image_output*>(n)) {
-			io[1][static_cast<std::size_t>(p->x)].type = node::image;
-			io[1][static_cast<std::size_t>(p->x)].image_size
-			    = {p->width, p->height};
-		}
+	for (auto& in : nodes_input) {
+		io[0][static_cast<std::size_t>(in.x)].type = node::in;
+	}
+	for (auto& on : nodes_output) {
+		io[1][static_cast<std::size_t>(on.x)].type = node::out;
+	}
+	for (auto& im : nodes_image) {
+		io[1][static_cast<std::size_t>(im.x)].type = node::image;
+		io[1][static_cast<std::size_t>(im.x)].image_size = {im.width, im.height};
 	}
 	for (auto t : io) {
 		ret << "\t\t\t{{";
@@ -318,13 +299,11 @@ field field::clone() const
 {
 	field ret;
 
-	for (auto& n : nodes) {
-		ret.nodes.push_back(n->clone());
-	}
+	// for (auto& n : nodes) { TODO
+	// 	ret.nodes.push_back(n->clone());
+	// }
 
 	ret.width = width;
-	ret.in_nodes_offset = in_nodes_offset;
-	ret.out_nodes_offset = out_nodes_offset;
 
 	ret.set_neighbors();
 
