@@ -19,14 +19,6 @@
 #include "field.hpp"
 #include "T30.hpp"
 
-template <typename Node>
-Node* do_insert(std::vector<std::unique_ptr<node>>& v, int x) {
-	auto _ = std::make_unique<Node>(x, -1);
-	auto p = _.get();
-	v.emplace_back(std::move(_));
-	return p;
-}
-
 void field::set_neighbors() {
 	for (const auto y : range(height())) {
 		for (const auto x : range(width)) {
@@ -37,7 +29,7 @@ void field::set_neighbors() {
 				p->neighbors[up] = node_by_location(x, y - 1);
 				p->neighbors[down] = node_by_location(x, y + 1);
 				for (auto& n : p->neighbors) {
-					if (n and n->type() == node::Damaged) {
+					if (not valid(n)) {
 						n = nullptr;
 					}
 				}
@@ -104,17 +96,11 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 		}
 	}
 
-	set_neighbors();
-
 	for (const auto x : range(static_cast<int>(width))) {
 		auto in = spec.io[0][x];
 		switch (in.type) {
 		case node::in: {
-			auto p = do_insert<input_node>(nodes, x);
-			auto n = node_by_location(x, 0);
-			assert(valid(n));
-			p->neighbors[down] = n;
-			n->neighbors[up] = p;
+			nodes.push_back(std::make_unique<input_node>(x, -1));
 			out_nodes_offset++;
 		} break;
 		case node::null:
@@ -126,38 +112,33 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 	}
 
 	for (const auto x : range(static_cast<int>(width))) {
-		auto in = spec.io[1][x];
-		switch (in.type) {
+		auto out = spec.io[1][x];
+		switch (out.type) {
 		case node::out: {
-			auto p = do_insert<output_node>(nodes, x);
-			auto n = node_by_location(x, height() - 1);
-			assert(valid(n));
-			p->neighbors[up] = n;
-			n->neighbors[down] = p;
-			if (in.image_size) {
+			if (out.image_size) {
 				throw std::invalid_argument{"invalid layout spec: image size "
 				                            "specified for numeric output node"};
 			}
+			nodes.push_back(std::make_unique<output_node>(x, height()));
 		} break;
 		case node::image: {
-			auto p = do_insert<image_output>(nodes, x);
-			auto n = node_by_location(x, height() - 1);
-			assert(valid(n));
-			p->neighbors[up] = n;
-			n->neighbors[down] = p;
-			if (not in.image_size) {
+			if (not out.image_size) {
 				throw std::invalid_argument{
 				    "invalid layout spec: no size specified for image"};
 			}
-			p->reshape(in.image_size.value().first, in.image_size.value().second);
+			auto p = std::make_unique<image_output>(x, height());
+			p->reshape(out.image_size.value().first, out.image_size.value().second);
+			nodes.emplace_back(std::move(p));
 		} break;
 		case node::null:
 			// pass
 			break;
 		default:
-			throw std::invalid_argument{"invalid layout spec: illegal input node"};
+			throw std::invalid_argument{"invalid layout spec: illegal output node"};
 		}
 	}
+
+	set_neighbors();
 }
 
 std::size_t field::instructions() const {

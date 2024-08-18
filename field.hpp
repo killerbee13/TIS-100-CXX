@@ -105,27 +105,21 @@ class field {
 
 	// returns the node at the (x,y) coordinates, Nullable
 	node* node_by_location(std::size_t x, std::size_t y) {
-		if (x > width) {
+		if (x >= width or y >= height()) {
 			return nullptr;
 		}
 		auto i = y * width + x;
-		if (i < nodes.size()) {
-			return nodes[i].get();
-		} else {
-			return nullptr;
-		}
+		assert(i < in_nodes_offset);
+		return nodes[i].get();
 	}
 	// Nullable
 	const node* node_by_location(std::size_t x, std::size_t y) const {
-		if (x > width or y > height()) {
+		if (x >= width or y >= height()) {
 			return nullptr;
 		}
 		auto i = y * width + x;
-		if (i < nodes.size()) {
-			return nodes[i].get();
-		} else {
-			return nullptr;
-		}
+		assert(i < in_nodes_offset);
+		return nodes[i].get();
 	}
 	// returns the ith programmable (T21) node
 	T21* node_by_index(std::size_t i) {
