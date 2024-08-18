@@ -62,8 +62,11 @@ add_executable(TIS-100-CXX main.cpp parser.hpp node.hpp T21.hpp T30.hpp io.hpp
 	field.cpp field.hpp layoutspecs.hpp utils.hpp
 	README.md LICENSE)
 
-# Used to generate the standalone build for the GitHub release
-target_link_options(TIS-100-CXX PRIVATE -static-libgcc -static-libstdc++ -static)
+if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
+	# Used to generate the standalone build for the GitHub release
+	# Static linking interferes with sanitizers
+	target_link_options(TIS-100-CXX PRIVATE -static-libgcc -static-libstdc++ -static)
+endif()
 
 # used to add non-installed libraries
 target_include_directories(TIS-100-CXX
