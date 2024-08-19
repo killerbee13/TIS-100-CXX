@@ -30,6 +30,7 @@
 #include <filesystem>
 #include <fstream>
 #include <ostream>
+#include <type_traits>
 #include <vector>
 
 #include <sys/stat.h>
@@ -323,7 +324,22 @@ class image {
 		return os;
 	}
 
-	std::strong_ordering operator<=>(const image& other) const = default;
+	bool operator==(const image& other) const {
+		// to do this optimization we'd technically need to use
+		// `__is_trivially_equality_comparable(pixel)`, but it exists only in
+		// clang as of today, so we use a combo that is a good substitute for any
+		// sane pixel type
+		// see https://stackoverflow.com/q/78887411/3288954 and linked for context
+		if constexpr (std::is_trivially_copyable_v<pixel>
+		              && std::has_unique_object_representations_v<pixel>) {
+			return width_ == other.width_ && data.size() == other.data.size()
+			       && std::memcmp(data.data(), other.data.data(),
+			                      data.size() * sizeof(pixel))
+			              == 0;
+		} else {
+			return width_ == other.width_ && data == other.data;
+		}
+	}
 
 	template <bool safe>
 	std::size_t index_linear(std::ptrdiff_t x, std::ptrdiff_t y) const
