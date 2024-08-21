@@ -94,10 +94,15 @@ std::string to_string(instr i);
 
 struct T21 : node {
 	using node::node;
+
 	type_t type() const noexcept override { return type_t::T21; }
 	void step(logger&) override;
 	void finalize(logger&) override;
-	void reset() noexcept override {
+	std::unique_ptr<node> clone() const override;
+	optional_word emit(port) override;
+	std::string state() const override;
+
+	void reset() noexcept {
 		acc = 0;
 		bak = 0;
 		wrt = word_empty;
@@ -106,17 +111,6 @@ struct T21 : node {
 		last = port::nil;
 		s = activity::idle;
 	}
-	std::unique_ptr<node> clone() const override;
-	optional_word emit(port) override;
-	std::string state() const override;
-
-	word_t acc{}, bak{};
-	optional_word wrt = word_empty;
-	word_t pc{};
-	port write_port{port::nil}, last{port::nil};
-	std::span<instr> code;
-	activity s{activity::idle};
-
 	void set_code(std::span<const instr> new_code) {
 		if (new_code.size() <= small_.size()) {
 			code = {small_.begin(),
@@ -127,9 +121,17 @@ struct T21 : node {
 		}
 	}
 
+	std::span<instr> code;
+
  private:
 	std::unique_ptr<instr[]> large_;
 	std::array<instr, def_T21_size> small_;
+	word_t acc{}, bak{};
+	optional_word wrt = word_empty;
+	word_t pc{};
+	port write_port{port::nil}, last{port::nil};
+	activity s{activity::idle};
+
 	/// Increment the program counter, wrapping to beginning.
 	void next();
 	/// Attempt to read a value from this node's port p, which may be

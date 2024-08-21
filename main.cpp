@@ -60,7 +60,7 @@ void print_validation_failure(field& l, T&& os, bool color) {
 			}
 		} else if (n->type() == node::image) {
 			auto p = static_cast<image_output*>(n);
-			if (p->image_expected != p->image_received) {
+			if (p->wrong_pixels) {
 				os << "validation failure for output " << p->x << "\noutput:\n"
 				   << p->image_received.write_text(color) //
 				   << "expected:\n"
@@ -95,7 +95,7 @@ score run(field& l, int cycles_limit, bool print_err) {
 				}
 			} else if (n->type() == node::image) {
 				auto p = static_cast<image_output*>(n);
-				if (p->image_expected != p->image_received) {
+				if (p->wrong_pixels) {
 					sc.validated = false;
 					break;
 				}

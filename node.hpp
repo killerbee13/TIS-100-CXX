@@ -26,7 +26,7 @@
 constexpr inline int def_T21_size = 15;
 constexpr inline int def_T30_size = 15;
 
-enum class activity { idle, run, read, write };
+enum class activity : std::int8_t { idle, run, read, write };
 
 constexpr static std::string_view state_name(activity s) {
 	switch (s) {
@@ -117,9 +117,6 @@ struct node {
 	virtual void step(logger& debug) = 0;
 	/// Finish processing a cycle. Writes are completed here.
 	virtual void finalize(logger& debug) = 0;
-	/// Reset the node to its default (startup) configuration. Do not erase code
-	/// or expected values.
-	virtual void reset() noexcept = 0;
 	/// Return a new node initialized in the same way as *this.
 	/// (Not a copy constructor; new node is as if reset() and has no neighbors)
 	virtual std::unique_ptr<node> clone() const = 0;
@@ -166,7 +163,6 @@ struct damaged : node {
 	type_t type() const noexcept override { return Damaged; }
 	void step(logger&) override {}
 	void finalize(logger&) override {}
-	void reset() noexcept override {}
 	std::unique_ptr<node> clone() const override {
 		return std::make_unique<damaged>(x, y);
 	}

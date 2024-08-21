@@ -18,6 +18,7 @@
 
 #include "parser.hpp"
 #include "T21.hpp"
+#include "T30.hpp"
 #include "io.hpp"
 
 #include <kblib/convert.h>
@@ -66,31 +67,41 @@ void set_expected(field& f, const single_test& expected) {
 	std::size_t out_idx{};
 	for (auto it = f.begin(); it != f.end(); ++it) {
 		auto p = it->get();
-		p->reset();
 		log_debug("reset node (", p->x, ',', p->y, ')');
 
-		if (p->type() == node::in) {
+		switch (p->type()) {
+		case node::T21: {
+			static_cast<T21*>(p)->reset();
+		} break;
+		case node::T30: {
+			static_cast<T30*>(p)->reset();
+		} break;
+		case node::in: {
 			assert(in_idx < expected.inputs.size());
 			auto i = static_cast<input_node*>(p);
-			i->inputs = expected.inputs[in_idx++];
+			i->reset(expected.inputs[in_idx++]);
 			auto log = log_debug();
 			log << "set expected input I" << i->x << ":";
 			write_list(log, i->inputs);
-		} else if (p->type() == node::out) {
+		} break;
+		case node::out: {
 			assert(out_idx < expected.n_outputs.size());
 			auto o = static_cast<output_node*>(p);
-			o->outputs_expected = expected.n_outputs[out_idx++];
-			o->complete = o->outputs_expected.empty();
+			o->reset(expected.n_outputs[out_idx++]);
 			auto log = log_debug();
 			log << "set expected output O" << o->x << ":";
 			write_list(log, o->outputs_expected);
-		} else if (p->type() == node::image) {
+		} break;
+		case node::image: {
 			auto i = static_cast<image_output*>(p);
-			i->image_expected = expected.i_output;
+			i->reset(expected.i_output);
 			auto log = log_debug();
 			log << "set expected image O" << i->x << ": {\n";
 			log.log_r([&] { return i->image_expected.write_text(color_logs); });
 			log << '}';
+		} break;
+		default:
+			break;
 		}
 	}
 }

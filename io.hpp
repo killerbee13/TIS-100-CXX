@@ -23,10 +23,19 @@
 #include "node.hpp"
 #include "utils.hpp"
 
+#include <algorithm>
 #include <string>
 
 struct input_node : node {
 	using node::node;
+
+	void reset(word_vec inputs_) noexcept {
+		inputs = inputs_;
+		idx = 0;
+		wrt = word_empty;
+		s = activity::idle;
+	}
+
 	type_t type() const noexcept override { return in; }
 	void step(logger&) override {}
 	void finalize(logger& debug) override {
@@ -48,14 +57,9 @@ struct input_node : node {
 		}
 		debug << '\n';
 	}
-	void reset() noexcept override {
-		idx = 0;
-		wrt = word_empty;
-		s = activity::idle;
-	}
 	std::unique_ptr<node> clone() const override {
 		auto ret = std::make_unique<input_node>(x, y);
-		ret->inputs = inputs;
+		ret->reset(inputs);
 		return ret;
 	}
 	optional_word emit(port) override {
@@ -68,15 +72,24 @@ struct input_node : node {
 	}
 
 	word_vec inputs;
+
+ private:
 	std::size_t idx{};
 	optional_word wrt = word_empty;
 	activity s{activity::idle};
-
- private:
 	bool writing{};
 };
+
 struct output_node : node {
 	using node::node;
+
+	void reset(word_vec outputs_expected_) {
+		outputs_expected = outputs_expected_;
+		outputs_received.clear();
+		wrong = false;
+		complete = outputs_expected_.empty();
+	}
+
 	type_t type() const noexcept override { return out; }
 	// Attempt to read from neighbor every step
 	void step(logger& debug) override {
@@ -96,14 +109,9 @@ struct output_node : node {
 		}
 	}
 	void finalize(logger&) override {}
-	void reset() noexcept override {
-		outputs_received.clear();
-		wrong = false;
-		complete = false;
-	}
 	std::unique_ptr<node> clone() const override {
 		auto ret = std::make_unique<output_node>(x, y);
-		ret->outputs_expected = outputs_expected;
+		ret->reset(outputs_expected);
 		return ret;
 	}
 	optional_word emit(port) override { return word_empty; }
@@ -114,12 +122,13 @@ struct output_node : node {
 		ret << '}';
 		return std::move(ret).str();
 	}
+
 	word_vec outputs_expected;
 	word_vec outputs_received;
-	char d{' '};
 	bool wrong{false};
 	bool complete{false};
 };
+
 struct image_output : node {
 	using node::node;
 
@@ -128,6 +137,14 @@ struct image_output : node {
 		image_received.reshape(w, h);
 		width = w;
 		height = h;
+	}
+	void reset(image_t image_expected_) {
+		image_expected = image_expected_;
+		image_received.fill(tis_pixel::C_black);
+		wrong_pixels = std::ranges::count_if(
+		    image_expected, [](auto pix) { return pix != tis_pixel::C_black; });
+		c_x = word_empty;
+		c_y = word_empty;
 	}
 
 	type_t type() const noexcept override { return image; }
@@ -147,31 +164,37 @@ struct image_output : node {
 		}
 	}
 	void finalize(logger&) override {}
-	void reset() noexcept override {
-		image_received.fill(tis_pixel::C_black);
-		c_x = word_empty;
-		c_y = word_empty;
-	}
 	std::unique_ptr<node> clone() const override {
 		auto ret = std::make_unique<image_output>(x, y);
-		ret->image_expected = image_expected;
+		ret->reset(image_expected);
 		return ret;
 	}
 	optional_word emit(port) override { return word_empty; }
 	std::string state() const override {
-		return concat("O", x, " IMAGE {\n", image_received.write_text(), "}");
+		return concat("O", x, " IMAGE { wrong: ", wrong_pixels, "\n",
+		              image_received.write_text(), "}");
 	}
 
-	void poke(tis_pixel p) {
-		if (c_x != word_empty and c_y != word_empty and c_x < width
-		    and c_y < height) {
-			image_received.at(c_x, c_y) = p;
-		}
-	}
 	image_t image_expected;
 	image_t image_received;
+	std::size_t wrong_pixels;
 	std::ptrdiff_t width{};
 	std::ptrdiff_t height{};
+
+ private:
+	void poke(tis_pixel pix_new) {
+		if (c_x != word_empty and c_y != word_empty and c_x < width
+		    and c_y < height) {
+			auto& pix_rec = image_received.at(c_x, c_y);
+			auto& pix_exp = image_expected.at(c_x, c_y);
+			if (pix_rec == pix_exp)
+				wrong_pixels++;
+			if (pix_new == pix_exp)
+				wrong_pixels--;
+			pix_rec = pix_new;
+		}
+	}
+
 	optional_word c_x = word_empty;
 	optional_word c_y = word_empty;
 };

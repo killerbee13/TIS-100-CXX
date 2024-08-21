@@ -65,7 +65,7 @@ class field {
 				}
 			} else if ((*it)->type() == node::image) {
 				auto i = static_cast<const image_output*>(it->get());
-				if (i->image_expected != i->image_received) {
+				if (i->wrong_pixels) {
 					active = true;
 				}
 			}

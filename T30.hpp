@@ -27,11 +27,12 @@ struct T30 : node {
 	    , max_size(max_size) {
 		data.reserve(max_size);
 	}
-	word_vec data;
-	std::size_t division{};
-	std::size_t max_size{def_T30_size};
-	bool wrote{};
-	bool used{};
+	void reset() noexcept {
+		data.clear();
+		division = 0;
+		wrote = false;
+	}
+
 	type_t type() const noexcept override { return type_t::T30; }
 	void step(logger&) override {
 		if (data.size() == max_size) {
@@ -51,11 +52,6 @@ struct T30 : node {
 	}
 	void finalize(logger&) override {
 		division = data.size();
-		wrote = false;
-	}
-	void reset() noexcept override {
-		data.clear();
-		division = 0;
 		wrote = false;
 	}
 	std::unique_ptr<node> clone() const override {
@@ -79,6 +75,14 @@ struct T30 : node {
 		append(ret, '}');
 		return ret;
 	}
+
+	bool used{}; // persistent among all tests
+
+ private:
+	word_vec data;
+	std::size_t division{};
+	std::size_t max_size{def_T30_size};
+	bool wrote{};
 };
 
 #endif // T30_HPP
