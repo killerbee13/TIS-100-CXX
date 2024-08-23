@@ -142,9 +142,10 @@ class range_constraint : public TCLAP::Constraint<T> {
 	T high{};
 };
 
+/// numbers in [begin, end)
 struct range_t {
 	std::uint32_t begin{};
-	std::uint32_t size{};
+	std::uint32_t end{};
 };
 
 std::vector<range_t> parse_ranges(const std::vector<std::string>& seed_exprs) {
@@ -174,7 +175,7 @@ std::vector<range_t> parse_ranges(const std::vector<std::string>& seed_exprs) {
 			}
 			auto b = kblib::parse_integer<std::uint32_t>(begin);
 			if (not end) {
-				seed_ranges.push_back({b, 1});
+				seed_ranges.push_back({b, b + 1});
 				continue;
 			}
 			for (; i != r.size(); ++i) {
@@ -192,7 +193,7 @@ std::vector<range_t> parse_ranges(const std::vector<std::string>& seed_exprs) {
 				throw std::invalid_argument{kblib::concat(
 				    "Seed ranges must be low..high, got: ", b, "..", e)};
 			}
-			seed_ranges.push_back({b, e - b + 1});
+			seed_ranges.push_back({b, e + 1});
 		}
 	}
 	return seed_ranges;
@@ -214,7 +215,7 @@ class seed_range_iterator {
 	std::uint32_t operator*() const noexcept { return cur; }
 	seed_range_iterator& operator++() noexcept {
 		++cur;
-		if (cur == it->begin + it->size) {
+		if (cur == it->end) {
 			++it;
 			if (it != v->end()) {
 				cur = it->begin;
@@ -592,7 +593,7 @@ int main(int argc, char** argv) try {
 			seed = std::random_device{}();
 			log_info("random seed: ", seed);
 		}
-		seed_ranges.push_back({seed, random.getValue()});
+		seed_ranges.push_back({seed, seed + random.getValue()});
 	}
 
 	std::uint32_t total_random_tests{};
@@ -600,9 +601,9 @@ int main(int argc, char** argv) try {
 		auto log = log_debug();
 		log << "Seed ranges parsed: {\n";
 		for (auto r : seed_ranges) {
-			log << r.begin << ".." << r.begin + r.size - 1 << " [" << r.size
+			log << r.begin << ".." << r.end - 1 << " [" << r.end - r.begin
 			    << "]; ";
-			total_random_tests += r.size;
+			total_random_tests += r.end - r.begin;
 		}
 		log << "\n} sum: " << total_random_tests << " tests";
 	}
