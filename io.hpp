@@ -166,6 +166,7 @@ struct image_output : node {
 	void finalize(logger&) override {}
 	std::unique_ptr<node> clone() const override {
 		auto ret = std::make_unique<image_output>(x, y);
+		ret->reshape(width, height);
 		ret->reset(image_expected);
 		return ret;
 	}
