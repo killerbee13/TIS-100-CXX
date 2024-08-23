@@ -57,16 +57,18 @@ The most useful options are:
   be selected at random. In any case, a contiguous range of N seeds starting at
   S will be used for random tests, except for EXPOSURE MASK VIEWER which may
   skip some seeds.
-- `--fixed 0`: Disable fixed tests, run only random tests. This affects scoring,
-  as normally random tests do not contribute to scoring except for /c and /z
-  flags, but with this flag, the reported score will be the worst observed
-  score.
 - `--loglevel LEVEL`, `--debug`, `--info`: set the amount of information logged
   to stderr. The default log level is "notice", which corresponds to only
   important information. "info" includes information that may be useful but is
   not always important, and notably the amount of information logged at level
   "info" is bounded. "debug" includes a full trace of the execution in the
   log and will often produce multiple MB of data.
+- `-j N`: run random tests with N worker threads. With `-j 0`, the number of
+  hardware threads is detected and used.
+- `--fixed 0`: disable fixed tests, run only random tests. This affects scoring,
+  as normally random tests do not contribute to scoring except for /c and /h
+  flags, but with this flag, the reported score will be the worst observed
+  score.
 - `-q`, `--quiet`: reduce the amount of human-readable text printed around the
   information. May be specified twice to remove almost all supplemental text.
   
@@ -74,12 +76,15 @@ Other options:
 - `--T21_size N` and `--T30_size M`: override the default size limits on
   instructions in any particular T21 node and values in any particular T30 node
   respectively.
+- `--cheat-rate C`: change the threshold between /c and /h to any proportion in
+  the range 0-1. The default value is .05, or 5%.
 - `-c`, `--color`: force color for important info even when redirecting output
 - `-C`, `--log-color`: force color for logs even when redirecting stderr
 - `-S`, `--stats`: run all requested random tests and report the pass rate at
   the end. Without this flag, the sim will quit as soon as it can label a
-  solution /c (that is, one pass and one failure).
-- `-L ID`, `--level ID`: As an alternative to specifying the segment as
+  solution /c (that is, at least 5% of requested tests passed and at least one
+  failed).
+- `-L ID`, `--level ID`: As an alternative to specifying the name or segment as
   described above, the numeric ID (0..50) can be used instead.
 - `--dry-run`: Mainly useful for debugging the command-line parser and initial
-  setup.
+  setup. Checks the command line as normal and quits before running any tests.

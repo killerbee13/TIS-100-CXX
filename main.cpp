@@ -28,6 +28,18 @@
 #include <kblib/io.h>
 #include <kblib/stringops.h>
 #include <random>
+#ifdef THREAD
+#	include <thread>
+#endif
+
+#ifdef THREAD
+#	define IF_THREAD(...) __VA_ARGS__
+#	define IFELSE_THREAD(a, b) a
+#else
+#	define IF_THREAD(...)
+#	define IFELSE_THREAD(a, b) b
+#endif
+
 #define TCLAP_SETBASE_ZERO 1
 #include <tclap/CmdLine.h>
 
@@ -36,7 +48,7 @@
 
 using namespace std::literals;
 
-volatile std::sig_atomic_t stop_requested;
+std::atomic<std::sig_atomic_t> stop_requested;
 
 extern "C" void sigterm_handler(int signal) { stop_requested = signal; }
 
@@ -138,8 +150,110 @@ class range_constraint : public TCLAP::Constraint<T> {
 	T high{};
 };
 
-void score_summary(score sc, score last, int fixed, int quiet,
-                   int cycles_limit) {
+struct range_t {
+	std::uint32_t begin{};
+	std::uint32_t size{};
+};
+
+std::vector<range_t> parse_ranges(const std::vector<std::string>& seed_exprs) {
+	std::vector<range_t> seed_ranges;
+	for (auto& ex : seed_exprs) {
+		for (auto& r : kblib::split_dsv(ex, ',')) {
+			std::string begin;
+			std::optional<std::string> end;
+			std::size_t i{};
+			for (; i != r.size(); ++i) {
+				if (r[i] == '.') {
+					if (i + 1 < r.size() and r[i + 1] == '.') {
+						end.emplace();
+						i += 2;
+						break;
+					} else {
+						throw std::invalid_argument{
+						    "Decimals not allowed in seed exprs"};
+					}
+				} else if (r[i] >= '0' and r[i] <= '9') {
+					begin.push_back(r[i]);
+				} else {
+					throw std::invalid_argument{kblib::concat("Invalid character ",
+					                                          kblib::escapify(r[i]),
+					                                          " in seed expr")};
+				}
+			}
+			auto b = kblib::parse_integer<std::uint32_t>(begin);
+			if (not end) {
+				seed_ranges.push_back({b, 1});
+				continue;
+			}
+			for (; i != r.size(); ++i) {
+				if (r[i] >= '0' and r[i] <= '9') {
+					end->push_back(r[i]);
+				} else {
+					throw std::invalid_argument{kblib::concat("Invalid character ",
+					                                          kblib::escapify(r[i]),
+					                                          " in seed expr")};
+				}
+			}
+			auto e = end->empty() ? kblib::max
+			                      : kblib::parse_integer<std::uint32_t>(*end);
+			if (e < b) {
+				throw std::invalid_argument{kblib::concat(
+				    "Seed ranges must be low..high, got: ", b, "..", e)};
+			}
+			seed_ranges.push_back({b, e - b + 1});
+		}
+	}
+	return seed_ranges;
+}
+
+class seed_range_iterator {
+ public:
+	using seed_range_t = std::vector<range_t>;
+	using value_type = std::uint32_t;
+	using difference_type = std::ptrdiff_t;
+	using iterator_concept = std::input_iterator_tag;
+
+	seed_range_iterator() = default;
+	explicit seed_range_iterator(const std::vector<range_t>& ranges) noexcept
+	    : v(&ranges)
+	    , it(ranges.begin())
+	    , cur(it->begin) {}
+
+	std::uint32_t operator*() const noexcept { return cur; }
+	seed_range_iterator& operator++() noexcept {
+		++cur;
+		if (cur == it->begin + it->size) {
+			++it;
+			if (it != v->end()) {
+				cur = it->begin;
+			}
+		}
+		return *this;
+	}
+	seed_range_iterator operator++(int) noexcept {
+		auto tmp = *this;
+		++*this;
+		return tmp;
+	}
+
+	struct sentinel {};
+	bool operator==(sentinel) const noexcept {
+		return (not v) or it == v->end();
+	}
+
+	static sentinel end() noexcept { return {}; }
+
+ private:
+	const std::vector<range_t>* v{};
+	seed_range_t::const_iterator it{};
+	std::uint32_t cur{};
+};
+
+static_assert(std::input_iterator<seed_range_iterator>);
+static_assert(
+    std::sentinel_for<seed_range_iterator::sentinel, seed_range_iterator>);
+
+void score_summary(score sc, int fixed, int quiet, int cycles_limit) {
 	// we use stdout here, so flush logs to avoid mangled messages in the shell
 	std::clog << std::flush;
 	if (sc.validated) {
@@ -153,12 +267,131 @@ void score_summary(score sc, score last, int fixed, int quiet,
 		if (fixed != -1) {
 			std::cout << " for fixed test " << fixed;
 		}
-		std::cout << " after " << last.cycles << " cycles ";
+		std::cout << " after " << sc.cycles << " cycles ";
 		if (std::cmp_equal(sc.cycles, cycles_limit)) {
 			std::cout << "[timeout]";
 		}
 		std::cout << '\n';
 	}
+}
+
+struct run_params {
+	std::size_t& total_cycles;
+	bool& failure_printed;
+	int& count;
+	int& valid_count;
+	std::size_t total_cycles_limit;
+	int cycles_limit;
+	std::uint8_t quiet;
+	bool stats;
+	double cheat_rate;
+	std::size_t total_random_tests;
+};
+
+score run_seed_ranges(field& f, int id, const std::vector<range_t> seed_ranges,
+                      run_params params, unsigned num_threads) {
+	score worst{};
+	seed_range_iterator it(seed_ranges);
+#ifdef THREAD
+	std::mutex it_m;
+	std::mutex sc_m;
+	std::vector<std::thread> threads;
+	std::vector<int> counters(num_threads);
+
+	auto task = []<typename Mutex>(
+	                Mutex& it_m, Mutex& sc_m, seed_range_iterator& it, field f,
+	                int id, run_params params, score& worst, int& c) static {
+#endif
+		while (true) {
+			std::uint32_t seed;
+			score last{};
+			{
+				IF_THREAD(std::unique_lock l(it_m));
+				if (it == it.end()) {
+					break;
+				} else {
+					seed = *it++;
+				}
+			}
+
+			auto test = random_test(id, seed);
+			if (not test) {
+				continue;
+			}
+			IF_THREAD(++c);
+			set_expected(f, *test);
+			if (stop_requested) {
+				log_notice("Stop requested");
+				break;
+			}
+			last = run(f, params.cycles_limit, false);
+
+			// none of this is hot, so it doesn't need to be parallelized
+			// so it's simplest to just hold a lock the whole time
+			IF_THREAD(std::unique_lock l(sc_m));
+			++params.count;
+			worst.cycles = std::max(worst.cycles, last.cycles);
+			worst.instructions = last.instructions;
+			worst.nodes = last.nodes;
+			// for random tests, only one validation is needed
+			worst.validated = worst.validated or last.validated;
+			params.valid_count += last.validated ? 1 : 0;
+			params.total_cycles += last.cycles;
+			if (not last.validated) {
+				if (std::exchange(params.failure_printed, true) == false) {
+					log_info("Random test failed for seed: ", seed,
+					         std::cmp_equal(last.cycles, params.cycles_limit)
+					             ? "[timeout]"
+					             : "");
+					print_validation_failure(f, log_info(), color_logs);
+				} else {
+					log_debug("Random test failed for seed: ", seed);
+				}
+			}
+			if (not params.stats) {
+				// at least K passes and at least one fail
+				if (params.valid_count >= static_cast<int>(
+				        params.cheat_rate * params.total_random_tests)
+				    and params.valid_count < params.count) {
+					return IFELSE_THREAD(, worst);
+				}
+			}
+			if (not f.has_inputs()) {
+				log_info("Secondary random tests skipped for invariant level");
+				return IFELSE_THREAD(, worst);
+			}
+			if (params.total_cycles >= params.total_cycles_limit) {
+				log_info("Total cycles timeout reached, stopping tests at ",
+				         params.count);
+				return IFELSE_THREAD(, worst);
+			}
+		}
+#ifdef THREAD
+		return;
+	};
+	if (num_threads > 1) {
+		for (auto _ : range(num_threads)) {
+			// I don't know why the template parameter must be explicitly
+			// specified but I get an (exceptionally vague) error if I don't
+			threads.emplace_back(task.operator()<std::mutex>, std::ref(it_m),
+			                     std::ref(sc_m), std::ref(it), f.clone(), id,
+			                     params, std::ref(worst),
+			                     std::ref(counters[threads.size()]));
+		}
+
+		for (auto& t : threads) {
+			t.join();
+		}
+		for (auto [x, i] : kblib::enumerate(counters)) {
+			log_info("Thread ", i, " ran ", x, " tests");
+		}
+	} else {
+		task(it_m, sc_m, it, std::move(f), id, params, worst,
+		     counters[threads.size()]);
+	}
+#endif
+
+	return worst;
 }
 
 int main(int argc, char** argv) try {
@@ -198,6 +431,11 @@ int main(int argc, char** argv) try {
 	    "Max number of cycles to run between all tests before determining "
 	    "cheating status. (Default no limit)",
 	    false, kblib::max, "integer", cmd);
+	TCLAP::ValueArg<unsigned> threads(
+	    "j", "threads",
+	    "Number of threads to use. Log level must be info or lower.", false, 1,
+	    "integer");
+	IF_THREAD(cmd.add(threads));
 
 	TCLAP::ValueArg<bool> fixed("", "fixed", "Run fixed tests. (Default 1)",
 	                            false, true, "[0,1]", cmd);
@@ -313,6 +551,20 @@ int main(int argc, char** argv) try {
 		}
 	}());
 
+#ifdef THREAD
+	unsigned num_threads = threads.getValue();
+	if (threads.getValue() != 1) {
+		if (get_log_level() > log_level::info) {
+			throw std::invalid_argument(
+			    "log_level cannot be higher than info with -j");
+		}
+		if (threads.getValue() == 0) {
+			num_threads = std::thread::hardware_concurrency();
+		}
+	}
+	log_info("Using ", num_threads, " threads");
+#endif
+
 	int id{};
 	field f = [&] {
 		if (id_arg.isSet()) {
@@ -335,64 +587,14 @@ int main(int argc, char** argv) try {
 		}
 	}();
 
-	struct range {
-		std::uint32_t begin{};
-		std::uint32_t size{};
-	};
-
-	std::vector<range> seed_ranges;
+	std::vector<range_t> seed_ranges;
 
 	if (seed_exprs.isSet()) {
 		if (random.isSet() or seed_arg.isSet()) {
 			throw std::invalid_argument{
 			    "Cannot set --seeds in combination with -r or --seed"};
 		}
-		for (auto& ex : seed_exprs.getValue()) {
-			for (auto& r : kblib::split_dsv(ex, ',')) {
-				std::string begin;
-				std::optional<std::string> end;
-				std::size_t i{};
-				for (; i != r.size(); ++i) {
-					if (r[i] == '.') {
-						if (i + 1 < r.size() and r[i + 1] == '.') {
-							end.emplace();
-							i += 2;
-							break;
-						} else {
-							throw std::invalid_argument{
-							    "Decimals not allowed in seed exprs"};
-						}
-					} else if (r[i] >= '0' and r[i] <= '9') {
-						begin.push_back(r[i]);
-					} else {
-						throw std::invalid_argument{
-						    kblib::concat("Invalid character ", kblib::escapify(r[i]),
-						                  " in seed expr")};
-					}
-				}
-				auto b = kblib::parse_integer<std::uint32_t>(begin);
-				if (not end) {
-					seed_ranges.push_back({b, 1});
-					continue;
-				}
-				for (; i != r.size(); ++i) {
-					if (r[i] >= '0' and r[i] <= '9') {
-						end->push_back(r[i]);
-					} else {
-						throw std::invalid_argument{
-						    kblib::concat("Invalid character ", kblib::escapify(r[i]),
-						                  " in seed expr")};
-					}
-				}
-				auto e = end->empty() ? kblib::max
-				                      : kblib::parse_integer<std::uint32_t>(*end);
-				if (e < b) {
-					throw std::invalid_argument{kblib::concat(
-					    "Seed ranges must be low..high, got: ", b, "..", e)};
-				}
-				seed_ranges.push_back({b, e - b + 1});
-			}
-		}
+		seed_ranges = parse_ranges(seed_exprs.getValue());
 	} else if (random.isSet()) {
 		std::uint32_t seed;
 		if (seed_arg.isSet()) {
@@ -437,7 +639,7 @@ int main(int argc, char** argv) try {
 
 	log_debug_r([&] { return f.layout(); });
 
-	score sc;
+	score sc{};
 	std::size_t total_cycles{};
 	sc.validated = true;
 	if (fixed.getValue()) {
@@ -470,75 +672,26 @@ int main(int argc, char** argv) try {
 			}
 		}
 		sc.achievement = check_achievement(id, f, sc);
-		score_summary(sc, last, succeeded, quiet.getValue(),
-		              cycles_limit.getValue());
+		score_summary(sc, succeeded, quiet.getValue(), cycles_limit.getValue());
 	}
+
 	int count = 0;
 	int valid_count = 0;
 	if (sc.validated and not seed_ranges.empty()) {
-		score last{};
-		score worst{};
 		bool failure_printed{};
-		[&] {
-			for (auto seed_range : seed_ranges) {
-				auto seed = seed_range.begin;
-				auto r_count = seed_range.size;
-				// additional -1 to make it inclusive
-				log_info("Seed range: ", seed, ", ", seed + seed_range.size - 1);
-				for (; r_count != 0; ++seed, --r_count) {
-					auto test = random_test(id, seed);
-					if (not test) {
-						continue;
-					}
-					++count;
-					set_expected(f, *test);
-					last = run(f, cycles_limit.getValue(),
-					           not quiet.isSet() and valid_count == count);
-					if (stop_requested) {
-						log_notice("Stop requested");
-						--count;
-						break;
-					}
-					worst.cycles = std::max(worst.cycles, last.cycles);
-					worst.instructions = last.instructions;
-					worst.nodes = last.nodes;
-					// for random tests, only one validation is needed
-					worst.validated = worst.validated or last.validated;
-					valid_count += last.validated ? 1 : 0;
-					total_cycles += last.cycles;
-					if (not last.validated) {
-						if (std::exchange(failure_printed, true) == false) {
-							log_info(
-							    "Random test failed for seed: ", seed,
-							    std::cmp_equal(last.cycles, cycles_limit.getValue())
-							        ? "[timeout]"
-							        : "");
-							print_validation_failure(f, log_info(), color_logs);
-						} else {
-							log_debug("Random test failed for seed: ", seed);
-						}
-					}
-					if (not stats.isSet()) {
-						// at least K passes and at least one fail
-						if (valid_count
-						        >= static_cast<int>(cheat_rate * total_random_tests)
-						    and valid_count < count) {
-							return;
-						}
-					}
-					if (not f.has_inputs()) {
-						log_info(
-						    "Secondary random tests skipped for invariant level");
-						return;
-					}
-					if (total_cycles >= total_cycles_limit.getValue()) {
-						log_info("Total cycles timeout reached, stopping tests at ",
-						         count);
-						return;
-					}
-				}
-			}
-		}();
+		run_params params{total_cycles,
+		                  failure_printed,
+		                  count,
+		                  valid_count,
+		                  total_cycles_limit,
+		                  cycles_limit,
+		                  static_cast<uint8_t>(quiet.getValue()),
+		                  stats.getValue(),
+		                  cheat_rate,
+		                  total_random_tests};
+		auto worst = run_seed_ranges(f, id, seed_ranges, params,
+		                             IFELSE_THREAD(num_threads, 1));
+
 		log_info("Random test results: ", valid_count, " passed out of ", count,
 		         " total");
 
@@ -546,7 +699,7 @@ int main(int argc, char** argv) try {
 		sc.hardcoded = (valid_count <= static_cast<int>(count * cheat_rate));
 		if (not fixed.getValue()) {
 			sc = worst;
-			score_summary(sc, last, -1, quiet.getValue(), cycles_limit.getValue());
+			score_summary(sc, -1, quiet.getValue(), cycles_limit.getValue());
 		}
 	}
 
