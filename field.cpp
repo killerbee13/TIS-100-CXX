@@ -127,14 +127,16 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 				    "invalid layout spec: no size specified for image"};
 			}
 			auto p = std::make_unique<image_output>(x, height());
-			p->reshape(out.image_size.value().first, out.image_size.value().second);
+			p->reshape(out.image_size.value().first,
+			           out.image_size.value().second);
 			nodes.emplace_back(std::move(p));
 		} break;
 		case node::null:
 			// pass
 			break;
 		default:
-			throw std::invalid_argument{"invalid layout spec: illegal output node"};
+			throw std::invalid_argument{
+			    "invalid layout spec: illegal output node"};
 		}
 	}
 

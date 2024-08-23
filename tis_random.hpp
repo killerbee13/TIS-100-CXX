@@ -50,13 +50,15 @@ class xorshift128_engine {
 		return w = w ^ (w >> 19) ^ t ^ (t >> 8);
 	}
 	constexpr u32 next(u32 min, u32 max) noexcept {
-		if (max - min == 0)
+		if (max - min == 0) {
 			return min;
+		}
 
-		if (max < min)
+		if (max < min) {
 			return min - next() % (max + min);
-		else
+		} else {
 			return min + next() % (max - min);
+		}
 	}
 	constexpr word_t next_int(word_t min, word_t max) noexcept {
 		if (max == min) {
@@ -67,10 +69,11 @@ class xorshift128_engine {
 		std::int64_t maxLong = static_cast<std::int64_t>(max);
 		std::int64_t r = next();
 
-		if (max < min)
+		if (max < min) {
 			return static_cast<word_t>(minLong - r % (maxLong - minLong));
-		else
+		} else {
 			return static_cast<word_t>(minLong + r % (maxLong - minLong));
+		}
 	}
 };
 

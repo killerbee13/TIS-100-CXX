@@ -19,6 +19,7 @@ Cpp11BracedListStyle: 'true'
 FixNamespaceComments: 'true'
 IndentPPDirectives: AfterHash
 IndentWidth: '3'
+InsertBraces: true
 Language: Cpp
 NamespaceIndentation: Inner
 PenaltyExcessCharacter: '1000'

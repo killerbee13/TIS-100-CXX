@@ -187,10 +187,12 @@ struct image_output : node {
 		    and c_y < height) {
 			auto& pix_rec = image_received.at(c_x, c_y);
 			auto& pix_exp = image_expected.at(c_x, c_y);
-			if (pix_rec == pix_exp)
+			if (pix_rec == pix_exp) {
 				wrong_pixels++;
-			if (pix_new == pix_exp)
+			}
+			if (pix_new == pix_exp) {
 				wrong_pixels--;
+			}
 			pix_rec = pix_new;
 		}
 	}
