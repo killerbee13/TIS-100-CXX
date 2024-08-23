@@ -282,6 +282,7 @@ struct run_params {
 };
 
 #pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wshadow=compatible-local"
 score run_seed_ranges(field& f, uint level_id,
                       const std::vector<range_t> seed_ranges, run_params params,
@@ -314,11 +315,11 @@ score run_seed_ranges(field& f, uint level_id,
 			}
 			++counter;
 			set_expected(f, *test);
+			last = run(f, params.cycles_limit, false);
 			if (stop_requested) {
 				log_notice("Stop requested");
 				return;
 			}
-			last = run(f, params.cycles_limit, false);
 
 			// none of this is hot, so it doesn't need to be parallelized
 			// so it's simplest to just hold a lock the whole time
