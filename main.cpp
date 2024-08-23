@@ -22,23 +22,15 @@
 #include "parser.hpp"
 #include "random_levels.hpp"
 
+#include <atomic>
 #include <csignal>
 #include <iostream>
 #include <kblib/hash.h>
 #include <kblib/io.h>
 #include <kblib/stringops.h>
+#include <mutex>
 #include <random>
-#ifdef THREAD
-#	include <thread>
-#endif
-
-#ifdef THREAD
-#	define IF_THREAD(...) __VA_ARGS__
-#	define IFELSE_THREAD(a, b) a
-#else
-#	define IF_THREAD(...)
-#	define IFELSE_THREAD(a, b) b
-#endif
+#include <thread>
 
 #define TCLAP_SETBASE_ZERO 1
 #include <tclap/CmdLine.h>
@@ -285,50 +277,51 @@ struct run_params {
 	std::uint8_t quiet;
 	bool stats;
 	double cheat_rate;
-	std::size_t total_random_tests;
+	std::uint32_t total_random_tests;
 };
 
-score run_seed_ranges(field& f, int id, const std::vector<range_t> seed_ranges,
-                      run_params params, unsigned num_threads) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow=compatible-local"
+score run_seed_ranges(field& f, uint level_id,
+                      const std::vector<range_t> seed_ranges, run_params params,
+                      unsigned num_threads) {
 	score worst{};
-	seed_range_iterator it(seed_ranges);
-#ifdef THREAD
+	seed_range_iterator seed_it(seed_ranges);
 	std::mutex it_m;
 	std::mutex sc_m;
 	std::vector<std::thread> threads;
 	std::vector<int> counters(num_threads);
 
-	auto task = []<typename Mutex>(
-	                Mutex& it_m, Mutex& sc_m, seed_range_iterator& it, field f,
-	                int id, run_params params, score& worst, int& c) static {
-#endif
+	auto task = [](std::mutex& it_m, std::mutex& sc_m,
+	               seed_range_iterator& seed_it, field f, uint level_id,
+	               run_params params, score& worst, int& counter) static {
 		while (true) {
 			std::uint32_t seed;
 			score last{};
 			{
-				IF_THREAD(std::unique_lock l(it_m));
-				if (it == it.end()) {
-					break;
+				std::unique_lock l(it_m);
+				if (seed_it == seed_it.end()) {
+					return;
 				} else {
-					seed = *it++;
+					seed = *seed_it++;
 				}
 			}
 
-			auto test = random_test(id, seed);
+			auto test = random_test(level_id, seed);
 			if (not test) {
 				continue;
 			}
-			IF_THREAD(++c);
+			++counter;
 			set_expected(f, *test);
 			if (stop_requested) {
 				log_notice("Stop requested");
-				break;
+				return;
 			}
 			last = run(f, params.cycles_limit, false);
 
 			// none of this is hot, so it doesn't need to be parallelized
 			// so it's simplest to just hold a lock the whole time
-			IF_THREAD(std::unique_lock l(sc_m));
+			std::unique_lock l(sc_m);
 			++params.count;
 			worst.cycles = std::max(worst.cycles, last.cycles);
 			worst.instructions = last.instructions;
@@ -353,30 +346,26 @@ score run_seed_ranges(field& f, int id, const std::vector<range_t> seed_ranges,
 				if (params.valid_count >= static_cast<int>(
 				        params.cheat_rate * params.total_random_tests)
 				    and params.valid_count < params.count) {
-					return IFELSE_THREAD(, worst);
+					return;
 				}
 			}
 			if (not f.has_inputs()) {
 				log_info("Secondary random tests skipped for invariant level");
-				return IFELSE_THREAD(, worst);
+				return;
 			}
 			if (params.total_cycles >= params.total_cycles_limit) {
 				log_info("Total cycles timeout reached, stopping tests at ",
 				         params.count);
-				return IFELSE_THREAD(, worst);
+				return;
 			}
 		}
-#ifdef THREAD
-		return;
 	};
+
 	if (num_threads > 1) {
-		for (auto _ : range(num_threads)) {
-			// I don't know why the template parameter must be explicitly
-			// specified but I get an (exceptionally vague) error if I don't
-			threads.emplace_back(task.operator()<std::mutex>, std::ref(it_m),
-			                     std::ref(sc_m), std::ref(it), f.clone(), id,
-			                     params, std::ref(worst),
-			                     std::ref(counters[threads.size()]));
+		for (auto i : range(num_threads)) {
+			threads.emplace_back(task, std::ref(it_m), std::ref(sc_m),
+			                     std::ref(seed_it), f.clone(), level_id, params,
+			                     std::ref(worst), std::ref(counters[i]));
 		}
 
 		for (auto& t : threads) {
@@ -386,13 +375,13 @@ score run_seed_ranges(field& f, int id, const std::vector<range_t> seed_ranges,
 			log_info("Thread ", i, " ran ", x, " tests");
 		}
 	} else {
-		task(it_m, sc_m, it, std::move(f), id, params, worst,
-		     counters[threads.size()]);
+		task(it_m, sc_m, seed_it, std::move(f), level_id, params, worst,
+		     counters[0]);
 	}
-#endif
 
 	return worst;
 }
+#pragma GCC diagnostic pop
 
 int main(int argc, char** argv) try {
 	std::ios_base::sync_with_stdio(false);
@@ -434,8 +423,7 @@ int main(int argc, char** argv) try {
 	TCLAP::ValueArg<unsigned> threads(
 	    "j", "threads",
 	    "Number of threads to use. Log level must be info or lower.", false, 1,
-	    "integer");
-	IF_THREAD(cmd.add(threads));
+	    "integer", cmd);
 
 	TCLAP::ValueArg<bool> fixed("", "fixed", "Run fixed tests. (Default 1)",
 	                            false, true, "[0,1]", cmd);
@@ -551,7 +539,6 @@ int main(int argc, char** argv) try {
 		}
 	}());
 
-#ifdef THREAD
 	unsigned num_threads = threads.getValue();
 	if (threads.getValue() != 1) {
 		if (get_log_level() > log_level::info) {
@@ -563,24 +550,26 @@ int main(int argc, char** argv) try {
 		}
 	}
 	log_info("Using ", num_threads, " threads");
-#endif
 
-	int id{};
+	uint level_id{};
 	field f = [&] {
 		if (id_arg.isSet()) {
-			id = level_id(id_arg.getValue());
-			return field(layouts.at(to_unsigned(id)).layout, T30_size.getValue());
+			level_id = find_level_id(id_arg.getValue());
+			return field(layouts.at(to_unsigned(level_id)).layout,
+			             T30_size.getValue());
 		} else if (level_num.isSet()) {
-			id = level_num.getValue();
-			return field(layouts.at(to_unsigned(id)).layout, T30_size.getValue());
+			level_id = level_num.getValue();
+			return field(layouts.at(to_unsigned(level_id)).layout,
+			             T30_size.getValue());
 		} else if (auto filename = std::filesystem::path(solution.getValue())
 		                               .filename()
 		                               .string();
 		           auto maybeId = guess_level_id(filename)) {
-			id = *maybeId;
-			log_debug("Deduced level ", layouts.at(to_unsigned(id)).segment,
+			level_id = *maybeId;
+			log_debug("Deduced level ", layouts.at(to_unsigned(level_id)).segment,
 			          " from filename \"", filename, "\"");
-			return field(layouts.at(to_unsigned(id)).layout, T30_size.getValue());
+			return field(layouts.at(to_unsigned(level_id)).layout,
+			             T30_size.getValue());
 		} else {
 			throw std::invalid_argument{
 			    "Impossible to determine the level ID from information given"};
@@ -645,7 +634,7 @@ int main(int argc, char** argv) try {
 	if (fixed.getValue()) {
 		score last{};
 		int succeeded{1};
-		for (auto test : static_suite(id)) {
+		for (auto test : static_suite(level_id)) {
 			set_expected(f, test);
 			last = run(f, cycles_limit.getValue(), true);
 			if (stop_requested) {
@@ -671,7 +660,7 @@ int main(int argc, char** argv) try {
 				break;
 			}
 		}
-		sc.achievement = check_achievement(id, f, sc);
+		sc.achievement = check_achievement(level_id, f, sc);
 		score_summary(sc, succeeded, quiet.getValue(), cycles_limit.getValue());
 	}
 
@@ -689,8 +678,8 @@ int main(int argc, char** argv) try {
 		                  stats.getValue(),
 		                  cheat_rate,
 		                  total_random_tests};
-		auto worst = run_seed_ranges(f, id, seed_ranges, params,
-		                             IFELSE_THREAD(num_threads, 1));
+		auto worst
+		    = run_seed_ranges(f, level_id, seed_ranges, params, num_threads);
 
 		log_info("Random test results: ", valid_count, " passed out of ", count,
 		         " total");

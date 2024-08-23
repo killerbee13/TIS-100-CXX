@@ -85,11 +85,11 @@ constexpr static std::array<std::uint32_t, layouts.size()> seeds{
     20 * 23, 21 * 23, 22 * 23, 23 * 23, 24 * 23, //
 };
 
-std::array<single_test, 3> static_suite(int id) {
+std::array<single_test, 3> static_suite(uint level_id) {
 	return {
-	    *random_test(id, seeds.at(static_cast<std::size_t>(id)) * 100),
-	    *random_test(id, seeds[static_cast<std::size_t>(id)] * 100 + 1),
-	    *random_test(id, seeds[static_cast<std::size_t>(id)] * 100 + 2),
+	    *random_test(level_id, seeds.at(level_id) * 100),
+	    *random_test(level_id, seeds[level_id] * 100 + 1),
+	    *random_test(level_id, seeds[level_id] * 100 + 2),
 	};
 }
 
@@ -110,10 +110,10 @@ word_vec empty_vec(word_t size = max_test_length) {
 	return word_vec(kblib::to_unsigned(size));
 }
 
-std::optional<single_test> random_test(int id, uint32_t seed) {
-	// log_info("random_test(", id, ", ", seed, ")");
+std::optional<single_test> random_test(uint level_id, uint32_t seed) {
+	// log_info("random_test(", level_id, ", ", seed, ")");
 	single_test ret{};
-	switch (id) {
+	switch (level_id) {
 	case "SELF-TEST DIAGNOSTIC"_lvl: {
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 10, 100));
 		ret.inputs.push_back(

@@ -19,15 +19,11 @@
 
 #include <iostream>
 #include <unistd.h>
-#ifdef THREAD
-#	include <mutex>
-#endif
+#include <mutex>
 
 static log_level current = log_level::notice;
 static std::ostream* output = &std::clog;
-#ifdef THREAD
 std::recursive_mutex log_m;
-#endif
 
 auto set_log_level(log_level new_level) -> void { current = new_level; }
 
@@ -38,9 +34,7 @@ namespace detail {
 static bool flush;
 
 auto log(std::string_view str) -> void {
-#ifdef THREAD
 	std::unique_lock l(log_m);
-#endif
 	(*output) << str << '\n';
 	if (flush) {
 		output->flush();

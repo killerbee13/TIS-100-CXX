@@ -27,7 +27,7 @@ struct single_test {
 	image_t i_output{};
 };
 
-std::array<single_test, 3> static_suite(int id);
-std::optional<single_test> random_test(int id, std::uint32_t seed);
+std::array<single_test, 3> static_suite(uint level_id);
+std::optional<single_test> random_test(uint level_id, std::uint32_t seed);
 
 #endif // RANDOM_LEVELS_HPP

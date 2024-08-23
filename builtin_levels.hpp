@@ -25,23 +25,23 @@
 #include <array>
 #include <string_view>
 
-constexpr int level_id(std::string_view s) {
+constexpr uint find_level_id(std::string_view s) {
 	for (auto i : range(layouts.size())) {
 		if (s == layouts[i].segment or s == layouts[i].name) {
-			return static_cast<int>(i);
+			return static_cast<uint>(i);
 		}
 	}
 	throw std::invalid_argument{concat("invalid level ID ", kblib::quoted(s))};
 }
 
-consteval int operator""_lvl(const char* s, std::size_t size) {
-	return level_id(std::string_view(s, size));
+consteval uint operator""_lvl(const char* s, std::size_t size) {
+	return find_level_id(std::string_view(s, size));
 }
 
-constexpr std::optional<int> guess_level_id(std::string_view filename) {
+constexpr std::optional<uint> guess_level_id(std::string_view filename) {
 	for (auto i : range(layouts.size())) {
 		if (filename.starts_with(layouts[i].segment)) {
-			return static_cast<int>(i);
+			return i;
 		}
 	}
 	return std::nullopt;
@@ -58,18 +58,18 @@ inline image_t checkerboard(std::ptrdiff_t w, std::ptrdiff_t h) {
 	return ret;
 }
 
-inline bool check_achievement(int id, const field& solve, score sc) {
+inline bool check_achievement(uint level_id, const field& solve, score sc) {
 	auto log = log_debug();
-	log << "check_achievement " << layouts[static_cast<std::size_t>(id)].name
+	log << "check_achievement " << layouts[static_cast<std::size_t>(level_id)].name
 	    << ": ";
 	// SELF-TEST DIAGNOSTIC
-	if (id == "00150"_lvl) {
+	if (level_id == "00150"_lvl) {
 		// BUSY_LOOP
 		log << "BUSY_LOOP: " << sc.cycles << ((sc.cycles > 100000) ? ">" : "<=")
 		    << 100000;
 		return sc.cycles > 100000;
 		// SIGNAL COMPARATOR
-	} else if (id == "21340"_lvl) {
+	} else if (level_id == "21340"_lvl) {
 		// UNCONDITIONAL
 		log << "UNCONDITIONAL:\n";
 		for (std::size_t i = 0; i < solve.nodes_avail(); ++i) {
@@ -93,7 +93,7 @@ inline bool check_achievement(int id, const field& solve, score sc) {
 		log << " no conditionals found";
 		return true;
 		// SEQUENCE REVERSER
-	} else if (id == "42656"_lvl) {
+	} else if (level_id == "42656"_lvl) {
 		// NO_MEMORY
 		log << "NO_MEMORY: ";
 
