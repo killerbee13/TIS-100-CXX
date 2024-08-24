@@ -201,14 +201,14 @@ std::vector<range_t> parse_ranges(const std::vector<std::string>& seed_exprs) {
 
 class seed_range_iterator {
  public:
-	using seed_range_t = std::vector<range_t>;
+	using seed_range_t = std::span<const range_t>;
 	using value_type = std::uint32_t;
 	using difference_type = std::ptrdiff_t;
 	using iterator_concept = std::input_iterator_tag;
 
 	seed_range_iterator() = default;
-	explicit seed_range_iterator(const std::vector<range_t>& ranges) noexcept
-	    : v(&ranges)
+	explicit seed_range_iterator(const seed_range_t& ranges) noexcept
+	    : v_end(ranges.end())
 	    , it(ranges.begin())
 	    , cur(it->begin) {}
 
@@ -217,7 +217,7 @@ class seed_range_iterator {
 		++cur;
 		if (cur == it->end) {
 			++it;
-			if (it != v->end()) {
+			if (it != v_end) {
 				cur = it->begin;
 			}
 		}
@@ -230,15 +230,13 @@ class seed_range_iterator {
 	}
 
 	struct sentinel {};
-	bool operator==(sentinel) const noexcept {
-		return (not v) or it == v->end();
-	}
+	bool operator==(sentinel) const noexcept { return it == v_end; }
 
 	static sentinel end() noexcept { return {}; }
 
  private:
-	const std::vector<range_t>* v{};
-	seed_range_t::const_iterator it{};
+	seed_range_t::iterator v_end{};
+	seed_range_t::iterator it{};
 	std::uint32_t cur{};
 };
 
@@ -287,6 +285,7 @@ struct run_params {
 score run_seed_ranges(field& f, uint level_id,
                       const std::vector<range_t> seed_ranges, run_params params,
                       unsigned num_threads) {
+	assert(not seed_ranges.empty());
 	score worst{};
 	seed_range_iterator seed_it(seed_ranges);
 	std::mutex it_m;
@@ -349,10 +348,6 @@ score run_seed_ranges(field& f, uint level_id,
 				    and params.valid_count < params.count) {
 					return;
 				}
-			}
-			if (not f.has_inputs()) {
-				log_info("Secondary random tests skipped for invariant level");
-				return;
 			}
 			if (params.total_cycles >= params.total_cycles_limit) {
 				log_info("Total cycles timeout reached, stopping tests at ",
@@ -672,29 +667,35 @@ int main(int argc, char** argv) try {
 
 	int count = 0;
 	int valid_count = 0;
-	if (sc.validated and not seed_ranges.empty()) {
-		bool failure_printed{};
-		run_params params{total_cycles,
-		                  failure_printed,
-		                  count,
-		                  valid_count,
-		                  total_cycles_limit,
-		                  cycles_limit,
-		                  static_cast<uint8_t>(quiet.getValue()),
-		                  stats.getValue(),
-		                  cheat_rate,
-		                  total_random_tests};
-		auto worst
-		    = run_seed_ranges(f, level_id, seed_ranges, params, num_threads);
+	if (sc.validated) {
+		if (not f.has_inputs()) {
+			log_info("Random tests skipped for invariant level");
+			count = 1;
+			valid_count = sc.validated;
+		} else if (not seed_ranges.empty()) {
+			bool failure_printed{};
+			run_params params{total_cycles,
+			                  failure_printed,
+			                  count,
+			                  valid_count,
+			                  total_cycles_limit,
+			                  cycles_limit,
+			                  static_cast<uint8_t>(quiet.getValue()),
+			                  stats.getValue(),
+			                  cheat_rate,
+			                  total_random_tests};
+			auto worst
+			    = run_seed_ranges(f, level_id, seed_ranges, params, num_threads);
 
-		log_info("Random test results: ", valid_count, " passed out of ", count,
-		         " total");
+			log_info("Random test results: ", valid_count, " passed out of ",
+			         count, " total");
 
-		sc.cheat = (count != valid_count);
-		sc.hardcoded = (valid_count <= static_cast<int>(count * cheat_rate));
-		if (not fixed.getValue()) {
-			sc = worst;
-			score_summary(sc, -1, quiet.getValue(), cycles_limit.getValue());
+			sc.cheat = (count != valid_count);
+			sc.hardcoded = (valid_count <= static_cast<int>(count * cheat_rate));
+			if (not fixed.getValue()) {
+				sc = worst;
+				score_summary(sc, -1, quiet.getValue(), cycles_limit.getValue());
+			}
 		}
 	}
 
