@@ -208,6 +208,10 @@ class logger {
 		return *this;
 	}
 
+	bool good() const {
+		return bool(formatter_);
+	}
+
 	~logger() {
 		if (formatter_) {
 			detail::log(formatter_->view());

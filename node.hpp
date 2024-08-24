@@ -220,10 +220,14 @@ inline std::string pad_left(std::integral auto input, std::size_t size,
 template <typename Stream>
    requires requires(Stream s) {
 	   { s << "" << 1 };
+	   { s.good() } -> std::same_as<bool>;
    }
 inline Stream&& write_list(Stream&& os, const word_vec& v,
                            const word_vec* expected = nullptr,
                            bool colored = color_logs) {
+	if (not os.good()) { // this method is costly, immediately bail out
+		return std::forward<Stream>(os);
+	}
 	if (colored and expected and v.size() != expected->size()) {
 		os << print_escape(bright_red);
 	}
