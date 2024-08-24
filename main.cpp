@@ -317,7 +317,6 @@ score run_seed_ranges(field& f, uint level_id,
 			set_expected(f, *test);
 			last = run(f, params.cycles_limit, false);
 			if (stop_requested) {
-				log_notice("Stop requested");
 				return;
 			}
 
@@ -379,6 +378,11 @@ score run_seed_ranges(field& f, uint level_id,
 	} else {
 		task(it_m, sc_m, seed_it, std::move(f), level_id, params, worst,
 		     counters[0]);
+	}
+
+	if (stop_requested) {
+		log_warn("Stop requested");
+		log_flush();
 	}
 
 	return worst;
