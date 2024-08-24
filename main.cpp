@@ -667,7 +667,7 @@ int main(int argc, char** argv) try {
 
 	int count = 0;
 	int valid_count = 0;
-	if (sc.validated) {
+	if (sc.validated or stats.getValue()) {
 		if (not f.has_inputs()) {
 			log_info("Random tests skipped for invariant level");
 			count = 1;
