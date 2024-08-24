@@ -55,8 +55,7 @@ optional_word T21::read(port p, word_t imm) {
 	case port::acc:
 		return acc;
 	case port::any:
-		for (auto p_ : {port::left, port::right, port::up, port::down, port::D5,
-		                port::D6}) {
+		for (auto p_ = port::left; p_ <= port::D6; p_++) {
 			if (auto r = read(p_); r != word_empty) {
 				last = p_;
 				return r;

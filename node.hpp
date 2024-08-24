@@ -59,6 +59,17 @@ enum port : std::int8_t {
 	immediate = -1
 };
 
+inline port& operator++(port& p) {
+	assert(p >= port::left and p <= port::D6);
+	p = static_cast<port>(std::to_underlying(p) + 1);
+	return p;
+}
+inline port operator++(port& p, int) {
+	port old = p;
+	++p;
+	return old;
+}
+
 constexpr port invert(port p) {
 	switch (p) {
 	case left:

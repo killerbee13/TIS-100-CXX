@@ -38,8 +38,7 @@ struct T30 : node {
 		if (data.size() == max_size) {
 			return;
 		}
-		for (auto p : {port::left, port::right, port::up, port::down, port::D5,
-		               port::D6}) {
+		for (auto p = port::left; p <= port::D6; p++) {
 			if (auto r = do_read(neighbors[to_unsigned(p)], invert(p));
 			    r != word_empty) {
 				data.push_back(r);
