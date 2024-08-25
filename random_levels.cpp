@@ -1180,7 +1180,7 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 			for ([[maybe_unused]] auto _ : kblib::range(10)) {
 				word_t fac = 2;
 				auto inp = ret.inputs[0].emplace_back(engine.next(10, 99));
-				while (inp > fac) {
+				while (inp >= fac * fac) {
 					if (inp % fac == 0) {
 						ret.n_outputs[0].push_back(fac);
 						inp = static_cast<word_t>(inp / fac);
