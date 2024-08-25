@@ -36,6 +36,7 @@ CMakeLists.txt.user*
 .*.swp
 *.autosave
 nppBackup/*
+.vscode
 
 # Visual Studio generated files
 *.ib_pdb_index
