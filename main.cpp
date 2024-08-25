@@ -356,8 +356,12 @@ score run_seed_ranges(field& f, uint level_id,
 			}
 		}
 	};
-
-	if (num_threads > 1) {
+	if (not f.has_inputs()) {
+		log_info("Secondary random tests skipped for invariant level");
+		range_t r{0, 1};
+		seed_range_iterator it2(std::span(&r, 1));
+		task(it_m, sc_m, it2, std::move(f), level_id, params, worst, counters[0]);
+	} else if (num_threads > 1) {
 		for (auto i : range(num_threads)) {
 			threads.emplace_back(task, std::ref(it_m), std::ref(sc_m),
 			                     std::ref(seed_it), f.clone(), level_id, params,
@@ -667,35 +671,30 @@ int main(int argc, char** argv) try {
 
 	int count = 0;
 	int valid_count = 0;
-	if (sc.validated or stats.getValue()) {
-		if (not f.has_inputs()) {
-			log_info("Random tests skipped for invariant level");
-			count = 1;
-			valid_count = sc.validated;
-		} else if (not seed_ranges.empty()) {
-			bool failure_printed{};
-			run_params params{total_cycles,
-			                  failure_printed,
-			                  count,
-			                  valid_count,
-			                  total_cycles_limit,
-			                  cycles_limit,
-			                  static_cast<uint8_t>(quiet.getValue()),
-			                  stats.getValue(),
-			                  cheat_rate,
-			                  total_random_tests};
-			auto worst
-			    = run_seed_ranges(f, level_id, seed_ranges, params, num_threads);
+	if ((fixed.getValue() == 0 or sc.validated or stats.getValue())
+	    and not seed_ranges.empty()) {
+		bool failure_printed{};
+		run_params params{total_cycles,
+		                  failure_printed,
+		                  count,
+		                  valid_count,
+		                  total_cycles_limit,
+		                  cycles_limit,
+		                  static_cast<uint8_t>(quiet.getValue()),
+		                  stats.getValue(),
+		                  cheat_rate,
+		                  total_random_tests};
+		auto worst
+		    = run_seed_ranges(f, level_id, seed_ranges, params, num_threads);
 
-			log_info("Random test results: ", valid_count, " passed out of ",
-			         count, " total");
+		log_info("Random test results: ", valid_count, " passed out of ", count,
+		         " total");
 
-			sc.cheat = (count != valid_count);
-			sc.hardcoded = (valid_count <= static_cast<int>(count * cheat_rate));
-			if (not fixed.getValue()) {
-				sc = worst;
-				score_summary(sc, -1, quiet.getValue(), cycles_limit.getValue());
-			}
+		sc.cheat = (count != valid_count);
+		sc.hardcoded = (valid_count <= static_cast<int>(count * cheat_rate));
+		if (not fixed.getValue()) {
+			sc = worst;
+			score_summary(sc, -1, quiet.getValue(), cycles_limit.getValue());
 		}
 	}
 
