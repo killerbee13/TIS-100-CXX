@@ -46,7 +46,7 @@ echo > $all_file
 set tmp_result (mktemp --suffix=TIS)
 
 function filter_expected
-	set -l RE "s@$id\.([0-9]+)-([0-9]+)-([0-9]+)-?(a?c?).txt@\1/\2/\3/\4@"
+	set -l RE "s@$id\.([0-9]+)-([0-9]+)-([0-9]+)-?(a?c?h?).txt@\1/\2/\3/\4@"
 	basename $argv[1] | sed -Ee $RE -e 's@/$@@'
 end
 
