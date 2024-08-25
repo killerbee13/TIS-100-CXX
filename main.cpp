@@ -258,9 +258,9 @@ void score_summary(score sc, int fixed, int quiet, int cycles_limit) {
 		if (fixed != -1) {
 			std::cout << " for fixed test " << fixed;
 		}
-		std::cout << " after " << sc.cycles << " cycles ";
+		std::cout << " after " << sc.cycles << " cycles";
 		if (std::cmp_equal(sc.cycles, cycles_limit)) {
-			std::cout << "[timeout]";
+			std::cout << " [timeout]";
 		}
 		std::cout << '\n';
 	}
@@ -273,10 +273,9 @@ struct run_params {
 	int& valid_count;
 	std::size_t total_cycles_limit;
 	int cycles_limit;
+	int cheating_success_threshold;
 	std::uint8_t quiet;
 	bool stats;
-	double cheat_rate;
-	std::uint32_t total_random_tests;
 };
 
 #pragma GCC diagnostic push
@@ -326,15 +325,16 @@ score run_seed_ranges(field& f, uint level_id,
 			worst.cycles = std::max(worst.cycles, last.cycles);
 			worst.instructions = last.instructions;
 			worst.nodes = last.nodes;
-			// for random tests, only one validation is needed
-			worst.validated = worst.validated or last.validated;
-			params.valid_count += last.validated ? 1 : 0;
 			params.total_cycles += last.cycles;
-			if (not last.validated) {
+			if (last.validated) {
+				// for random tests, only one validation is needed
+				worst.validated = true;
+				params.valid_count++;
+			} else {
 				if (std::exchange(params.failure_printed, true) == false) {
 					log_info("Random test failed for seed: ", seed,
 					         std::cmp_equal(last.cycles, params.cycles_limit)
-					             ? "[timeout]"
+					             ? " [timeout]"
 					             : "");
 					print_validation_failure(f, log_info(), color_logs);
 				} else {
@@ -343,8 +343,7 @@ score run_seed_ranges(field& f, uint level_id,
 			}
 			if (not params.stats) {
 				// at least K passes and at least one fail
-				if (params.valid_count >= static_cast<int>(
-				        params.cheat_rate * params.total_random_tests)
+				if (params.valid_count >= params.cheating_success_threshold
 				    and params.valid_count < params.count) {
 					return;
 				}
@@ -680,10 +679,9 @@ int main(int argc, char** argv) try {
 		                  valid_count,
 		                  total_cycles_limit,
 		                  cycles_limit,
+		                  static_cast<int>(cheat_rate * total_random_tests),
 		                  static_cast<uint8_t>(quiet.getValue()),
-		                  stats.getValue(),
-		                  cheat_rate,
-		                  total_random_tests};
+		                  stats.getValue()};
 		auto worst
 		    = run_seed_ranges(f, level_id, seed_ranges, params, num_threads);
 
