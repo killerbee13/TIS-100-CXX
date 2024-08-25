@@ -191,18 +191,18 @@ class logger {
 	    : formatter_{std::move(o.formatter_)} {}
 
 	auto log_r(std::invocable<> auto supplier) -> void {
-		if (formatter_) {
+		if (formatter_) [[unlikely]] {
 			auto s = supplier();
 			(*formatter_) << s;
 		}
 	}
 	auto log(auto&&... args) -> void {
-		if (formatter_) {
+		if (formatter_) [[unlikely]] {
 			((*formatter_) << ... << args);
 		}
 	}
 	auto operator<<(const streamable_out auto& v) -> logger& {
-		if (formatter_) {
+		if (formatter_) [[unlikely]] {
 			(*formatter_) << v;
 		}
 		return *this;
@@ -213,7 +213,7 @@ class logger {
 	}
 
 	~logger() {
-		if (formatter_) {
+		if (formatter_) [[unlikely]] {
 			detail::log(formatter_->view());
 		}
 	}
