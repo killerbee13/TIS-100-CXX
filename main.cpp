@@ -424,10 +424,11 @@ int main(int argc, char** argv) try {
 	    "Max number of cycles to run between all tests before determining "
 	    "cheating status. (Default no limit)",
 	    false, kblib::max, "integer", cmd);
-	TCLAP::ValueArg<unsigned> threads(
-	    "j", "threads",
-	    "Number of threads to use. Log level must be info or lower.", false, 1,
-	    "integer", cmd);
+	TCLAP::ValueArg<unsigned> threads("j", "threads",
+	                                  "Number of threads to use, or 0 for "
+	                                  "automatic. Log level must be info or "
+	                                  "lower.",
+	                                  false, 1, "integer", cmd);
 
 	TCLAP::ValueArg<bool> fixed("", "fixed", "Run fixed tests. (Default 1)",
 	                            false, true, "[0,1]", cmd);
@@ -492,7 +493,6 @@ int main(int argc, char** argv) try {
 	                       "Print in color. "
 	                       "(Defaults on if STDOUT is a tty.)",
 	                       cmd);
-	// TODO: implement log coloring detection
 	TCLAP::SwitchArg log_color("C", "log-color",
 	                           "Enable colors in the log. "
 	                           "(Defaults on if STDERR is a tty.)",

@@ -116,7 +116,7 @@ struct T21 : node {
 			code = {small_.begin(),
 			        std::ranges::copy(new_code, small_.begin()).out};
 		} else {
-			large_.reset(new instr[code.size()]);
+			large_.reset(new instr[new_code.size()]);
 			code = {large_.get(), std::ranges::copy(new_code, large_.get()).out};
 		}
 	}
