@@ -37,13 +37,13 @@ class field {
 		auto log = log_debug();
 		log << "Field step\n";
 		// evaluate code
-		for (auto& p : nodes) {
+		for (auto& p : nodes_useful) {
 			p->step(log);
 		}
 		log << '\n';
 		// execute writes
 		// this is a separate step to ensure a consistent propagation delay
-		for (auto& p : nodes) {
+		for (auto& p : nodes_useful) {
 			p->finalize(log);
 		}
 	}
@@ -88,23 +88,24 @@ class field {
 	std::size_t instructions() const;
 	std::size_t nodes_used() const;
 
-	// Number of T21 nodes for node_by_index
-	std::size_t nodes_avail() const;
 	// Number of regular (grid) nodes
 	std::size_t nodes_total() const { return in_nodes_offset; }
 	// Whether there are any input nodes attached to the field. Image test
 	// pattern levels do not use inputs so only need a single test run.
-	bool has_inputs() const { return begin_io() != begin_output(); }
+	bool has_inputs() const { return in_nodes_offset != out_nodes_offset; }
 
 	/// Serialize layout as read by parse_layout
 	std::string layout() const;
 	/// Serialize layout as a C++ builtin_layout_spec initializer
 	std::string machine_layout() const;
 
+	/// must be called after code loading
+	void finalize_nodes();
+	/// returns field with all nodes cloned and resetted
 	field clone() const;
 
 	// returns the node at the (x,y) coordinates, Nullable
-	node* node_by_location(std::size_t x, std::size_t y) {
+	node* reg_node_by_location(std::size_t x, std::size_t y) {
 		if (x >= width or y >= height()) {
 			return nullptr;
 		}
@@ -113,7 +114,7 @@ class field {
 		return nodes[i].get();
 	}
 	// Nullable
-	const node* node_by_location(std::size_t x, std::size_t y) const {
+	const node* reg_node_by_location(std::size_t x, std::size_t y) const {
 		if (x >= width or y >= height()) {
 			return nullptr;
 		}
@@ -152,11 +153,11 @@ class field {
 	}
 	const_iterator end() const noexcept { return nodes.end(); }
 
-	void set_neighbors();
-
  private:
 	// w*h regulars, 0..w inputs, 1..w outputs
 	std::vector<std::unique_ptr<node>> nodes;
+	// <= ^ regulars, ^ inputs, ^ outputs
+	std::vector<node*> nodes_useful;
 	std::size_t width{};
 	std::size_t height() const {
 		if (in_nodes_offset == 0) {
@@ -169,5 +170,26 @@ class field {
 	// >= in_nodes_offset
 	std::size_t out_nodes_offset{};
 };
+
+/// null and Damaged are negative. Any positive value is a valid node
+// (0 is unallocated)
+inline bool valid(const node* n) { return n and etoi(n->type()) > 0; }
+/// nodes that need to be simulated, implies valid
+inline bool useful(const node* n) {
+	if (not n) {
+		return false;
+	}
+	switch (n->type()) {
+	case node::T21:
+		return not static_cast<const T21*>(n)->code.empty();
+	case node::T30:
+	case node::in:
+	case node::out:
+	case node::image:
+		return true;
+	default:
+		return false;
+	}
+}
 
 #endif // FIELD_HPP

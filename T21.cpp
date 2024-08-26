@@ -36,7 +36,6 @@ static_assert(wrap_add(15, 1, 0, 16) == 0);
 
 void T21::next() {
 	pc = wrap_add(pc, word_t{1}, word_t{0}, word_t(code.size()));
-	return;
 }
 
 optional_word T21::read(port p, word_t imm) {
@@ -70,20 +69,15 @@ optional_word T21::read(port p, word_t imm) {
 }
 
 void T21::step(logger& debug) {
-	debug << "step(" << x << ',' << y << ',' << +pc << "): ";
-	if (code.empty()) {
-		debug << "empty" << '\n';
-		return;
-	}
-	auto& instr = code[to_unsigned(pc)];
-	debug << "instruction type: ";
-	debug.log_r([&] { return to_string(instr.op_); });
+	debug << "step(" << x << ',' << y << ',' << pc << "): instruction type: ";
 	if (s == activity::write) {
 		// if waiting for a write, then this instruction's read already
 		// happened
-		debug << " stalled[W]" << '\n';
+		debug << "MOV stalled[W]" << '\n';
 		return;
 	}
+	auto& instr = code[to_unsigned(pc)];
+	debug.log_r([&] { return to_string(instr.op_); });
 	auto r = read(instr.src, instr.val);
 	if (r == word_empty) {
 		debug << " stalled[R]" << '\n';
@@ -92,7 +86,7 @@ void T21::step(logger& debug) {
 	}
 
 	switch (instr.op_) {
-	case instr::hcf: {
+	[[unlikely]] case instr::hcf: {
 		debug << "\n\ts = " << state_name(s);
 		throw hcf_exception{x, y, pc};
 	}
@@ -210,9 +204,9 @@ void T21::step(logger& debug) {
 	} break;
 	case instr::jro: {
 		debug << " ";
-		debug << '(' << +pc << '+' << r << " -> ";
+		debug << '(' << pc << '+' << r << " -> ";
 		pc = sat_add(pc, r, word_t{}, static_cast<word_t>(code.size() - 1));
-		debug << +pc << ")";
+		debug << pc << ")";
 		s = activity::run;
 	} break;
 	default:
@@ -222,11 +216,8 @@ void T21::step(logger& debug) {
 }
 
 void T21::finalize(logger& debug) {
-	if (code.empty()) {
-		return;
-	}
 	if (s == activity::write) {
-		debug << "finalize(" << x << ',' << y << ',' << +pc << "): mov ";
+		debug << "finalize(" << x << ',' << y << ',' << pc << "): mov ";
 		// if write just started
 		if (write_port == port::nil) {
 			debug << "started";
@@ -246,7 +237,7 @@ void T21::finalize(logger& debug) {
 			debug << "in progress";
 		}
 	} else {
-		debug << "finalize(" << x << ',' << y << ',' << +pc << "): skipped";
+		debug << "finalize(" << x << ',' << y << ',' << pc << "): skipped";
 	}
 	debug << '\n';
 }

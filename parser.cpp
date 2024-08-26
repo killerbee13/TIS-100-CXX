@@ -53,13 +53,14 @@ void parse_code(field& f, std::string_view source, std::size_t T21_size) {
 		section.remove_suffix(
 		    section.size()
 		    - std::min(section.find_last_not_of(" \t\r\n"), section.size()) - 1);
-		log_debug("index ", i, " of ", f.nodes_avail());
+		log_debug("assembling @", i);
 		auto p = f.node_by_index(static_cast<std::size_t>(i));
 		if (not p) {
 			throw std::invalid_argument{concat("node label ", i, " out of range")};
 		}
 		p->set_code(assemble(section, i, T21_size));
 	}
+	f.finalize_nodes();
 }
 
 void set_expected(field& f, const single_test& expected) {

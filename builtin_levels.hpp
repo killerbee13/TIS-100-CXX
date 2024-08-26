@@ -72,9 +72,10 @@ inline bool check_achievement(uint level_id, const field& solve, score sc) {
 	} else if (level_id == "21340"_lvl) {
 		// UNCONDITIONAL
 		log << "UNCONDITIONAL:\n";
-		for (std::size_t i = 0; i < solve.nodes_avail(); ++i) {
-			if (auto p = solve.node_by_index(i)) {
-				log << '@' << i << " T20 (" << p->x << ',' << p->y << "): ";
+		for (auto it = solve.begin(); it != solve.end_regular(); ++it) {
+			if (it->get()->type() == node::T21) {
+				auto p = static_cast<const T21*>(it->get());
+				log << "T20 (" << p->x << ',' << p->y << "): ";
 				if (p->code.empty()) {
 					log << "empty";
 				} else if (std::any_of(
@@ -96,7 +97,6 @@ inline bool check_achievement(uint level_id, const field& solve, score sc) {
 	} else if (level_id == "42656"_lvl) {
 		// NO_MEMORY
 		log << "NO_MEMORY: ";
-
 		for (auto it = solve.begin(); it != solve.end_regular(); ++it) {
 			auto p = it->get();
 			if (p->type() == node::T30) {

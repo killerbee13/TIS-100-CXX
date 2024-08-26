@@ -19,20 +19,15 @@
 #include "field.hpp"
 #include "T30.hpp"
 
-void field::set_neighbors() {
+void field::finalize_nodes() {
 	for (const auto y : range(height())) {
 		for (const auto x : range(width)) {
-			if (auto p = node_by_location(x, y); valid(p)) {
-				// safe because node_by_location returns nullptr on OOB
-				p->neighbors[left] = node_by_location(x - 1, y);
-				p->neighbors[right] = node_by_location(x + 1, y);
-				p->neighbors[up] = node_by_location(x, y - 1);
-				p->neighbors[down] = node_by_location(x, y + 1);
-				for (auto& n : p->neighbors) {
-					if (not valid(n)) {
-						n = nullptr;
-					}
-				}
+			if (auto p = reg_node_by_location(x, y); useful(p)) {
+				// safe because reg_node_by_location returns nullptr on OOB
+				p->neighbors[left] = reg_node_by_location(x - 1, y);
+				p->neighbors[right] = reg_node_by_location(x + 1, y);
+				p->neighbors[up] = reg_node_by_location(x, y - 1);
+				p->neighbors[down] = reg_node_by_location(x, y + 1);
 			}
 		}
 	}
@@ -40,7 +35,7 @@ void field::set_neighbors() {
 	for (const auto x : range(in_nodes_offset, out_nodes_offset)) {
 		auto p = nodes[x].get();
 		assert(valid(p));
-		auto n = node_by_location(p->x, 0);
+		auto n = reg_node_by_location(p->x, 0);
 		assert(valid(n));
 		p->neighbors[down] = n;
 		n->neighbors[up] = p;
@@ -49,10 +44,27 @@ void field::set_neighbors() {
 	for (const auto x : range(out_nodes_offset, nodes.size())) {
 		auto p = nodes[x].get();
 		assert(valid(p));
-		auto n = node_by_location(p->x, height() - 1);
+		auto n = reg_node_by_location(p->x, height() - 1);
 		assert(valid(n));
 		p->neighbors[up] = n;
 		n->neighbors[down] = p;
+	}
+
+	for (auto& p : nodes) {
+		if (useful(p.get())) {
+			bool connected = false;
+			for (auto& n : p->neighbors) {
+				if (useful(n)) {
+					connected = true;
+				} else {
+					n = nullptr;
+				}
+			}
+			if (connected) {
+				log_debug("node at (", p->x, ',', p->y, ") marked useful");
+				nodes_useful.push_back(p.get());
+			}
+		}
 	}
 }
 
@@ -139,15 +151,13 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 			    "invalid layout spec: illegal output node"};
 		}
 	}
-
-	set_neighbors();
 }
 
 std::size_t field::instructions() const {
 	std::size_t ret{};
-	for (auto& p : nodes) {
-		if (p.get()->type() == node::T21) {
-			ret += static_cast<T21*>(p.get())->code.size();
+	for (auto& p : nodes_useful) {
+		if (p->type() == node::T21) {
+			ret += static_cast<T21*>(p)->code.size();
 		}
 	}
 	return ret;
@@ -155,19 +165,8 @@ std::size_t field::instructions() const {
 
 std::size_t field::nodes_used() const {
 	std::size_t ret{};
-	for (auto& p : nodes) {
-		if (p.get()->type() == node::T21) {
-			ret += not static_cast<T21*>(p.get())->code.empty();
-		}
-	}
-	return ret;
-}
-std::size_t field::nodes_avail() const {
-	std::size_t ret{};
-	for (auto& p : nodes) {
-		if (p.get()->type() == node::T21) {
-			ret += 1;
-		}
+	for (auto& p : nodes_useful) {
+		ret += (p->type() == node::T21);
 	}
 	return ret;
 }
@@ -178,8 +177,8 @@ std::string field::layout() const {
 	std::string ret = concat(h, ' ', width, '\n');
 	for (const auto y : range(h)) {
 		for (const auto x : range(width)) {
-			auto p = node_by_location(x, y);
-			if (not valid(p)) {
+			auto p = reg_node_by_location(x, y);
+			if (p->type() == node::Damaged) {
 				ret += 'D';
 			} else if (p->type() == node::T21) {
 				ret += 'C';
@@ -309,7 +308,7 @@ field field::clone() const
 	ret.in_nodes_offset = in_nodes_offset;
 	ret.out_nodes_offset = out_nodes_offset;
 
-	ret.set_neighbors();
+	ret.finalize_nodes();
 
 	return ret;
 }

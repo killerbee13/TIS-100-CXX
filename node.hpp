@@ -149,9 +149,6 @@ struct node {
 	    , y(y) {}
 	virtual ~node() = default;
 
-	/// null and Damaged are negative. Any positive value is a valid node
-	// (0 is unallocated)
-	friend bool valid(const node* n) { return n and etoi(n->type()) > 0; }
 	/// Attempt to read a value from n, coming from direction p
 	friend optional_word do_read(node* n, port p) {
 		assert(p >= port::left and p <= port::D6);
