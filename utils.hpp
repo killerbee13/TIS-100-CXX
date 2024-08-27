@@ -18,7 +18,6 @@
 #ifndef UTILS_HPP
 #define UTILS_HPP
 
-#include "logger.hpp"
 #include <kblib/convert.h>
 #include <kblib/stats.h>
 
@@ -90,6 +89,80 @@ inline std::string pad_left(std::string_view input, std::size_t size,
 inline std::string pad_left(std::integral auto input, std::size_t size,
                             char padding = ' ') {
 	return pad_left(std::to_string(input), size, padding);
+}
+
+inline bool color_stdout{false};
+inline bool color_logs{false};
+
+enum SGR_code {
+	none,
+	bold = 1,
+	underline = 4,
+	reverse = 7,
+	normal = 22,
+	black = 30,
+	red,
+	green,
+	yellow,
+	blue,
+	magenta,
+	cyan,
+	white,
+	reset_color = 39,
+	bg_black = 40,
+	bg_red,
+	bg_green,
+	bg_yellow,
+	bg_blue,
+	bg_magenta,
+	bg_cyan,
+	bg_white,
+	reset_bg_color = 49,
+	bright_black = 90,
+	bright_red,
+	bright_green,
+	bright_yellow,
+	bright_blue,
+	bright_magenta,
+	bright_cyan,
+	bright_white,
+	// bright black, also known as grey
+	bg_bright_black = 90,
+	bg_bright_red,
+	bg_bright_green,
+	bg_bright_yellow,
+	bg_bright_blue,
+	bg_bright_magenta,
+	bg_bright_cyan,
+	bg_bright_white,
+};
+
+std::string escape_code(SGR_code first, std::same_as<SGR_code> auto... colors) {
+	if (first == none and sizeof...(colors) == 0) {
+		return "\033[m";
+	}
+	std::string ret = "\033["
+	                  + (std::to_string(static_cast<int>(first)) + ...
+	                     + (';' + std::to_string(static_cast<int>(colors))));
+	ret += 'm';
+	return ret;
+}
+
+std::string print_escape(SGR_code first,
+                         std::same_as<SGR_code> auto... colors) {
+	if (color_stdout) {
+		return escape_code(first, colors...);
+	} else {
+		return {};
+	}
+}
+std::string log_print_escape(SGR_code first,
+                             std::same_as<SGR_code> auto... colors) {
+	if (color_logs) {
+		return escape_code(first, colors...);
+	} else {
+		return {};
+	}
 }
 
 template <typename Stream>
