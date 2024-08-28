@@ -1171,28 +1171,48 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		ret.n_outputs[0].back() = -1;
 	} break;
 	case "PRIME FACTOR CALCULATOR"_lvl: {
-		lua_random engine(to_signed(seed));
-		ret.inputs.resize(1);
-		ret.n_outputs.resize(1);
-		do {
-			ret.inputs[0].clear();
-			ret.n_outputs[0].clear();
-			for ([[maybe_unused]] auto _ : kblib::range(10)) {
+		// the algorithm used in the actual game spec is extremely slow, as it
+		// takes an average of 15 tries of the do-while to produce a test, which
+		// are 150 random calls
+		// so optimize out everything else, by precomputing the prime
+		// factorization and minimizing vector checks and copies
+		// random test generation is still over half of the runtime of a 100
+		// cycles solve, but the vast majority of that is randomness calls
+		static const std::array<word_vec, 100> cache = [] {
+			std::array<word_vec, 100> res;
+			for (word_t inp : range(word_t{10}, word_t{100})) {
+				word_vec& factors = res[inp];
 				word_t fac = 2;
-				auto inp = ret.inputs[0].emplace_back(engine.next(10, 99));
 				while (inp >= fac * fac) {
 					if (inp % fac == 0) {
-						ret.n_outputs[0].push_back(fac);
+						factors.push_back(fac);
 						inp = static_cast<word_t>(inp / fac);
 					} else {
 						++fac;
 					}
 				}
-				ret.n_outputs[0].push_back(inp);
-				ret.n_outputs[0].push_back(0);
+				factors.push_back(inp);
 			}
-			// was this really the best way?
-		} while (ret.n_outputs[0].size() != max_test_length - 1);
+			return res;
+		}();
+
+		lua_random engine(to_signed(seed));
+		ret.inputs.resize(1);
+		ret.n_outputs.resize(1);
+		ret.inputs[0].resize(10);
+		int sum;
+		do {
+			sum = 0;
+			for (auto i : kblib::range(10)) {
+				auto inp = ret.inputs[0][i] = engine.next(10, 99);
+				sum += static_cast<int>(cache[inp].size()) + 1;
+			}
+		} while (sum != max_test_length - 1);
+
+		for (word_t inp : ret.inputs[0]) {
+			std::ranges::copy(cache[inp], std::back_inserter(ret.n_outputs[0]));
+			ret.n_outputs[0].push_back(0);
+		}
 	} break;
 	case "SIGNAL EXPONENTIATOR"_lvl: {
 		lua_random engine(to_signed(seed));
