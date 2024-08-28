@@ -18,8 +18,8 @@
 #include "logger.hpp"
 
 #include <iostream>
-#include <unistd.h>
 #include <mutex>
+#include <unistd.h>
 
 static log_level current = log_level::notice;
 static std::ostream* output = &std::clog;
@@ -43,7 +43,10 @@ auto log(std::string_view str) -> void {
 
 } // namespace detail
 
-auto log_flush() -> void { output->flush(); }
+auto log_flush() -> void {
+	std::unique_lock l(log_m);
+	output->flush();
+}
 
 auto set_log_flush(bool do_flush) -> void { detail::flush = do_flush; }
 
