@@ -121,6 +121,12 @@ struct T21 : node {
 		}
 	}
 
+	bool has_instr(std::same_as<instr::op> auto... ops) const {
+		return std::any_of(code.begin(), code.end(), [=](const instr& i) {
+			return ((i.op_ == ops) or ...);
+		});
+	}
+
 	std::span<instr> code;
 
  private:

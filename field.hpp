@@ -37,13 +37,13 @@ class field {
 		auto log = log_debug();
 		log << "Field step\n";
 		// evaluate code
-		for (auto& p : nodes_useful) {
+		for (auto& p : nodes_to_sim) {
 			p->step(log);
 		}
 		log << '\n';
 		// execute writes
 		// this is a separate step to ensure a consistent propagation delay
-		for (auto& p : nodes_useful) {
+		for (auto& p : nodes_to_sim) {
 			p->finalize(log);
 		}
 	}
@@ -157,7 +157,7 @@ class field {
 	// w*h regulars, 0..w inputs, 1..w outputs
 	std::vector<std::unique_ptr<node>> nodes;
 	// <= ^ regulars, ^ inputs, ^ outputs
-	std::vector<node*> nodes_useful;
+	std::vector<node*> nodes_to_sim;
 	std::size_t width{};
 	std::size_t height() const {
 		if (in_nodes_offset == 0) {

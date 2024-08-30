@@ -60,8 +60,7 @@ inline image_t checkerboard(std::ptrdiff_t w, std::ptrdiff_t h) {
 
 inline bool check_achievement(uint level_id, const field& solve, score sc) {
 	auto log = log_debug();
-	log << "check_achievement " << layouts[static_cast<std::size_t>(level_id)].name
-	    << ": ";
+	log << "check_achievement " << layouts[level_id].name << ": ";
 	// SELF-TEST DIAGNOSTIC
 	if (level_id == "00150"_lvl) {
 		// BUSY_LOOP
@@ -78,13 +77,8 @@ inline bool check_achievement(uint level_id, const field& solve, score sc) {
 				log << "T20 (" << p->x << ',' << p->y << "): ";
 				if (p->code.empty()) {
 					log << "empty";
-				} else if (std::any_of(
-				               p->code.begin(), p->code.end(), [&](const instr& i) {
-					               auto op = i.op_;
-					               log << to_string(op) << ';';
-					               return op == instr::jez or op == instr::jnz
-					                      or op == instr::jgz or op == instr::jlz;
-				               })) {
+				} else if (p->has_instr(instr::jez, instr::jnz, instr::jgz,
+				                        instr::jlz)) {
 					log << " conditional found";
 					return false;
 				}

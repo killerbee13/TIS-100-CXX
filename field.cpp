@@ -60,9 +60,12 @@ void field::finalize_nodes() {
 					n = nullptr;
 				}
 			}
-			if (connected) {
+			// nodes with HCF need to be simulated even if they are isolated
+			if (connected
+			    or (p->type() == node::T21
+			        and static_cast<const T21*>(p.get())->has_instr(instr::hcf))) {
 				log_debug("node at (", p->x, ',', p->y, ") marked useful");
-				nodes_useful.push_back(p.get());
+				nodes_to_sim.push_back(p.get());
 			}
 		}
 	}
@@ -155,7 +158,8 @@ field::field(builtin_layout_spec spec, std::size_t T30_size) {
 
 std::size_t field::instructions() const {
 	std::size_t ret{};
-	for (auto& p : nodes_useful) {
+	for (auto it = begin(); it != end_regular(); ++it) {
+		auto p = it->get();
 		if (p->type() == node::T21) {
 			ret += static_cast<T21*>(p)->code.size();
 		}
@@ -165,8 +169,11 @@ std::size_t field::instructions() const {
 
 std::size_t field::nodes_used() const {
 	std::size_t ret{};
-	for (auto& p : nodes_useful) {
-		ret += (p->type() == node::T21);
+	for (auto it = begin(); it != end_regular(); ++it) {
+		auto p = it->get();
+		if (p->type() == node::T21) {
+			ret += not static_cast<T21*>(p)->code.empty();
+		}
 	}
 	return ret;
 }
