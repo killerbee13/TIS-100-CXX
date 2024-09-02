@@ -132,14 +132,11 @@ struct output_node : node {
 struct image_output : node {
 	using node::node;
 
-	constexpr void reshape(std::ptrdiff_t w, std::ptrdiff_t h) {
-		image_expected.reshape(w, h);
-		image_received.reshape(w, h);
-		width = w;
-		height = h;
-	}
 	void reset(image_t image_expected_) {
-		image_expected = image_expected_;
+		image_expected = std::move(image_expected_);
+		width = image_expected.width();
+		height = image_expected.height();
+		image_received.reshape(width, height);
 		image_received.fill(tis_pixel::C_black);
 		wrong_pixels = std::ranges::count_if(
 		    image_expected, [](auto pix) { return pix != tis_pixel::C_black; });
@@ -166,7 +163,6 @@ struct image_output : node {
 	void finalize(logger&) override {}
 	std::unique_ptr<node> clone() const override {
 		auto ret = std::make_unique<image_output>(x, y);
-		ret->reshape(width, height);
 		ret->reset(image_expected);
 		return ret;
 	}

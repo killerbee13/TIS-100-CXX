@@ -17,7 +17,7 @@
  * ****************************************************************************/
 
 #include "field.hpp"
-#include "T30.hpp"
+#include "layoutspecs.hpp"
 
 void field::finalize_nodes() {
 	for (const auto y : range(height())) {
@@ -67,91 +67,6 @@ void field::finalize_nodes() {
 				log_debug("node at (", p->x, ',', p->y, ") marked useful");
 				nodes_to_sim.push_back(p.get());
 			}
-		}
-	}
-}
-
-field::field(builtin_layout_spec spec, std::size_t T30_size) {
-	nodes.reserve([&] {
-		std::size_t r = 12;
-		for (auto t : spec.io) {
-			for (auto i : t) {
-				if (i.type != node::null) {
-					++r;
-				}
-			}
-		}
-		return r;
-	}());
-
-	width = 4;
-	in_nodes_offset = 12;
-	out_nodes_offset = in_nodes_offset;
-	for (const auto y : range(3u)) {
-		for (const auto x : range(4u)) {
-			switch (spec.nodes[y][x]) {
-			case node::T21:
-				nodes.push_back(std::make_unique<T21>(x, y));
-				break;
-			case node::T30: {
-				nodes.push_back(std::make_unique<T30>(x, y, T30_size));
-			} break;
-			case node::Damaged:
-				nodes.push_back(std::make_unique<damaged>(x, y));
-				break;
-			case node::in:
-			case node::out:
-			case node::image:
-				throw std::invalid_argument{
-				    "invalid layout spec: IO node as regular node"};
-			case node::null:
-				throw std::invalid_argument{
-				    "invalid layout spec: null node as regular node"};
-			}
-		}
-	}
-
-	for (const auto x : range(static_cast<int>(width))) {
-		auto in = spec.io[0][x];
-		switch (in.type) {
-		case node::in: {
-			nodes.push_back(std::make_unique<input_node>(x, -1));
-			out_nodes_offset++;
-		} break;
-		case node::null:
-			// pass
-			break;
-		default:
-			throw std::invalid_argument{"invalid layout spec: illegal input node"};
-		}
-	}
-
-	for (const auto x : range(static_cast<int>(width))) {
-		auto out = spec.io[1][x];
-		switch (out.type) {
-		case node::out: {
-			if (out.image_size) {
-				throw std::invalid_argument{"invalid layout spec: image size "
-				                            "specified for numeric output node"};
-			}
-			nodes.push_back(std::make_unique<output_node>(x, height()));
-		} break;
-		case node::image: {
-			if (not out.image_size) {
-				throw std::invalid_argument{
-				    "invalid layout spec: no size specified for image"};
-			}
-			auto p = std::make_unique<image_output>(x, height());
-			p->reshape(out.image_size.value().first,
-			           out.image_size.value().second);
-			nodes.emplace_back(std::move(p));
-		} break;
-		case node::null:
-			// pass
-			break;
-		default:
-			throw std::invalid_argument{
-			    "invalid layout spec: illegal output node"};
 		}
 	}
 }
@@ -266,30 +181,24 @@ std::string field::machine_layout() const {
 		}
 	}
 	ret << "\t\t}}, .io = {{\n";
-	std::array<std::array<builtin_layout_spec::io_node_spec, 4>, 2> io;
+	std::array<std::array<node::type_t, 4>, 2> io;
+	std::optional<std::pair<word_t, word_t>> image_size{};
 	for (auto it = begin_io(); it != end(); ++it) {
 		auto n = it->get();
 		if (n->type() == node::in) {
-			io[0][static_cast<std::size_t>(n->x)].type = node::in;
+			io[0][static_cast<std::size_t>(n->x)] = node::in;
 		} else if (n->type() == node::out) {
-			io[1][static_cast<std::size_t>(n->x)].type = node::out;
+			io[1][static_cast<std::size_t>(n->x)] = node::out;
 		} else if (auto p = dynamic_cast<image_output*>(n)) {
-			io[1][static_cast<std::size_t>(p->x)].type = node::image;
-			io[1][static_cast<std::size_t>(p->x)].image_size
-			    = {p->width, p->height};
+			io[1][static_cast<std::size_t>(p->x)] = node::image;
+			image_size = {p->width, p->height};
 		}
 	}
 	for (auto t : io) {
 		ret << "\t\t\t{{";
 		for (auto n : t) {
-			ret << "{" << type_name(n.type);
-			if (n.image_size) {
-				ret << ", {{" << n.image_size.value().first << ", "
-				    << n.image_size.value().second << "}}";
-			} else {
-				ret << ", {}";
-			}
-			ret << "}, ";
+			ret << type_name(n);
+			ret << ", ";
 		}
 		ret << "}},\n";
 	}
@@ -305,13 +214,14 @@ std::string field::machine_layout() const {
 			{T21, T21, T21, T21},
 		}},
 	  .io = {{
-			{{{null, {}}, {in, {}}, {in, {}}, {null, {}}, }},
-			{{{out, {}}, {image, {{30, 18}}}, {null, {}}, {null, {}}, }}
-	         }}};
+			{{null, in, in, null, }},
+			{{out, image, null, null, }}
+		}}
+	};
+	// clang-format on
 }
 
-field field::clone() const
-{
+field field::clone() const {
 	field ret;
 
 	for (auto& n : nodes) {
