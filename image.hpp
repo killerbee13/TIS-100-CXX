@@ -285,6 +285,9 @@ class image {
 	constexpr std::ptrdiff_t width() const noexcept { return width_; }
 	constexpr std::size_t size() const noexcept { return data.size(); }
 	constexpr bool empty() const noexcept { return size() == 0; }
+	constexpr bool blank() const noexcept {
+		return std::ranges::none_of(data, [](pixel p) { return p != pixel{}; });
+	}
 
 	constexpr iterator begin() { return data.begin(); }
 	constexpr const_iterator begin() const { return data.begin(); }
