@@ -46,7 +46,7 @@ extern "C" void sigterm_handler(int signal) { stop_requested = signal; }
 
 template <typename T>
 void print_validation_failure(field& l, T&& os, bool color) {
-	for (auto it = l.begin_io(); it != l.end(); ++it) {
+	for (auto it = l.begin_io(); it != l.end_output(); ++it) {
 		auto n = it->get();
 		if (n->type() == node::in) {
 			auto p = static_cast<input_node*>(n);
@@ -90,7 +90,7 @@ score run(field& l, int cycles_limit, bool print_err) {
 		sc.validated = true;
 
 		log_flush();
-		for (auto it = l.begin_output(); it != l.end(); ++it) {
+		for (auto it = l.begin_output(); it != l.end_output(); ++it) {
 			auto n = it->get();
 			if (n->type() == node::out) {
 				auto p = static_cast<output_node*>(n);

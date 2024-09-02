@@ -26,8 +26,19 @@
 #include <algorithm>
 #include <string>
 
-struct input_node : node {
+struct io_node : node {
 	using node::node;
+	/// Process whole cycle in one go
+	virtual void execute(logger& debug) = 0;
+	/// Return a new node initialized in the same way as *this.
+	/// (Not a copy constructor; new node is as if reset() and has no neighbors)
+	virtual std::unique_ptr<io_node> clone() const = 0;
+	/// Always not null if the node is simulated
+	node* linked;
+};
+
+struct input_node final : io_node {
+	using io_node::io_node;
 
 	void reset(word_vec inputs_) noexcept {
 		inputs = inputs_;
@@ -37,8 +48,7 @@ struct input_node : node {
 	}
 
 	type_t type() const noexcept override { return in; }
-	void step(logger&) override {}
-	void finalize(logger& debug) override {
+	void execute(logger& debug) override {
 		debug << "I" << x << ": ";
 		if (writing) {
 			// writing this turn
@@ -57,7 +67,7 @@ struct input_node : node {
 		}
 		debug << '\n';
 	}
-	std::unique_ptr<node> clone() const override {
+	std::unique_ptr<io_node> clone() const override {
 		auto ret = std::make_unique<input_node>(x, y);
 		ret->reset(inputs);
 		return ret;
@@ -80,8 +90,8 @@ struct input_node : node {
 	bool writing{};
 };
 
-struct output_node : node {
-	using node::node;
+struct output_node final : io_node {
+	using io_node::io_node;
 
 	void reset(word_vec outputs_expected_) {
 		outputs_expected = outputs_expected_;
@@ -92,11 +102,11 @@ struct output_node : node {
 
 	type_t type() const noexcept override { return out; }
 	// Attempt to read from neighbor every step
-	void step(logger& debug) override {
+	void execute(logger& debug) override {
 		if (complete) {
 			return;
 		}
-		if (auto r = do_read(neighbors[port::up], port::down); r != word_empty) {
+		if (auto r = linked->emit(port::down); r != word_empty) {
 			debug << "O" << x << ": read";
 			auto i = outputs_received.size();
 			outputs_received.push_back(r);
@@ -108,8 +118,7 @@ struct output_node : node {
 			debug << '\n';
 		}
 	}
-	void finalize(logger&) override {}
-	std::unique_ptr<node> clone() const override {
+	std::unique_ptr<io_node> clone() const override {
 		auto ret = std::make_unique<output_node>(x, y);
 		ret->reset(outputs_expected);
 		return ret;
@@ -129,8 +138,8 @@ struct output_node : node {
 	bool complete{false};
 };
 
-struct image_output : node {
-	using node::node;
+struct image_output final : io_node {
+	using io_node::io_node;
 
 	void reset(image_t image_expected_) {
 		image_expected = std::move(image_expected_);
@@ -145,8 +154,8 @@ struct image_output : node {
 	}
 
 	type_t type() const noexcept override { return image; }
-	void step(logger&) override {
-		if (auto r = do_read(neighbors[port::up], port::down); r != word_empty) {
+	void execute(logger&) override {
+		if (auto r = linked->emit(port::down); r != word_empty) {
 			if (r < 0) {
 				c_x = word_empty;
 				c_y = word_empty;
@@ -160,8 +169,7 @@ struct image_output : node {
 			}
 		}
 	}
-	void finalize(logger&) override {}
-	std::unique_ptr<node> clone() const override {
+	std::unique_ptr<io_node> clone() const override {
 		auto ret = std::make_unique<image_output>(x, y);
 		ret->reset(image_expected);
 		return ret;

@@ -21,9 +21,9 @@
 #include "node.hpp"
 #include "utils.hpp"
 
-struct T30 : node {
+struct T30 final : regular_node {
 	T30(int x, int y, std::size_t max_size)
-	    : node(x, y)
+	    : regular_node(x, y)
 	    , max_size(max_size) {
 		data.reserve(max_size);
 	}
@@ -53,7 +53,7 @@ struct T30 : node {
 		division = data.size();
 		wrote = false;
 	}
-	std::unique_ptr<node> clone() const override {
+	std::unique_ptr<regular_node> clone() const override {
 		return std::make_unique<T30>(x, y, max_size);
 	}
 	optional_word emit(port) override {

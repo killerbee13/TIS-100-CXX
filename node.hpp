@@ -124,22 +124,11 @@ struct node {
 
 	/// Returns the type of the node
 	virtual type_t type() const noexcept = 0;
-	/// Begin processing a cycle. Do not perform writes.
-	virtual void step(logger& debug) = 0;
-	/// Finish processing a cycle. Writes are completed here.
-	virtual void finalize(logger& debug) = 0;
-	/// Return a new node initialized in the same way as *this.
-	/// (Not a copy constructor; new node is as if reset() and has no neighbors)
-	virtual std::unique_ptr<node> clone() const = 0;
-
 	/// Attempt to answer a read from this node, coming from direction p
 	virtual optional_word emit(port p) = 0;
 	/// Generate a string representation of the current state of the node
 	virtual std::string state() const = 0;
 
-	// In theory this may be expanded to a "TIS-3D" simulator which will have 6
-	// neighbors for each node.
-	std::array<node*, 6> neighbors{};
 	int x{};
 	int y{};
 
@@ -166,12 +155,26 @@ struct node {
 	node& operator=(node&&) = default;
 };
 
-struct damaged : node {
+struct regular_node : node {
 	using node::node;
+	/// Begin processing a cycle. Do not perform writes.
+	virtual void step(logger& debug) = 0;
+	/// Finish processing a cycle. Writes are completed here.
+	virtual void finalize(logger& debug) = 0;
+	/// Return a new node initialized in the same way as *this.
+	/// (Not a copy constructor; new node is as if reset() and has no neighbors)
+	virtual std::unique_ptr<regular_node> clone() const = 0;
+
+	/// only useful nodes are linked, other links from-to are nullptr
+	std::array<node*, 6> neighbors{};
+};
+
+struct damaged final : regular_node {
+	using regular_node::regular_node;
 	type_t type() const noexcept override { return Damaged; }
 	void step(logger&) override {}
 	void finalize(logger&) override {}
-	std::unique_ptr<node> clone() const override {
+	std::unique_ptr<regular_node> clone() const override {
 		return std::make_unique<damaged>(x, y);
 	}
 	optional_word emit(port) override { return word_empty; }

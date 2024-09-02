@@ -20,8 +20,6 @@
 #include "logger.hpp"
 #include "utils.hpp"
 
-using namespace std::literals;
-
 static_assert(sat_add(word_max, word_max) == word_max);
 static_assert(sat_add(word_min, word_max) == 0);
 static_assert(sat_add(word_min, word_min) == word_min);
@@ -69,6 +67,7 @@ optional_word T21::read(port p, word_t imm) {
 }
 
 void T21::step(logger& debug) {
+	assert(not code.empty());
 	debug << "step(" << x << ',' << y << ',' << pc << "): instruction type: ";
 	if (s == activity::write) {
 		// if waiting for a write, then this instruction's read already
@@ -242,7 +241,7 @@ void T21::finalize(logger& debug) {
 	debug << '\n';
 }
 
-std::unique_ptr<node> T21::clone() const {
+std::unique_ptr<regular_node> T21::clone() const {
 	auto ret = std::make_unique<T21>(x, y);
 	ret->set_code(code);
 	return ret;

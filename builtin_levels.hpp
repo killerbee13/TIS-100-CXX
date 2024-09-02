@@ -71,7 +71,7 @@ inline bool check_achievement(uint level_id, const field& solve, score sc) {
 	} else if (level_id == "21340"_lvl) {
 		// UNCONDITIONAL
 		log << "UNCONDITIONAL:\n";
-		for (auto it = solve.begin(); it != solve.end_regular(); ++it) {
+		for (auto it = solve.begin_regular(); it != solve.end_regular(); ++it) {
 			if (it->get()->type() == node::T21) {
 				auto p = static_cast<const T21*>(it->get());
 				log << "T20 (" << p->x << ',' << p->y << "): ";
@@ -91,7 +91,7 @@ inline bool check_achievement(uint level_id, const field& solve, score sc) {
 	} else if (level_id == "42656"_lvl) {
 		// NO_MEMORY
 		log << "NO_MEMORY: ";
-		for (auto it = solve.begin(); it != solve.end_regular(); ++it) {
+		for (auto it = solve.begin_regular(); it != solve.end_regular(); ++it) {
 			auto p = it->get();
 			if (p->type() == node::T30) {
 				auto n = static_cast<const T30*>(p);

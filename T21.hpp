@@ -92,13 +92,13 @@ constexpr std::string to_string(instr::op o) {
 
 std::string to_string(instr i);
 
-struct T21 : node {
-	using node::node;
+struct T21 final : regular_node {
+	using regular_node::regular_node;
 
 	type_t type() const noexcept override { return type_t::T21; }
 	void step(logger&) override;
 	void finalize(logger&) override;
-	std::unique_ptr<node> clone() const override;
+	std::unique_ptr<regular_node> clone() const override;
 	optional_word emit(port) override;
 	std::string state() const override;
 

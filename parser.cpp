@@ -66,7 +66,7 @@ void parse_code(field& f, std::string_view source, std::size_t T21_size) {
 void set_expected(field& f, const single_test& expected) {
 	std::size_t in_idx{};
 	std::size_t out_idx{};
-	for (auto it = f.begin(); it != f.end(); ++it) {
+	for (auto it = f.begin_regular(); it != f.end_regular(); ++it) {
 		auto p = it->get();
 		log_debug("reset node (", p->x, ',', p->y, ')');
 
@@ -77,6 +77,15 @@ void set_expected(field& f, const single_test& expected) {
 		case node::T30: {
 			static_cast<T30*>(p)->reset();
 		} break;
+		default:
+			break;
+		}
+	}
+	for (auto it = f.begin_io(); it != f.end_output(); ++it) {
+		auto p = it->get();
+		log_debug("reset node (", p->x, ',', p->y, ')');
+
+		switch (p->type()) {
 		case node::in: {
 			assert(in_idx < expected.inputs.size());
 			auto i = static_cast<input_node*>(p);
