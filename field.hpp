@@ -94,7 +94,7 @@ class field {
 	// pattern levels do not use inputs so only need a single test run.
 	bool has_inputs() const { return in_nodes_offset != out_nodes_offset; }
 
-	/// Serialize layout as read by parse_layout
+	/// Serialize human-readable layout
 	std::string layout() const;
 	/// Serialize layout as a C++ builtin_layout_spec initializer
 	std::string machine_layout() const;

@@ -65,7 +65,8 @@ void print_validation_failure(field& l, T&& os, bool color) {
 		} else if (n->type() == node::image) {
 			auto p = static_cast<image_output*>(n);
 			if (p->wrong_pixels) {
-				os << "validation failure for output " << p->x << "\noutput:\n"
+				os << "validation failure for output " << p->x << "\noutput: ("
+				   << p->width << ',' << p->height << ")\n"
 				   << p->image_received.write_text(color) //
 				   << "expected:\n"
 				   << p->image_expected.write_text(color);

@@ -179,9 +179,8 @@ std::size_t field::nodes_used() const {
 }
 
 std::string field::layout() const {
-
 	auto h = height();
-	std::string ret = concat(h, ' ', width, '\n');
+	std::string ret = concat(width, ' ', h, '\n');
 	for (const auto y : range(h)) {
 		for (const auto x : range(width)) {
 			auto p = reg_node_by_location(x, y);
@@ -201,25 +200,33 @@ std::string field::layout() const {
 
 		if (p->type() == node::in) {
 			auto in = static_cast<input_node*>(p);
-			append(ret, 'I', p->x, " LIST ");
-			append(ret, "[");
-			for (auto v : in->inputs) {
-				append(ret, v, ", ");
+			append(ret, 'I', p->x);
+			if (not in->inputs.empty()) {
+				append(ret, " [");
+				for (auto v : in->inputs) {
+					append(ret, v, ", ");
+				}
+				append(ret, "]");
 			}
-			append(ret, "]\n");
+			append(ret, ' ');
 		} else if (p->type() == node::out) {
 			auto on = static_cast<output_node*>(p);
-			append(ret, 'O', p->x, " LIST ");
-			append(ret, "[");
-			for (auto v : on->outputs_expected) {
-				append(ret, v, ", ");
+			append(ret, 'O', p->x);
+			if (not on->outputs_expected.empty()) {
+				append(ret, " [");
+				for (auto v : on->outputs_expected) {
+					append(ret, v, ", ");
+				}
+				append(ret, "]");
 			}
-			append(ret, "]\n");
+			append(ret, ' ');
 		} else if (p->type() == node::image) {
 			auto im = static_cast<image_output*>(p);
-			append(ret, 'O', p->x, " IMAGE ", im->width, im->height);
-			if (not im->image_expected.empty()) {
+			append(ret, 'V', p->x, " ", im->width, ',', im->height);
+			if (not im->image_expected.blank()) {
+				append(ret, " [", im->image_expected.write_text(false), "]");
 			}
+			append(ret, ' ');
 		}
 	}
 
