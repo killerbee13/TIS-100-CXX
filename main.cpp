@@ -719,19 +719,18 @@ int main(int argc, char** argv) try {
 	std::size_t total_cycles{};
 	sc.validated = true;
 	if (fixed.getValue()) {
-		score last{};
 		int succeeded{1};
 		for (auto test : static_suite(level_id)) {
 			set_expected(f, test);
-			last = run(f, cycles_limit, true);
-			if (stop_requested) {
-				log_notice("Stop requested");
-				break;
-			}
+			score last = run(f, cycles_limit, true);
 			sc.cycles = std::max(sc.cycles, last.cycles);
 			sc.instructions = last.instructions;
 			sc.nodes = last.nodes;
 			sc.validated = sc.validated and last.validated;
+			if (stop_requested) {
+				log_notice("Stop requested");
+				break;
+			}
 			total_cycles += last.cycles;
 			log_info("fixed test ", succeeded, ' ',
 			         last.validated ? "validated"sv : "failed"sv, " with score ",
@@ -754,7 +753,7 @@ int main(int argc, char** argv) try {
 	int count = 0;
 	int valid_count = 0;
 	if ((fixed.getValue() == 0 or sc.validated or stats.getValue())
-	    and not seed_ranges.empty()) {
+	    and not stop_requested and not seed_ranges.empty()) {
 		bool failure_printed{};
 		run_params params{total_cycles,
 		                  failure_printed,
