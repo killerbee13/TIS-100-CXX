@@ -31,22 +31,30 @@ class field {
  public:
 	field() = default;
 	template <typename Spec>
+	   requires requires(Spec s) {
+		   { s.nodes };
+		   { s.inputs };
+		   { s.outputs };
+	   }
 	field(const Spec& spec, std::size_t T30_size = def_T30_size) {
 		if (spec.nodes.empty()) {
 			return;
 		}
 		width = spec.nodes[0].size();
-		if (spec.io[0].size() != width or spec.io[1].size() != width) {
+		if (spec.inputs.size() != width or spec.outputs.size() != width) {
 			throw std::invalid_argument{
 			    "Layout IO specs must match field dimensions"};
 		}
 		nodes.reserve([&] {
 			std::size_t r = 12;
-			for (auto t : spec.io) {
-				for (auto i : t) {
-					if (i != node::null) {
-						++r;
-					}
+			for (auto i : spec.inputs) {
+				if (i != node::null) {
+					++r;
+				}
+			}
+			for (auto o : spec.outputs) {
+				if (o != node::null) {
+					++r;
 				}
 			}
 			return r;
@@ -81,7 +89,7 @@ class field {
 			}
 		}
 		for (const auto x : range(static_cast<int>(width))) {
-			auto in = spec.io[0][x];
+			auto in = spec.inputs[x];
 			switch (in) {
 			case node::in: {
 				nodes.push_back(std::make_unique<input_node>(x, -1));
@@ -97,7 +105,7 @@ class field {
 		}
 
 		for (const auto x : range(static_cast<int>(width))) {
-			auto out = spec.io[1][x];
+			auto out = spec.outputs[x];
 			switch (out) {
 			case node::out: {
 				nodes.push_back(std::make_unique<output_node>(x, height()));
@@ -180,8 +188,6 @@ class field {
 
 	/// Serialize human-readable layout
 	std::string layout() const;
-	/// Serialize layout as a C++ builtin_layout_spec initializer
-	std::string machine_layout() const;
 
 	/// must be called after code loading
 	void finalize_nodes();
