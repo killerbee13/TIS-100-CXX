@@ -127,7 +127,7 @@ enum SGR_code {
 	bright_cyan,
 	bright_white,
 	// bright black, also known as grey
-	bg_bright_black = 90,
+	bg_bright_black = 100,
 	bg_bright_red,
 	bg_bright_green,
 	bg_bright_yellow,
