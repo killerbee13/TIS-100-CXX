@@ -37,6 +37,7 @@ set -l files_count 0
 set -l success_count 0
 set -l wrong_count 0
 set -l fail_count 0
+set -l flag_count 0
 
 echo > $success_file
 echo > $fail_file
@@ -58,6 +59,10 @@ function filter_pr
 	tail -n 1 $tmp_result | grep 'PR:' | sed -Ee 's,(.*PR: ),,' | sed "s,\x1B\[[0-9;]*[a-zA-Z],,g"
 end
 
+function filter_flag
+	echo $argv | sed -Ee "s@/[ach]+@@"
+end
+
 for map in $save_dir/TIS*
 	echo $map
 	for id_folder in $map/*
@@ -75,6 +80,10 @@ for map in $save_dir/TIS*
 					echo "$file; $result; $expected" >> $success_file
 					set success_count (math $success_count + 1)
 					echo $expected
+				else if test (filter_flag $result) = (filter_flag $expected)
+					echo "$file; $result; $expected" >> $wrong_file
+					set flag_count (math $flag_count + 1)
+					echo $expected '!'
 				else
 					echo "$file; $result; $expected" >> $wrong_file
 					set wrong_count (math $wrong_count + 1)
@@ -98,5 +107,5 @@ for map in $save_dir/TIS*
 	end
 end
 
-echo "$files_count saves tested. $success_count validated, $wrong_count scored incorrectly, $fail_count failed."
+echo "$files_count saves tested. $success_count validated, $flag_count flagged incorrectly, $wrong_count scored incorrectly, $fail_count failed."
 rm $tmp_result
