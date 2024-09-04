@@ -71,9 +71,9 @@ inline bool check_achievement(uint level_id, const field& solve, score sc) {
 	} else if (level_id == "21340"_lvl) {
 		// UNCONDITIONAL
 		log << "UNCONDITIONAL:\n";
-		for (auto it = solve.begin_regular(); it != solve.end_regular(); ++it) {
-			if (it->get()->type() == node::T21) {
-				auto p = static_cast<const T21*>(it->get());
+		for (auto& n : solve.regulars()) {
+			if (n->type() == node::T21) {
+				auto p = static_cast<const T21*>(n.get());
 				log << "T20 (" << p->x << ',' << p->y << "): ";
 				if (p->code.empty()) {
 					log << "empty";
@@ -91,12 +91,11 @@ inline bool check_achievement(uint level_id, const field& solve, score sc) {
 	} else if (level_id == "42656"_lvl) {
 		// NO_MEMORY
 		log << "NO_MEMORY: ";
-		for (auto it = solve.begin_regular(); it != solve.end_regular(); ++it) {
-			auto p = it->get();
-			if (p->type() == node::T30) {
-				auto n = static_cast<const T30*>(p);
-				log << "T30 (" << n->x << ',' << n->y << "): " << n->used << '\n';
-				if (n->used) {
+		for (auto& n : solve.regulars()) {
+			if (n->type() == node::T30) {
+				auto p = static_cast<const T30*>(n.get());
+				log << "T30 (" << p->x << ',' << p->y << "): " << p->used << '\n';
+				if (p->used) {
 					return false;
 				}
 			}

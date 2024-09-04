@@ -21,6 +21,7 @@
 #include "T21.hpp"
 #include "T30.hpp"
 #include "io.hpp"
+#include "node.hpp"
 #include <memory>
 
 /// nodes that are candidates to be simulated
@@ -51,9 +52,9 @@ class field {
 	field() = default;
 	template <typename Spec>
 	   requires requires(Spec s) {
-		   { s.nodes };
-		   { s.inputs };
-		   { s.outputs };
+		   { s.nodes[0] };
+		   { s.inputs[0] };
+		   { s.outputs[0] };
 	   }
 	field(const Spec& spec, std::size_t T30_size = def_T30_size) {
 		if (spec.nodes.empty()) {
@@ -133,14 +134,14 @@ class field {
 	/// Advance the field one full cycle (step and finalize)
 	void step() {
 		if (allT21) {
-			step_<true>();
+			do_step<true>();
 		} else {
-			step_<false>();
+			do_step<false>();
 		}
 	}
 
 	template <bool allT21>
-	void step_() {
+	void do_step() {
 		auto log = log_debug();
 		log << "Field step\n";
 		// evaluate code
@@ -171,9 +172,9 @@ class field {
 
 	bool active() const {
 		bool active{};
-		for (auto it = begin_output(); it != end_output(); ++it) {
-			if ((*it)->type() == node::out) {
-				auto i = static_cast<const output_node*>(it->get());
+		for (auto& out : outputs()) {
+			if (out->type() == node::out) {
+				auto i = static_cast<const output_node*>(out.get());
 				if (not i->complete) {
 					active = true;
 
@@ -184,8 +185,8 @@ class field {
 					}
 #endif
 				}
-			} else if ((*it)->type() == node::image) {
-				auto i = static_cast<const image_output*>(it->get());
+			} else if (out->type() == node::image) {
+				auto i = static_cast<const image_output*>(out.get());
 				if (i->wrong_pixels) {
 					active = true;
 				}
@@ -237,8 +238,8 @@ class field {
 	}
 	// returns the ith programmable (T21) node
 	T21* node_by_index(std::size_t i) {
-		for (auto it = begin_regular(); it != end_regular(); ++it) {
-			auto p = it->get();
+		for (auto& n : nodes_regular) {
+			auto p = n.get();
 			if (p->type() == node::T21 and i-- == 0) {
 				return static_cast<T21*>(p);
 			}
@@ -252,12 +253,25 @@ class field {
 	const_iterator_reg end_regular() const noexcept {
 		return nodes_regular.end();
 	}
-	const_iterator_io begin_io() const noexcept { return nodes_io.begin(); }
+	const_iterator_io begin_input() const noexcept { return nodes_io.begin(); }
 	const_iterator_io end_input() const noexcept {
 		return nodes_io.begin() + static_cast<std::ptrdiff_t>(out_nodes_offset);
 	}
 	const_iterator_io begin_output() const noexcept { return end_input(); }
 	const_iterator_io end_output() const noexcept { return nodes_io.end(); }
+
+	auto regulars() const noexcept
+	    -> std::ranges::subrange<const_iterator_reg, const_iterator_reg> {
+		return {begin_regular(), end_regular()};
+	}
+	auto inputs() const noexcept
+	    -> std::ranges::subrange<const_iterator_io, const_iterator_io> {
+		return {begin_input(), end_input()};
+	}
+	auto outputs() const noexcept
+	    -> std::ranges::subrange<const_iterator_io, const_iterator_io> {
+		return {begin_output(), end_output()};
+	}
 
  private:
 	// w*h regulars

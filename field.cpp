@@ -17,11 +17,10 @@
  * ****************************************************************************/
 
 #include "field.hpp"
-#include "layoutspecs.hpp"
 
 void field::finalize_nodes() {
-	for (auto it = begin_regular(); it != end_regular(); ++it) {
-		if (auto p = it->get(); useful(p)) {
+	for (auto& n : nodes_regular) {
+		if (auto p = n.get(); useful(p)) {
 			int x = p->x;
 			int y = p->y;
 			// safe because useful_node_at returns nullptr on OOB
@@ -29,24 +28,39 @@ void field::finalize_nodes() {
 			p->neighbors[right] = useful_node_at(x + 1, y);
 			p->neighbors[up] = useful_node_at(x, y - 1);
 			p->neighbors[down] = useful_node_at(x, y + 1);
+
+			log_debug_r([&] {
+				std::string ret
+				    = concat("node at (", x, ',', y, ") has neighbors: ");
+				for (auto q : p->neighbors) {
+					if (q) {
+						append(ret, " (", x, ',', y, "): ", etoi(q->type()), ", ");
+					}
+				}
+				return ret;
+			});
 		}
 	}
 
-	for (auto it = begin_io(); it != end_input(); ++it) {
-		auto p = it->get();
+	for (auto& i : inputs()) {
+		auto p = i.get();
 		auto n = useful_node_at(p->x, 0);
 		p->linked = n;
 		if (n) {
 			n->neighbors[up] = p;
+			log_debug("input node at (", p->x, ',', p->y, ") has neighbor: (",
+			          n->x, ',', n->y, "): ", etoi(n->type()));
 		}
 	}
 
-	for (auto it = begin_output(); it != end_output(); ++it) {
-		auto p = it->get();
+	for (auto& i : outputs()) {
+		auto p = i.get();
 		auto n = useful_node_at(p->x, height() - 1);
 		p->linked = n;
 		if (n) {
 			n->neighbors[down] = p;
+			log_debug("output node at (", p->x, ',', p->y, ") has neighbor: (",
+			          n->x, ',', n->y, "): ", etoi(n->type()));
 		}
 	}
 
@@ -62,6 +76,8 @@ void field::finalize_nodes() {
 				log_debug("node at (", p->x, ',', p->y, ") marked useful");
 				regulars_to_sim.push_back(p.get());
 				allT21 &= p->type() == node::T21;
+			} else {
+				log_debug("node at (", p->x, ',', p->y, ") dropped as not useful");
 			}
 		}
 	}
@@ -69,17 +85,28 @@ void field::finalize_nodes() {
 		log_debug("All regular nodes are T21, faster simulation enabled");
 	}
 	for (auto& p : nodes_io) {
+		log_debug("p is ", useful(p.get()) ? "useful" : "not useful", " and ",
+		          p->linked ? "linked" : "not linked");
 		if (useful(p.get()) and p->linked) {
 			log_debug("io node at (", p->x, ',', p->y, ") marked useful");
 			ios_to_sim.push_back(p.get());
+		} else {
+			// Output nodes not being connected will make the level unsolvable
+			// (unless the output is always empty/blank)
+			if (p->type() == node::out or p->type() == node::image) {
+				log_warn("Output node at (", p->x, ',', p->y, ") dropped");
+			} else {
+				log_debug("io node at (", p->x, ',', p->y,
+				          ") dropped as not useful");
+			}
 		}
 	}
 }
 
 std::size_t field::instructions() const {
 	std::size_t ret{};
-	for (auto it = begin_regular(); it != end_regular(); ++it) {
-		auto p = it->get();
+	for (auto& i : nodes_regular) {
+		auto p = i.get();
 		if (p->type() == node::T21) {
 			ret += static_cast<T21*>(p)->code.size();
 		}
@@ -89,8 +116,8 @@ std::size_t field::instructions() const {
 
 std::size_t field::nodes_used() const {
 	std::size_t ret{};
-	for (auto it = begin_regular(); it != end_regular(); ++it) {
-		auto p = it->get();
+	for (auto& i : nodes_regular) {
+		auto p = i.get();
 		if (p->type() == node::T21) {
 			ret += not static_cast<T21*>(p)->code.empty();
 		}
@@ -101,8 +128,8 @@ std::size_t field::nodes_used() const {
 std::string field::layout() const {
 	auto h = height();
 	std::string ret = concat(width, ' ', h, '\n');
-	for (auto it = begin_regular(); it != end_regular(); ++it) {
-		auto p = it->get();
+	for (auto& i : nodes_regular) {
+		auto p = i.get();
 		if (p->type() == node::Damaged) {
 			ret += 'D';
 		} else if (p->type() == node::T21) {
@@ -113,8 +140,8 @@ std::string field::layout() const {
 	}
 	ret += '\n';
 
-	for (auto it = begin_io(); it != end_output(); ++it) {
-		auto p = it->get();
+	for (auto& i : nodes_io) {
+		auto p = i.get();
 
 		if (p->type() == node::in) {
 			auto in = static_cast<input_node*>(p);

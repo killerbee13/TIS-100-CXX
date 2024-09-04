@@ -20,7 +20,6 @@
 
 #include "T21.hpp"
 #include "field.hpp"
-#include "logger.hpp"
 #include "node.hpp"
 #include "random_levels.hpp"
 
