@@ -118,6 +118,48 @@ score run(field& l, int cycles_limit, bool print_err) {
 	return sc;
 }
 
+std::optional<std::string> demangle(const char* name) {
+	int status{};
+	auto type_name = abi::__cxa_demangle(name, nullptr, nullptr, &status);
+	if (status != 0) {
+		log_err("Unexpected error occured while demangling ",
+		        kblib::quoted(std::string_view(name)));
+		log_flush();
+		return {};
+	}
+	std::string ret = type_name;
+	std::free(type_name);
+	return ret;
+}
+
+template <typename T>
+std::string demangle() {
+	return demangle(typeid(T).name()).value();
+}
+
+template <typename Int>
+constexpr Int parse_int(std::string_view str_) {
+	auto str = str_;
+	Int multiplier{1};
+	if (str.ends_with('k') or str.ends_with('K')) {
+		multiplier = 1'000;
+		str.remove_suffix(1);
+	} else if (str.ends_with('m') or str.ends_with('M')) {
+		multiplier = 1'000'000;
+		str.remove_suffix(1);
+	} else if (str.ends_with('b') or str.ends_with('B')) {
+		multiplier = 1'000'000'000;
+		str.remove_suffix(1);
+	}
+	auto base = kblib::parse_integer<Int>(str);
+	if (kblib::max.of<Int>() / multiplier < base) {
+		throw std::out_of_range{concat("Number ", str, str_.back(),
+		                               " is too large for type ",
+		                               demangle<Int>())};
+	}
+	return multiplier * base;
+}
+
 template <typename T>
 class range_constraint : public TCLAP::Constraint<T> {
  public:
@@ -166,7 +208,8 @@ std::vector<range_t> parse_ranges(const std::vector<std::string>& seed_exprs) {
 						throw std::invalid_argument{
 						    "Decimals not allowed in seed exprs"};
 					}
-				} else if (r[i] >= '0' and r[i] <= '9') {
+				} else if ("0123456789kKmM"sv.find(r[i])
+				           != std::string_view::npos) {
 					begin.push_back(r[i]);
 				} else {
 					throw std::invalid_argument{kblib::concat("Invalid character ",
@@ -174,13 +217,13 @@ std::vector<range_t> parse_ranges(const std::vector<std::string>& seed_exprs) {
 					                                          " in seed expr")};
 				}
 			}
-			auto b = kblib::parse_integer<std::uint32_t>(begin);
+			auto b = parse_int<std::uint32_t>(begin);
 			if (not end) {
 				seed_ranges.push_back({b, b + 1});
 				continue;
 			}
 			for (; i != r.size(); ++i) {
-				if (r[i] >= '0' and r[i] <= '9') {
+				if ("0123456789kKmM"sv.find(r[i]) != std::string_view::npos) {
 					end->push_back(r[i]);
 				} else {
 					throw std::invalid_argument{kblib::concat("Invalid character ",
@@ -188,8 +231,7 @@ std::vector<range_t> parse_ranges(const std::vector<std::string>& seed_exprs) {
 					                                          " in seed expr")};
 				}
 			}
-			auto e = end->empty() ? kblib::max
-			                      : kblib::parse_integer<std::uint32_t>(*end);
+			auto e = end->empty() ? kblib::max : parse_int<std::uint32_t>(*end);
 			if (e < b) {
 				throw std::invalid_argument{kblib::concat(
 				    "Seed ranges must be low..high, got: ", b, "..", e)};
@@ -388,11 +430,45 @@ score run_seed_ranges(field& f, uint level_id,
 }
 #pragma GCC diagnostic pop
 
+template <typename Int>
+struct human_readable_integer {
+	using ValueCategory = TCLAP::StringLike;
+	constexpr human_readable_integer() = default;
+	constexpr human_readable_integer(const human_readable_integer&) = default;
+	constexpr human_readable_integer(Int v)
+	    : val(v) {}
+	constexpr human_readable_integer(std::string_view str) {
+		val = parse_int<Int>(str);
+	}
+
+	constexpr human_readable_integer& operator=(const human_readable_integer&)
+	    = default;
+	constexpr human_readable_integer& operator=(std::string_view str) {
+		val = parse_int<Int>(str);
+		return *this;
+	}
+	constexpr human_readable_integer& operator=(Int v) {
+		val = v;
+		return *this;
+	}
+
+	operator Int() const noexcept { return val; }
+	Int val;
+};
+
+static_assert(human_readable_integer<int>("10").val == 10);
+static_assert(human_readable_integer<int>("10k").val == 10'000);
+static_assert(human_readable_integer<int>("10M").val == 10'000'000);
+
 int main(int argc, char** argv) try {
 	std::ios_base::sync_with_stdio(false);
 	set_log_flush(not RELEASE);
 
-	TCLAP::CmdLine cmd("TIS-100 simulator and validator");
+	TCLAP::CmdLine cmd(
+	    "TIS-100 simulator and validator. For options --limit, --total-limit, "
+	    "--random, --seed, --seeds, and --T30_size, integer arguments can be "
+	    "specified with a scale suffix, either K, M, or B (case-insensitive) "
+	    "for thousand, million, or billion respectively.");
 
 	std::vector<std::string> ids_v;
 	for (auto l : layouts) {
@@ -416,15 +492,15 @@ int main(int argc, char** argv) try {
 	TCLAP::EitherOf layout(cmd);
 	layout.add(id_arg).add(level_num); //.add(layout_s);
 
-	TCLAP::ValueArg<int> cycles_limit(
+	TCLAP::ValueArg<human_readable_integer<int>> cycles_limit_arg(
 	    "", "limit",
 	    "Number of cycles to run test for before timeout. (Default 100500)",
 	    false, 100'500, "integer", cmd);
-	TCLAP::ValueArg<std::size_t> total_cycles_limit(
+	TCLAP::ValueArg<human_readable_integer<std::size_t>> total_cycles_limit_arg(
 	    "", "total-limit",
 	    "Max number of cycles to run between all tests before determining "
 	    "cheating status. (Default no limit)",
-	    false, kblib::max, "integer", cmd);
+	    false, kblib::max.of<std::size_t>(), "integer", cmd);
 	TCLAP::ValueArg<unsigned> threads("j", "threads",
 	                                  "Number of threads to use, or 0 for "
 	                                  "automatic. Log level must be info or "
@@ -436,9 +512,9 @@ int main(int argc, char** argv) try {
 	// unused because the test case parser is not implemented
 	TCLAP::ValueArg<std::string> set_test("t", "test", "Manually set test cases",
 	                                      false, "", "test case");
-	TCLAP::ValueArg<std::uint32_t> random(
+	TCLAP::ValueArg<human_readable_integer<std::uint32_t>> random_arg(
 	    "r", "random", "Random tests to run (upper bound)", false, 0, "integer");
-	TCLAP::ValueArg<std::uint32_t> seed_arg(
+	TCLAP::ValueArg<human_readable_integer<std::uint32_t>> seed_arg(
 	    "", "seed", "Seed to use for random tests", false, 0, "uint32_t");
 	TCLAP::SwitchArg stats(
 	    "S", "stats", "Run all random tests requested and calculate pass rate",
@@ -447,7 +523,7 @@ int main(int argc, char** argv) try {
 	                                        "A range of seed values to use",
 	                                        false, "[range-expr...]", cmd);
 	TCLAP::AnyOf implicit_random(cmd);
-	implicit_random.add(random).add(seed_arg);
+	implicit_random.add(random_arg).add(seed_arg);
 	range_constraint percentage(0.0, 1.0);
 	TCLAP::ValueArg<double> cheat_rate(
 	    "", "cheat-rate",
@@ -464,7 +540,7 @@ int main(int argc, char** argv) try {
 	           def_T21_size, ")"),
 	    false, def_T21_size, &size_constraint, cmd);
 	// No technical reason to limit T30 capacity, as they are not addressable
-	TCLAP::ValueArg<unsigned> T30_size(
+	TCLAP::ValueArg<human_readable_integer<unsigned>> T30_size(
 	    "", "T30_size",
 	    concat("Memory capacity of T30 nodes. (Default ", def_T30_size, ")"),
 	    false, def_T30_size, "integer", cmd);
@@ -503,6 +579,7 @@ int main(int argc, char** argv) try {
 	    "", "dry-run", "Parse the command line, but don't run any tests", cmd);
 
 	cmd.parse(argc, argv);
+
 	// Color output on interactive shells or when explicitely requested
 	color_stdout = color.isSet() or isatty(STDOUT_FILENO);
 	//  Color logs on interactive shells or when explicitely requested
@@ -511,6 +588,11 @@ int main(int argc, char** argv) try {
 	signal(SIGINT, sigterm_handler);
 	signal(SIGUSR1, sigterm_handler);
 	signal(SIGUSR2, sigterm_handler);
+
+	auto cycles_limit = cycles_limit_arg.getValue().val;
+	auto total_cycles_limit = total_cycles_limit_arg.getValue().val;
+	auto random_count = random_arg.getValue().val;
+	auto base_seed = seed_arg.getValue().val;
 
 	set_log_level([&] {
 		using namespace kblib::literals;
@@ -584,20 +666,20 @@ int main(int argc, char** argv) try {
 	std::vector<range_t> seed_ranges;
 
 	if (seed_exprs.isSet()) {
-		if (random.isSet() or seed_arg.isSet()) {
+		if (random_arg.isSet() or seed_arg.isSet()) {
 			throw std::invalid_argument{
 			    "Cannot set --seeds in combination with -r or --seed"};
 		}
 		seed_ranges = parse_ranges(seed_exprs.getValue());
-	} else if (random.isSet()) {
+	} else if (random_arg.isSet()) {
 		std::uint32_t seed;
 		if (seed_arg.isSet()) {
-			seed = seed_arg.getValue();
+			seed = base_seed;
 		} else {
 			seed = std::random_device{}();
 			log_info("random seed: ", seed);
 		}
-		seed_ranges.push_back({seed, seed + random.getValue()});
+		seed_ranges.push_back({seed, seed + random_count});
 	}
 
 	std::uint32_t total_random_tests{};
@@ -641,7 +723,7 @@ int main(int argc, char** argv) try {
 		int succeeded{1};
 		for (auto test : static_suite(level_id)) {
 			set_expected(f, test);
-			last = run(f, cycles_limit.getValue(), true);
+			last = run(f, cycles_limit, true);
 			if (stop_requested) {
 				log_notice("Stop requested");
 				break;
@@ -666,7 +748,7 @@ int main(int argc, char** argv) try {
 			}
 		}
 		sc.achievement = check_achievement(level_id, f, sc);
-		score_summary(sc, succeeded, quiet.getValue(), cycles_limit.getValue());
+		score_summary(sc, succeeded, quiet.getValue(), cycles_limit);
 	}
 
 	int count = 0;
@@ -693,7 +775,7 @@ int main(int argc, char** argv) try {
 		sc.hardcoded = (valid_count <= static_cast<int>(count * cheat_rate));
 		if (not fixed.getValue()) {
 			sc = worst;
-			score_summary(sc, -1, quiet.getValue(), cycles_limit.getValue());
+			score_summary(sc, -1, quiet.getValue(), cycles_limit);
 		}
 	}
 
@@ -718,16 +800,13 @@ int main(int argc, char** argv) try {
 
 	return (sc.validated) ? 0 : 1;
 } catch (const std::exception& e) {
-	int status{};
-	auto type_name
-	    = abi::__cxa_demangle(typeid(e).name(), nullptr, nullptr, &status);
-	if (status != 0) {
-		log_err("Unexpected error occured while handling exception: ", e.what());
-		log_flush();
+	auto type_name = demangle(typeid(e).name());
+	if (not type_name) {
+
 		return 2;
 	}
 
-	log_err("Failed with exception of type ", type_name, ": ", e.what());
+	log_err("Failed with exception of type ", *type_name, ": ", e.what());
 	log_flush();
 	return 2;
 }

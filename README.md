@@ -45,6 +45,10 @@ the cycles count is replaced by `-` to denote a failure. The return value is `0`
 on a validation, including a cheated solution, `1` on a validation failure,
 and `2` on an exception.
 
+For options --limit, --total-limit, --random, --seed, --seeds, and --T30_size,
+integer arguments can be specified with a scale suffix, either K, M, or B
+(case-insensitive) for thousand, million, or billion respectively.
+
 The most useful options are:
 - `--limit N`: set the timeout limit for the simulation. Default 100500 (enough
   for BUSY_LOOP with a little slack)
