@@ -138,16 +138,6 @@ struct node {
 	    , y(y) {}
 	virtual ~node() = default;
 
-	/// Attempt to read a value from n, coming from direction p
-	friend optional_word do_read(node* n, port p) {
-		assert(p >= port::left and p <= port::D6);
-		if (not n) {
-			return word_empty;
-		} else {
-			return n->emit(p);
-		}
-	}
-
  protected: // prevents most slicing
 	node(const node&) = default;
 	node(node&&) = default;
@@ -167,6 +157,18 @@ struct regular_node : node {
 
 	/// only useful nodes are linked, other links from-to are nullptr
 	std::array<node*, 6> neighbors{};
+
+ protected:
+	/// Attempt to read a value from p, coming from this node
+	[[gnu::always_inline]] inline optional_word do_read(port p) {
+		assert(p >= port::left and p <= port::D6);
+		node* n = neighbors[to_unsigned(etoi(p))];
+		if (not n) {
+			return word_empty;
+		} else {
+			return n->emit(invert(p));
+		}
+	}
 };
 
 struct damaged final : regular_node {

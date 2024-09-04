@@ -61,8 +61,12 @@ void field::finalize_nodes() {
 			        and static_cast<const T21*>(p.get())->has_instr(instr::hcf))) {
 				log_debug("node at (", p->x, ',', p->y, ") marked useful");
 				regulars_to_sim.push_back(p.get());
+				allT21 &= p->type() == node::T21;
 			}
 		}
+	}
+	if (allT21) {
+		log_debug("All regular nodes are T21, faster simulation enabled");
 	}
 	for (auto& p : nodes_io) {
 		if (useful(p.get()) and p->linked) {

@@ -62,6 +62,10 @@ constexpr auto sat_sub(T a, T b) {
 	return sat_add<T, std::common_type_t<decltype(l), decltype(h)>>(a, -b, l, h);
 }
 
+static_assert(sat_add(word_max, word_max) == word_max);
+static_assert(sat_add(word_min, word_max) == 0);
+static_assert(sat_add(word_min, word_min) == word_min);
+
 // returns a new string, padded
 inline std::string pad_right(std::string input, std::size_t size,
                              char padding = ' ') {

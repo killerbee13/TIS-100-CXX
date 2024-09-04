@@ -132,11 +132,24 @@ class field {
 
 	/// Advance the field one full cycle (step and finalize)
 	void step() {
+		if (allT21) {
+			step_<true>();
+		} else {
+			step_<false>();
+		}
+	}
+
+	template <bool allT21>
+	void step_() {
 		auto log = log_debug();
 		log << "Field step\n";
 		// evaluate code
 		for (auto& p : regulars_to_sim) {
-			p->step(log);
+			if constexpr (allT21) {
+				static_cast<T21*>(p)->step(log);
+			} else {
+				p->step(log);
+			}
 		}
 		log << '\n';
 		// run io nodes, this may read from regular nodes, so it must be
@@ -148,7 +161,11 @@ class field {
 		// execute writes
 		// this is a separate step to ensure a consistent propagation delay
 		for (auto& p : regulars_to_sim) {
-			p->finalize(log);
+			if constexpr (allT21) {
+				static_cast<T21*>(p)->finalize(log);
+			} else {
+				p->finalize(log);
+			}
 		}
 	}
 
@@ -257,6 +274,7 @@ class field {
 		return nodes_regular.size() / width;
 	}
 	std::size_t out_nodes_offset{};
+	bool allT21 = true;
 };
 
 #endif // FIELD_HPP

@@ -39,8 +39,7 @@ struct T30 final : regular_node {
 			return;
 		}
 		for (auto p = port::left; p <= port::D6; p++) {
-			if (auto r = do_read(neighbors[to_unsigned(p)], invert(p));
-			    r != word_empty) {
+			if (auto r = do_read(p); r != word_empty) {
 				data.push_back(r);
 				used = true;
 				if (data.size() == max_size) {
