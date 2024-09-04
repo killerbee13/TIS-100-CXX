@@ -74,13 +74,16 @@ class field {
 			for (auto x : range(width)) {
 				switch (spec.nodes[y][x]) {
 				case node::T21:
-					nodes_regular.push_back(std::make_unique<T21>(x, y));
+					nodes_regular.push_back(std::make_unique<T21>(
+					    static_cast<int>(x), static_cast<int>(y)));
 					break;
 				case node::T30: {
-					nodes_regular.push_back(std::make_unique<T30>(x, y, T30_size));
+					nodes_regular.push_back(std::make_unique<T30>(
+					    static_cast<int>(x), static_cast<int>(y), T30_size));
 				} break;
 				case node::Damaged:
-					nodes_regular.push_back(std::make_unique<damaged>(x, y));
+					nodes_regular.push_back(std::make_unique<damaged>(
+					    static_cast<int>(x), static_cast<int>(y)));
 					break;
 				case node::in:
 				case node::out:
@@ -115,10 +118,12 @@ class field {
 			auto out = spec.outputs[x];
 			switch (out) {
 			case node::out: {
-				nodes_io.push_back(std::make_unique<output_node>(x, height()));
+				nodes_io.push_back(
+				    std::make_unique<output_node>(x, static_cast<int>(height())));
 			} break;
 			case node::image: {
-				nodes_io.push_back(std::make_unique<image_output>(x, height()));
+				nodes_io.push_back(
+				    std::make_unique<image_output>(x, static_cast<int>(height())));
 			} break;
 			case node::null:
 				// pass
@@ -289,6 +294,8 @@ class field {
 	}
 	std::size_t out_nodes_offset{};
 	bool allT21 = true;
+
+	bool search_for_output(const regular_node*);
 };
 
 #endif // FIELD_HPP

@@ -33,7 +33,7 @@ struct io_node : node {
 	/// Return a new node initialized in the same way as *this.
 	/// (Not a copy constructor; new node is as if reset() and has no neighbors)
 	virtual std::unique_ptr<io_node> clone() const = 0;
-	/// Always not null if the node is simulated
+	/// Always not null for outputs if the node is simulated
 	node* linked;
 };
 
