@@ -38,7 +38,7 @@ struct T30 final : regular_node {
 		if (data.size() == max_size) {
 			return;
 		}
-		for (auto p = port::left; p <= port::D6; p++) {
+		for (auto p = port::dir_first; p <= port::dir_last; p++) {
 			if (auto r = do_read(p); r != word_empty) {
 				data.push_back(r);
 				used = true;

@@ -283,7 +283,7 @@ struct T21 final : regular_node {
 	}
 
 	optional_word emit(port p) override {
-		assert(p >= port::left and p <= port::D6);
+		assert(p >= port::dir_first and p <= port::dir_last);
 		if (write_port == port::any or write_port == p) {
 			auto r = std::exchange(wrt, word_empty);
 			if (write_port == port::any) {
@@ -365,7 +365,7 @@ struct T21 final : regular_node {
 		case port::acc:
 			return acc;
 		case port::any:
-			for (auto p_ = port::left; p_ <= port::D6; p_++) {
+			for (auto p_ = port::dir_first; p_ <= port::dir_last; p_++) {
 				if (auto r = do_read(p_); r != word_empty) {
 					last = p_;
 					return r;

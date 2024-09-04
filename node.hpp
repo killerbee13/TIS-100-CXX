@@ -23,6 +23,9 @@
 
 #include <array>
 
+/// Support a 3D expansion in node connections
+constexpr inline int DIMENSIONS = 2;
+
 constexpr inline int def_T21_size = 15;
 constexpr inline int def_T30_size = 15;
 
@@ -44,7 +47,6 @@ constexpr static std::string_view state_name(activity s) {
 }
 
 enum port : std::int8_t {
-	// The directions are values 0-5, so < and > can be used to compare them
 	left,
 	right,
 	up,
@@ -52,75 +54,65 @@ enum port : std::int8_t {
 	D5, // 3D expansion
 	D6,
 
-	nil,
+	// The directions are values 0-N, so < and > can be used to compare them
+	dir_first = 0,
+	dir_last = DIMENSIONS * 2 - 1,
+
+	nil = std::max(D6, dir_last) + 1,
 	acc,
 	any,
 	last,
 	immediate = -1
 };
 
-inline port& operator++(port& p) {
-	assert(p >= port::left and p <= port::D6);
+constexpr port& operator++(port& p) {
+	assert(p >= port::dir_first and p <= port::dir_last);
 	p = static_cast<port>(std::to_underlying(p) + 1);
 	return p;
 }
-inline port operator++(port& p, int) {
+constexpr port operator++(port& p, int) {
 	port old = p;
 	++p;
 	return old;
 }
 
 constexpr port invert(port p) {
+	assert(p >= port::dir_first and p <= port::dir_last);
+	return static_cast<port>(std::to_underlying(p) ^ 1);
+}
+
+constexpr static std::string_view port_name(port p) {
 	switch (p) {
 	case left:
-		return right;
+		return "LEFT";
 	case right:
-		return left;
+		return "RIGHT";
 	case up:
-		return down;
+		return "UP";
 	case down:
-		return up;
+		return "DOWN";
 	case D5:
-		return D6;
+		return "D5";
 	case D6:
-		return D5;
+		return "D6";
+	case nil:
+		return "NIL";
+	case acc:
+		return "ACC";
+	case any:
+		return "ANY";
+	case last:
+		return "LAST";
+	case immediate:
+		return "VAL";
 	default:
-		std::unreachable();
+		throw std::invalid_argument{concat("Illegal port ", etoi(p))};
 	}
 }
 
 struct node {
  public:
 	enum type_t { T21 = 1, T30, in, out, image, Damaged = -1, null = -2 };
-
-	constexpr static std::string_view port_name(port p) {
-		switch (p) {
-		case up:
-			return "UP";
-		case left:
-			return "LEFT";
-		case right:
-			return "RIGHT";
-		case down:
-			return "DOWN";
-		case D5:
-			return "D5";
-		case D6:
-			return "D6";
-		case nil:
-			return "NIL";
-		case acc:
-			return "ACC";
-		case any:
-			return "ANY";
-		case last:
-			return "LAST";
-		case immediate:
-			return "VAL";
-		default:
-			throw std::invalid_argument{concat("Illegal port ", etoi(p))};
-		}
-	}
 
 	/// Returns the type of the node
 	virtual type_t type() const noexcept = 0;
@@ -156,12 +148,12 @@ struct regular_node : node {
 	virtual std::unique_ptr<regular_node> clone() const = 0;
 
 	/// only useful nodes are linked, other links from-to are nullptr
-	std::array<node*, 6> neighbors{};
+	std::array<node*, 2 * DIMENSIONS> neighbors{};
 
  protected:
 	/// Attempt to read a value from p, coming from this node
 	[[gnu::always_inline]] inline optional_word do_read(port p) {
-		assert(p >= port::left and p <= port::D6);
+		assert(p >= port::dir_first and p <= port::dir_last);
 		node* n = neighbors[to_unsigned(etoi(p))];
 		if (not n) {
 			return word_empty;

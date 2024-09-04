@@ -116,49 +116,22 @@ void set_expected(field& f, const single_test& expected) {
 	}
 }
 
-std::string to_string(port p) {
-	switch (p) {
-	case left:
-		return "LEFT";
-	case right:
-		return "RIGHT";
-	case up:
-		return "UP";
-	case down:
-		return "DOWN";
-	case D5:
-		return "D5"; // leaving space for a possible extension to 3d
-	case D6:
-		return "D6";
-	case nil:
-		return "NIL";
-	case acc:
-		return "ACC";
-	case any:
-		return "ANY";
-	case last:
-		return "LAST";
-	default:
-		throw std::invalid_argument{concat("invalid port number ", etoi(p))};
-	}
-}
-
 std::string to_string(instr i) {
 	using enum instr::op;
 	if (i.op_ <= neg) {
 		return to_string(i.op_);
 	} else if (i.op_ == mov) {
 		if (i.src == immediate) {
-			return concat(to_string(i.op_), ' ', i.val, ',', to_string(i.dst()));
+			return concat(to_string(i.op_), ' ', i.val, ',', port_name(i.dst()));
 		} else {
-			return concat(to_string(i.op_), ' ', to_string(i.src), ',',
-			              to_string(i.dst()));
+			return concat(to_string(i.op_), ' ', port_name(i.src), ',',
+			              port_name(i.dst()));
 		}
 	} else if (i.op_ <= sub) {
 		if (i.src == immediate) {
 			return concat(to_string(i.op_), ' ', std::to_string(i.val));
 		} else {
-			return concat(to_string(i.op_), ' ', to_string(i.src));
+			return concat(to_string(i.op_), ' ', port_name(i.src));
 		}
 	} else if (i.op_ <= jlz) {
 		return concat(to_string(i.op_), ' ', 'L', i.data);
@@ -166,7 +139,7 @@ std::string to_string(instr i) {
 		if (i.src == immediate) {
 			return concat(to_string(i.op_), ' ', std::to_string(i.val));
 		} else {
-			return concat(to_string(i.op_), ' ', to_string(i.src));
+			return concat(to_string(i.op_), ' ', port_name(i.src));
 		}
 	} else {
 		throw std::invalid_argument{"Unknown instruction "
