@@ -1,6 +1,6 @@
 /* *****************************************************************************
- * %{QMAKE_PROJECT_NAME}
- * Copyright (c) %YEAR% killerbee
+ * TIS-100-CXX
+ * Copyright (c) 2024 killerbee, Andrea Stacchiotti
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
