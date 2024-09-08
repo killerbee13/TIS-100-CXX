@@ -43,11 +43,6 @@ inline bool useful(const node* n) {
 }
 
 class field {
-	using const_iterator_reg
-	    = std::vector<std::unique_ptr<regular_node>>::const_iterator;
-	using const_iterator_io
-	    = std::vector<std::unique_ptr<io_node>>::const_iterator;
-
  public:
 	field() = default;
 	template <typename Spec>
@@ -97,13 +92,11 @@ class field {
 			}
 		}
 
-		out_nodes_offset = 0;
 		for (const auto x : range(static_cast<int>(width))) {
 			auto in = spec.inputs[x];
 			switch (in) {
 			case node::in: {
-				nodes_io.push_back(std::make_unique<input_node>(x, -1));
-				out_nodes_offset++;
+				nodes_input.push_back(std::make_unique<input_node>(x, -1));
 			} break;
 			case node::null:
 				// pass
@@ -113,16 +106,17 @@ class field {
 				    "invalid layout spec: illegal input node"};
 			}
 		}
+		nodes_input.shrink_to_fit();
 
 		for (const auto x : range(static_cast<int>(width))) {
 			auto out = spec.outputs[x];
 			switch (out) {
 			case node::out: {
-				nodes_io.push_back(
-				    std::make_unique<output_node>(x, static_cast<int>(height())));
+				nodes_numeric.push_back(
+				    std::make_unique<num_output>(x, static_cast<int>(height())));
 			} break;
 			case node::image: {
-				nodes_io.push_back(
+				nodes_image.push_back(
 				    std::make_unique<image_output>(x, static_cast<int>(height())));
 			} break;
 			case node::null:
@@ -133,7 +127,8 @@ class field {
 				    "invalid layout spec: illegal output node"};
 			}
 		}
-		nodes_io.shrink_to_fit();
+		nodes_numeric.shrink_to_fit();
+		nodes_image.shrink_to_fit();
 	}
 
 	/// Advance the field one full cycle (step and finalize)
@@ -160,7 +155,13 @@ class field {
 		log << '\n';
 		// run io nodes, this may read from regular nodes, so it must be
 		// between the 2 regular methods
-		for (auto& p : ios_to_sim) {
+		for (auto& p : inputs_to_sim) {
+			p->execute(log);
+		}
+		for (auto& p : numerics_to_sim) {
+			p->execute(log);
+		}
+		for (auto& p : images_to_sim) {
 			p->execute(log);
 		}
 		log << '\n';
@@ -177,24 +178,21 @@ class field {
 
 	bool active() const {
 		bool active{};
-		for (auto& out : outputs()) {
-			if (out->type() == node::out) {
-				auto i = static_cast<const output_node*>(out.get());
-				if (not i->complete) {
-					active = true;
+		for (auto& n : nodes_numeric) {
+			if (not n->complete) {
+				active = true;
 
 // speed up simulator by failing early when an incorrect output is written
 #if RELEASE
-					if (i->wrong) {
-						return false;
-					}
+				if (n->wrong) {
+					return false;
+				}
 #endif
-				}
-			} else if (out->type() == node::image) {
-				auto i = static_cast<const image_output*>(out.get());
-				if (i->wrong_pixels) {
-					active = true;
-				}
+			}
+		}
+		for (auto& i : nodes_image) {
+			if (i->wrong_pixels) {
+				active = true;
 			}
 		}
 		return active;
@@ -204,11 +202,19 @@ class field {
 	/// in its debugger but in linear order
 	std::string state() const {
 		std::string ret;
+		for (auto& n : nodes_input) {
+			ret += n->state();
+			ret += '\n';
+		}
 		for (auto& n : nodes_regular) {
 			ret += n->state();
 			ret += '\n';
 		}
-		for (auto& n : nodes_io) {
+		for (auto& n : nodes_numeric) {
+			ret += n->state();
+			ret += '\n';
+		}
+		for (auto& n : nodes_image) {
 			ret += n->state();
 			ret += '\n';
 		}
@@ -218,10 +224,6 @@ class field {
 	// Scoring functions
 	std::size_t instructions() const;
 	std::size_t nodes_used() const;
-
-	// Whether there are any input nodes attached to the field. Image test
-	// pattern levels do not use inputs so only need a single test run.
-	bool has_inputs() const { return out_nodes_offset != 0; }
 
 	/// Serialize human-readable layout
 	std::string layout() const;
@@ -252,39 +254,30 @@ class field {
 		return nullptr;
 	}
 
-	const_iterator_reg begin_regular() const noexcept {
-		return nodes_regular.begin();
-	}
-	const_iterator_reg end_regular() const noexcept {
-		return nodes_regular.end();
-	}
-	const_iterator_io begin_input() const noexcept { return nodes_io.begin(); }
-	const_iterator_io end_input() const noexcept {
-		return nodes_io.begin() + static_cast<std::ptrdiff_t>(out_nodes_offset);
-	}
-	const_iterator_io begin_output() const noexcept { return end_input(); }
-	const_iterator_io end_output() const noexcept { return nodes_io.end(); }
-
-	auto regulars() const noexcept
-	    -> std::ranges::subrange<const_iterator_reg, const_iterator_reg> {
-		return {begin_regular(), end_regular()};
-	}
-	auto inputs() const noexcept
-	    -> std::ranges::subrange<const_iterator_io, const_iterator_io> {
-		return {begin_input(), end_input()};
-	}
-	auto outputs() const noexcept
-	    -> std::ranges::subrange<const_iterator_io, const_iterator_io> {
-		return {begin_output(), end_output()};
+	const auto& inputs() const noexcept { return nodes_input; }
+	const auto& regulars() const noexcept { return nodes_regular; }
+	const auto& numerics() const noexcept { return nodes_numeric; }
+	const auto& images() const noexcept { return nodes_image; }
+	void for_each_output(std::invocable<output_node*> auto f) {
+		for (auto& n : nodes_numeric) {
+			f(n.get());
+		}
+		for (auto& n : nodes_image) {
+			f(n.get());
+		}
 	}
 
  private:
-	// w*h regulars
+	std::vector<std::unique_ptr<input_node>> nodes_input;
 	std::vector<std::unique_ptr<regular_node>> nodes_regular;
-	// 0..w inputs, 1..w outputs
-	std::vector<std::unique_ptr<io_node>> nodes_io;
+	std::vector<std::unique_ptr<num_output>> nodes_numeric;
+	std::vector<std::unique_ptr<image_output>> nodes_image;
+
+	std::vector<input_node*> inputs_to_sim;
 	std::vector<regular_node*> regulars_to_sim;
-	std::vector<io_node*> ios_to_sim;
+	std::vector<num_output*> numerics_to_sim;
+	std::vector<image_output*> images_to_sim;
+
 	std::size_t width{};
 	std::size_t height() const {
 		if (nodes_regular.size() == 0) {
@@ -292,7 +285,6 @@ class field {
 		}
 		return nodes_regular.size() / width;
 	}
-	std::size_t out_nodes_offset{};
 	bool allT21 = true;
 
 	bool search_for_output(const regular_node*);

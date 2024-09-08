@@ -26,19 +26,8 @@
 #include <algorithm>
 #include <string>
 
-struct io_node : node {
+struct input_node final : node {
 	using node::node;
-	/// Process whole cycle in one go
-	virtual void execute(logger& debug) = 0;
-	/// Return a new node initialized in the same way as *this.
-	/// (Not a copy constructor; new node is as if reset() and has no neighbors)
-	virtual std::unique_ptr<io_node> clone() const = 0;
-	/// Always not null for outputs if the node is simulated
-	node* linked;
-};
-
-struct input_node final : io_node {
-	using io_node::io_node;
 
 	void reset(word_vec inputs_) noexcept {
 		inputs = inputs_;
@@ -48,7 +37,7 @@ struct input_node final : io_node {
 	}
 
 	type_t type() const noexcept override { return in; }
-	void execute(logger& debug) override {
+	[[gnu::always_inline]] inline void execute(logger& debug) {
 		debug << "I" << x << ": ";
 		if (writing) {
 			// writing this turn
@@ -67,7 +56,7 @@ struct input_node final : io_node {
 		}
 		debug << '\n';
 	}
-	std::unique_ptr<io_node> clone() const override {
+	std::unique_ptr<input_node> clone() const {
 		auto ret = std::make_unique<input_node>(x, y);
 		ret->reset(inputs);
 		return ret;
@@ -90,8 +79,16 @@ struct input_node final : io_node {
 	bool writing{};
 };
 
-struct output_node final : io_node {
-	using io_node::io_node;
+struct output_node : node {
+	using node::node;
+	/// output nodes only read
+	optional_word emit(port) final { return word_empty; }
+	/// Always not null if the node is simulated
+	node* linked;
+};
+
+struct num_output final : output_node {
+	using output_node::output_node;
 
 	void reset(word_vec outputs_expected_) {
 		outputs_expected = outputs_expected_;
@@ -102,7 +99,7 @@ struct output_node final : io_node {
 
 	type_t type() const noexcept override { return out; }
 	// Attempt to read from neighbor every step
-	void execute(logger& debug) override {
+	[[gnu::always_inline]] inline void execute(logger& debug) {
 		if (complete) {
 			return;
 		}
@@ -118,12 +115,13 @@ struct output_node final : io_node {
 			debug << '\n';
 		}
 	}
-	std::unique_ptr<io_node> clone() const override {
-		auto ret = std::make_unique<output_node>(x, y);
+	/// Return a new node initialized in the same way as *this.
+	/// (Not a copy constructor; new node is as if reset() and has no neighbors)
+	std::unique_ptr<num_output> clone() const {
+		auto ret = std::make_unique<num_output>(x, y);
 		ret->reset(outputs_expected);
 		return ret;
 	}
-	optional_word emit(port) override { return word_empty; }
 	std::string state() const override {
 		std::ostringstream ret;
 		ret << concat("O", x, " NUMERIC {\nreceived:");
@@ -138,8 +136,8 @@ struct output_node final : io_node {
 	bool complete{false};
 };
 
-struct image_output final : io_node {
-	using io_node::io_node;
+struct image_output final : output_node {
+	using output_node::output_node;
 
 	void reset(image_t image_expected_) {
 		image_expected = std::move(image_expected_);
@@ -154,7 +152,7 @@ struct image_output final : io_node {
 	}
 
 	type_t type() const noexcept override { return image; }
-	void execute(logger&) override {
+	[[gnu::always_inline]] inline void execute(logger&) {
 		if (auto r = linked->emit(port::down); r != word_empty) {
 			if (r < 0) {
 				c_x = word_empty;
@@ -169,12 +167,13 @@ struct image_output final : io_node {
 			}
 		}
 	}
-	std::unique_ptr<io_node> clone() const override {
+	/// Return a new node initialized in the same way as *this.
+	/// (Not a copy constructor; new node is as if reset() and has no neighbors)u
+	std::unique_ptr<image_output> clone() const {
 		auto ret = std::make_unique<image_output>(x, y);
 		ret->reset(image_expected);
 		return ret;
 	}
-	optional_word emit(port) override { return word_empty; }
 	std::string state() const override {
 		return concat("O", x, " IMAGE { wrong: ", wrong_pixels, "\n",
 		              image_received.write_text(), "}");

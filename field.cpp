@@ -149,9 +149,15 @@ bool field::search_for_output(const regular_node* p) {
 					queue.push({neighbor});
 				}
 			} else if (neighbor_y == static_cast<int>(height())) {
-				for (auto& o : outputs()) {
+				for (auto& o : nodes_numeric) {
 					if (o->x == neighbor_x) {
-						log_debug("Neighbor is output");
+						log_debug("Neighbor is numeric output");
+						return true;
+					}
+				}
+				for (auto& o : nodes_image) {
+					if (o->x == neighbor_x) {
+						log_debug("Neighbor is image output");
 						return true;
 					}
 				}
@@ -206,7 +212,7 @@ void field::finalize_nodes() {
 			return ret;
 		});
 	}
-	for (auto& i : inputs()) {
+	for (auto& i : nodes_input) {
 		auto n = useful_node_at(i->x, 0);
 		if (n) {
 			n->neighbors[up] = i.get();
@@ -214,14 +220,14 @@ void field::finalize_nodes() {
 			          n->x, ',', n->y, "): ", etoi(n->type()));
 		}
 	}
-	for (auto& o : outputs()) {
+	for_each_output([this](auto* o) {
 		auto n = useful_node_at(o->x, height() - 1);
 		o->linked = n;
 		if (n) {
 			log_debug("output node at (", o->x, ", ", o->y, ") has neighbor: (",
 			          n->x, ", ", n->y, "): ", etoi(n->type()));
 		}
-	}
+	});
 
 	// register for simulation
 	for (auto& p : nodes_regular) {
@@ -241,17 +247,26 @@ void field::finalize_nodes() {
 	if (allT21) {
 		log_debug("All used regular nodes are T21, faster simulation enabled");
 	}
-	for (auto& i : inputs()) {
+	for (auto& i : nodes_input) {
 		auto n = useful_node_at(i->x, 0);
 		if (n and search_for_output(n)) {
-			ios_to_sim.push_back(i.get());
+			inputs_to_sim.push_back(i.get());
 		} else {
 			log_debug("Input node at (", i->x, ", ", i->y, ") dropped");
 		}
 	}
-	for (auto& o : outputs()) {
+	for (auto& o : nodes_numeric) {
 		if (o->linked) {
-			ios_to_sim.push_back(o.get());
+			numerics_to_sim.push_back(o.get());
+		} else {
+			// Output nodes not being connected will make the level unsolvable
+			// (unless the output is always empty/blank)
+			log_info("Output node at (", o->x, ", ", o->y, ") dropped");
+		}
+	}
+	for (auto& o : nodes_image) {
+		if (o->linked) {
+			images_to_sim.push_back(o.get());
 		} else {
 			// Output nodes not being connected will make the level unsolvable
 			// (unless the output is always empty/blank)
@@ -283,10 +298,23 @@ std::size_t field::nodes_used() const {
 }
 
 std::string field::layout() const {
-	auto h = height();
-	std::string ret = concat(width, ' ', h, '\n');
-	for (auto& i : nodes_regular) {
-		auto p = i.get();
+	std::string ret;
+	for (auto& in : nodes_input) {
+		append(ret, 'I', in->x);
+		if (not in->inputs.empty()) {
+			append(ret, " [");
+			for (auto v : in->inputs) {
+				append(ret, v, ", ");
+			}
+			append(ret, "]");
+		}
+		append(ret, ' ');
+	}
+
+	for (auto [p, i] : kblib::enumerate(nodes_regular)) {
+		if (i % width == 0) {
+			ret += '\n';
+		}
 		if (p->type() == node::Damaged) {
 			ret += 'D';
 		} else if (p->type() == node::T21) {
@@ -297,39 +325,23 @@ std::string field::layout() const {
 	}
 	ret += '\n';
 
-	for (auto& i : nodes_io) {
-		auto p = i.get();
-
-		if (p->type() == node::in) {
-			auto in = static_cast<input_node*>(p);
-			append(ret, 'I', p->x);
-			if (not in->inputs.empty()) {
-				append(ret, " [");
-				for (auto v : in->inputs) {
-					append(ret, v, ", ");
-				}
-				append(ret, "]");
+	for (auto& on : nodes_numeric) {
+		append(ret, 'O', on->x);
+		if (not on->outputs_expected.empty()) {
+			append(ret, " [");
+			for (auto v : on->outputs_expected) {
+				append(ret, v, ", ");
 			}
-			append(ret, ' ');
-		} else if (p->type() == node::out) {
-			auto on = static_cast<output_node*>(p);
-			append(ret, 'O', p->x);
-			if (not on->outputs_expected.empty()) {
-				append(ret, " [");
-				for (auto v : on->outputs_expected) {
-					append(ret, v, ", ");
-				}
-				append(ret, "]");
-			}
-			append(ret, ' ');
-		} else if (p->type() == node::image) {
-			auto im = static_cast<image_output*>(p);
-			append(ret, 'V', p->x, " ", im->width, ',', im->height);
-			if (not im->image_expected.blank()) {
-				append(ret, " [", im->image_expected.write_text(false), "]");
-			}
-			append(ret, ' ');
+			append(ret, "]");
 		}
+		append(ret, ' ');
+	}
+	for (auto& im : nodes_image) {
+		append(ret, 'V', im->x, " ", im->width, ',', im->height);
+		if (not im->image_expected.blank()) {
+			append(ret, " [", im->image_expected.write_text(false), "]");
+		}
+		append(ret, ' ');
 	}
 
 	return ret;
@@ -338,15 +350,20 @@ std::string field::layout() const {
 field field::clone() const {
 	field ret;
 
+	for (auto& n : nodes_input) {
+		ret.nodes_input.push_back(n->clone());
+	}
 	for (auto& n : nodes_regular) {
 		ret.nodes_regular.push_back(n->clone());
 	}
-	for (auto& n : nodes_io) {
-		ret.nodes_io.push_back(n->clone());
+	for (auto& n : nodes_numeric) {
+		ret.nodes_numeric.push_back(n->clone());
+	}
+	for (auto& n : nodes_image) {
+		ret.nodes_image.push_back(n->clone());
 	}
 
 	ret.width = width;
-	ret.out_nodes_offset = out_nodes_offset;
 
 	ret.finalize_nodes();
 
