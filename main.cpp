@@ -208,8 +208,7 @@ std::vector<range_t> parse_ranges(const std::vector<std::string>& seed_exprs) {
 						throw std::invalid_argument{
 						    "Decimals not allowed in seed exprs"};
 					}
-				} else if ("0123456789kKmM"sv.find(r[i])
-				           != std::string_view::npos) {
+				} else if ("0123456789kKmM"sv.contains(r[i])) {
 					begin.push_back(r[i]);
 				} else {
 					throw std::invalid_argument{kblib::concat("Invalid character ",
@@ -223,7 +222,7 @@ std::vector<range_t> parse_ranges(const std::vector<std::string>& seed_exprs) {
 				continue;
 			}
 			for (; i != r.size(); ++i) {
-				if ("0123456789kKmM"sv.find(r[i]) != std::string_view::npos) {
+				if ("0123456789kKmM"sv.contains(r[i])) {
 					end->push_back(r[i]);
 				} else {
 					throw std::invalid_argument{kblib::concat("Invalid character ",
