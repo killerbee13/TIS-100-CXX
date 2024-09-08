@@ -72,8 +72,8 @@ for map in $save_dir/TIS*
 			set files_count (math $files_count + 1)
 			set -l expected (filter_expected $file)
 			
-			echo ./TIS-100-CXX $_flag_n $argv (basename $file) $id
-			./TIS-100-CXX $_flag_n $argv $file $id | tee $tmp_result
+			echo ./TIS-100-CXX $_flag_n $argv -l $id (basename $file)
+			./TIS-100-CXX $_flag_n $argv -l $id $file | tee $tmp_result
 			if test $pipestatus[1] -eq 0
 				set -l result (filter_result)
 				if test $result = $expected

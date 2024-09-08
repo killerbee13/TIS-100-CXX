@@ -459,6 +459,8 @@ static_assert(human_readable_integer<int>("10").val == 10);
 static_assert(human_readable_integer<int>("10k").val == 10'000);
 static_assert(human_readable_integer<int>("10M").val == 10'000'000);
 
+enum exit_code : int { SUCCESS = 0, FAILURE = 1, EXCEPTION = 2 };
+
 int main(int argc, char** argv) try {
 	std::ios_base::sync_with_stdio(false);
 	set_log_flush(not RELEASE);
@@ -475,21 +477,17 @@ int main(int argc, char** argv) try {
 		ids_v.emplace_back(l.name);
 	}
 
-	TCLAP::UnlabeledValueArg<std::string> solution(
-	    "Solution", "Path to solution file. ('-' for stdin)", true, "-", "path",
-	    cmd);
-	TCLAP::ValuesConstraint<std::string> ids_c(ids_v);
-	TCLAP::UnlabeledValueArg<std::string> id_arg(
-	    "ID", "Level ID (Segment or name).", false, "", &ids_c);
+	TCLAP::UnlabeledMultiArg<std::string> solutions(
+	    "Solution", "Path to solution file. ('-' for stdin)", true, "path", cmd);
 
-	range_constraint<int> level_nums_constraint(0, layouts.size() - 1);
-	// unused because the test case parser is not implemented
-	TCLAP::ValueArg<std::string> layout_s("l", "layout", "Layout string", false,
-	                                      "", "layout");
-	TCLAP::ValueArg<int> level_num("L", "level", "Numeric level ID", false, 0,
-	                               &level_nums_constraint);
-	TCLAP::EitherOf layout(cmd);
-	layout.add(id_arg).add(level_num); //.add(layout_s);
+	TCLAP::ValuesConstraint<std::string> ids_c(ids_v);
+	TCLAP::ValueArg<std::string> id_arg("l", "ID", "Level ID (Segment or name).",
+	                                    false, "", &ids_c);
+	range_constraint<uint> level_nums_constraint(0, layouts.size() - 1);
+	TCLAP::ValueArg<uint> level_num("L", "level", "Numeric level ID", false, 0,
+	                                &level_nums_constraint);
+	TCLAP::EitherOf level_args(cmd);
+	level_args.add(id_arg).add(level_num);
 
 	TCLAP::ValueArg<human_readable_integer<int>> cycles_limit_arg(
 	    "", "limit",
@@ -637,31 +635,6 @@ int main(int argc, char** argv) try {
 	}
 	log_info("Using ", num_threads, " threads");
 
-	uint level_id{};
-	field f = [&] {
-		if (id_arg.isSet()) {
-			level_id = find_level_id(id_arg.getValue());
-			return field(layouts.at(to_unsigned(level_id)).layout,
-			             T30_size.getValue());
-		} else if (level_num.isSet()) {
-			level_id = level_num.getValue();
-			return field(layouts.at(to_unsigned(level_id)).layout,
-			             T30_size.getValue());
-		} else if (auto filename = std::filesystem::path(solution.getValue())
-		                               .filename()
-		                               .string();
-		           auto maybeId = guess_level_id(filename)) {
-			level_id = *maybeId;
-			log_debug("Deduced level ", layouts.at(to_unsigned(level_id)).segment,
-			          " from filename \"", filename, "\"");
-			return field(layouts.at(to_unsigned(level_id)).layout,
-			             T30_size.getValue());
-		} else {
-			throw std::invalid_argument{
-			    "Impossible to determine the level ID from information given"};
-		}
-	}();
-
 	std::vector<range_t> seed_ranges;
 
 	if (seed_exprs.isSet()) {
@@ -693,118 +666,151 @@ int main(int argc, char** argv) try {
 		log << "\n} sum: " << total_random_tests << " tests";
 	}
 	if (dry_run.getValue()) {
-		return 0;
+		return exit_code::SUCCESS;
 	}
 
-	if (solution.getValue() == "-") {
-		std::ostringstream in;
-		in << std::cin.rdbuf();
-		std::string code = std::move(in).str();
+	exit_code return_code = exit_code::SUCCESS;
+	for (auto& solution : solutions.getValue()) {
+		uint level_id;
+		if (id_arg.isSet()) {
+			level_id = find_level_id(id_arg.getValue());
+		} else if (level_num.isSet()) {
+			level_id = level_num.getValue();
+		} else if (auto filename
+		           = std::filesystem::path(solution).filename().string();
+		           auto maybeId = guess_level_id(filename)) {
+			level_id = *maybeId;
+			log_debug("Deduced level ", layouts.at(level_id).segment,
+			          " from filename \"", filename, "\"");
+		} else {
+			log_err("Impossible to determine the level ID for \"", filename, "\"");
+			return_code = exit_code::EXCEPTION;
+			continue;
+		}
+		field f(layouts.at(level_id).layout, T30_size.getValue());
 
-		parse_code(f, code, T21_size.getValue());
-	} else {
-		if (std::filesystem::is_regular_file(solution.getValue())) {
-			auto code = kblib::try_get_file_contents(solution.getValue());
+		if (solution == "-") {
+			std::ostringstream in;
+			in << std::cin.rdbuf();
+			std::string code = std::move(in).str();
+
 			parse_code(f, code, T21_size.getValue());
 		} else {
-			log_err("invalid file: ", kblib::quoted(solution.getValue()));
-			throw std::invalid_argument{"Solution must name a regular file"};
-		}
-	}
-
-	log_debug_r([&] { return f.layout(); });
-
-	score sc{};
-	std::size_t total_cycles{};
-	sc.validated = true;
-	if (fixed.getValue()) {
-		int succeeded{1};
-		for (auto test : static_suite(level_id)) {
-			set_expected(f, test);
-			score last = run(f, cycles_limit, true);
-			sc.cycles = std::max(sc.cycles, last.cycles);
-			sc.instructions = last.instructions;
-			sc.nodes = last.nodes;
-			sc.validated = sc.validated and last.validated;
-			if (stop_requested) {
-				log_notice("Stop requested");
-				break;
-			}
-			total_cycles += last.cycles;
-			log_info("fixed test ", succeeded, ' ',
-			         last.validated ? "validated"sv : "failed"sv, " with score ",
-			         to_string(last, false));
-			if (not last.validated) {
-				break;
-			}
-			++succeeded;
-			// optimization: skip running the 2nd and 3rd rounds for invariant
-			// levels (specifically, the image test patterns)
-			if (not f.has_inputs()) {
-				log_info("Secondary tests skipped for invariant level");
-				break;
+			if (std::filesystem::is_regular_file(solution)) {
+				auto code = kblib::try_get_file_contents(solution);
+				try {
+					parse_code(f, code, T21_size.getValue());
+				} catch (const std::invalid_argument& e) {
+					log_err(e.what());
+					return_code = exit_code::EXCEPTION;
+					continue;
+				}
+			} else {
+				log_err("invalid file: ", kblib::quoted(solution));
+				return_code = exit_code::EXCEPTION;
+				continue;
 			}
 		}
-		sc.achievement = check_achievement(level_id, f, sc);
-		score_summary(sc, succeeded, quiet.getValue(), cycles_limit);
-	}
 
-	int count = 0;
-	int valid_count = 0;
-	if ((fixed.getValue() == 0 or sc.validated or stats.getValue())
-	    and not stop_requested and not seed_ranges.empty()) {
-		bool failure_printed{};
-		run_params params{total_cycles,
-		                  failure_printed,
-		                  count,
-		                  valid_count,
-		                  total_cycles_limit,
-		                  cycles_limit,
-		                  static_cast<int>(cheat_rate * total_random_tests),
-		                  static_cast<uint8_t>(quiet.getValue()),
-		                  stats.getValue()};
-		auto worst
-		    = run_seed_ranges(f, level_id, seed_ranges, params, num_threads);
+		log_debug_r([&] { return f.layout(); });
 
-		log_info("Random test results: ", valid_count, " passed out of ", count,
-		         " total");
+		score sc{};
+		std::size_t total_cycles{};
+		sc.validated = true;
+		if (fixed.getValue()) {
+			int succeeded{1};
+			for (auto test : static_suite(level_id)) {
+				set_expected(f, test);
+				score last = run(f, cycles_limit, true);
+				sc.cycles = std::max(sc.cycles, last.cycles);
+				sc.instructions = last.instructions;
+				sc.nodes = last.nodes;
+				sc.validated = sc.validated and last.validated;
+				if (stop_requested) {
+					log_notice("Stop requested");
+					break;
+				}
+				total_cycles += last.cycles;
+				log_info("fixed test ", succeeded, ' ',
+				         last.validated ? "validated"sv : "failed"sv,
+				         " with score ", to_string(last, false));
+				if (not last.validated) {
+					break;
+				}
+				++succeeded;
+				// optimization: skip running the 2nd and 3rd rounds for invariant
+				// levels (specifically, the image test patterns)
+				if (not f.has_inputs()) {
+					log_info("Secondary tests skipped for invariant level");
+					break;
+				}
+			}
+			sc.achievement = check_achievement(level_id, f, sc);
+			score_summary(sc, succeeded, quiet.getValue(), cycles_limit);
+		}
 
-		sc.cheat = (count != valid_count);
-		sc.hardcoded = (valid_count <= static_cast<int>(count * cheat_rate));
-		if (not fixed.getValue()) {
-			sc = worst;
-			score_summary(sc, -1, quiet.getValue(), cycles_limit);
+		int count = 0;
+		int valid_count = 0;
+		if ((fixed.getValue() == 0 or sc.validated or stats.getValue())
+		    and not stop_requested and not seed_ranges.empty()) {
+			bool failure_printed{};
+			run_params params{total_cycles,
+			                  failure_printed,
+			                  count,
+			                  valid_count,
+			                  total_cycles_limit,
+			                  cycles_limit,
+			                  static_cast<int>(cheat_rate * total_random_tests),
+			                  static_cast<uint8_t>(quiet.getValue()),
+			                  stats.getValue()};
+			auto worst
+			    = run_seed_ranges(f, level_id, seed_ranges, params, num_threads);
+
+			log_info("Random test results: ", valid_count, " passed out of ",
+			         count, " total");
+
+			sc.cheat = (count != valid_count);
+			sc.hardcoded = (valid_count <= static_cast<int>(count * cheat_rate));
+			if (not fixed.getValue()) {
+				sc = worst;
+				score_summary(sc, -1, quiet.getValue(), cycles_limit);
+			}
+		}
+
+		if (not quiet.getValue()) {
+			std::cout << "score: ";
+		}
+		std::cout << sc;
+		if (count > 0 and stats.isSet()) {
+			const auto rate = 100. * valid_count / count;
+			std::cout << " PR: ";
+			if (valid_count == count) {
+				std::cout << print_escape(bright_blue, bold);
+			} else if (rate >= 100 * cheat_rate) {
+				std::cout << print_escape(yellow);
+			} else {
+				std::cout << print_escape(bright_red);
+			}
+			std::cout << rate << '%' << print_escape(none) << " (" << valid_count
+			          << '/' << count << ")";
+		}
+		std::cout << std::endl;
+		if (not sc.validated) {
+			return_code = std::max(return_code, exit_code::FAILURE);
+		}
+		if (stop_requested) {
+			break;
 		}
 	}
 
-	if (not quiet.getValue()) {
-		std::cout << "score: ";
-	}
-	std::cout << sc;
-	if (count > 0 and stats.isSet()) {
-		const auto rate = 100. * valid_count / count;
-		std::cout << " PR: ";
-		if (valid_count == count) {
-			std::cout << print_escape(bright_blue, bold);
-		} else if (rate >= 100 * cheat_rate) {
-			std::cout << print_escape(yellow);
-		} else {
-			std::cout << print_escape(bright_red);
-		}
-		std::cout << rate << '%' << print_escape(none) << " (" << valid_count
-		          << '/' << count << ")";
-	}
-	std::cout << '\n';
-
-	return (sc.validated) ? 0 : 1;
+	return return_code;
 } catch (const std::exception& e) {
 	auto type_name = demangle(typeid(e).name());
 	if (not type_name) {
-
-		return 2;
+		return exit_code::EXCEPTION;
 	}
 
 	log_err("Failed with exception of type ", *type_name, ": ", e.what());
 	log_flush();
-	return 2;
+	return exit_code::EXCEPTION;
 }

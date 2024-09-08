@@ -24,12 +24,9 @@ steps.
 ## Run instructions:
 
 Invocation:
-`TIS-100-CXX [options] path/to/solution.txt segment`
-`segment` is the name of a segment as it appears in game, either the numeric ID
-or the human-readable name (case-sensitive). For example, `"00150"` and
-`"SELF-TEST DIAGNOSTIC"` are equivalent. There is a complete list of these in
-the `--help` output, but you will most likely find it easier to get these from
-the game or from the solution's filename. 
+`TIS-100-CXX [options] path/to/solution1.txt path/to/solution2.txt ...`
+The level is autodeduced from the filename prefix, if this is not possible
+use an option to give it explicitely.
 
 By default, it will run the simulation and if it passes, it will print
 "validation successful" and a score, in the format 
@@ -45,14 +42,20 @@ the cycles count is replaced by `-` to denote a failure. The return value is `0`
 on a validation, including a cheated solution, `1` on a validation failure,
 and `2` on an exception.
 
-For options --limit, --total-limit, --random, --seed, --seeds, and --T30_size,
-integer arguments can be specified with a scale suffix, either K, M, or B
-(case-insensitive) for thousand, million, or billion respectively.
+For options `--limit`, `--total-limit`, `--random`, `--seed`, `--seeds`,
+and `--T30_size`, integer arguments can be specified with a scale suffix,
+either K, M, or B (case-insensitive) for thousand, million, or billion
+respectively.
 
 The most useful options are:
-- `--limit N`: set the timeout limit for the simulation. Default 100500 (enough
-  for BUSY_LOOP with a little slack)
-- `--seeds L..H`: a comma-separated list of integer ranges, such as 0..99.
+- `-l segment` is the name of a segment as it appears in game, either the
+  numeric ID or the human-readable name (case-sensitive). For example, `"00150"`
+  and `"SELF-TEST DIAGNOSTIC"` are equivalent. There is a complete list of these
+  in the `--help` output, but you will most likely find it easier to get them
+  from the game or from the solution's filename. 
+- `--limit N`: set the timeout limit for the simulation. Default `100500`
+  (enough for BUSY_LOOP with a little slack).
+- `--seeds L..H`: a comma-separated list of integer ranges, such as `0..99`.
   Ranges are inclusive on both sides. Can also specify an individual integer,
   meaning a range of just that integer. Can be specified multiple times, which
   is equivalent to concatenating the arguments with a comma.
@@ -61,12 +64,13 @@ The most useful options are:
   be selected at random. In any case, a contiguous range of N seeds starting at
   S will be used for random tests, except for EXPOSURE MASK VIEWER which may
   skip some seeds.
-- `--loglevel LEVEL`, `--debug`, `--info`: set the amount of information logged
-  to stderr. The default log level is "notice", which corresponds to only
-  important information. "info" includes information that may be useful but is
-  not always important, and notably the amount of information logged at level
-  "info" is bounded. "debug" includes a full trace of the execution in the
-  log and will often produce multiple MB of data.
+- `--loglevel LEVEL`, `--debug`, `--trace`, `--info`: set the amount of
+  information logged to stderr. The default log level is "notice", which
+  corresponds to only important information. "info" includes information that
+  may be useful but is not always important, and notably the amount of
+  information logged at level "info" is bounded. "trace" includes a printout
+  of the board state at each cycle. "debug" includes a full trace of the execution
+  in the log and will often produce multiple MB of data.
 - `-j N`: run random tests with N worker threads. With `-j 0`, the number of
   hardware threads is detected and used.
 - `--fixed 0`: disable fixed tests, run only random tests. This affects scoring,
