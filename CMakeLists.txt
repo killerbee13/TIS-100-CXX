@@ -20,7 +20,8 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	add_compile_options(-Wall -Wextra -pedantic -pedantic-errors
 		-Wconversion -Wno-deprecated-declarations -Wuninitialized
 		-Wold-style-cast -Wshadow -Wzero-as-null-pointer-constant
-		-Wno-mismatched-tags -Wimplicit-fallthrough -Wno-pragmas)
+		-Wno-mismatched-tags -Wimplicit-fallthrough -Wno-pragmas
+		-Wno-sign-conversion -Werror=implicit-fallthrough)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	message("GCC detected")
 
@@ -29,7 +30,8 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 		-Wconversion -Wno-deprecated-declarations -Wuninitialized
 		-Wold-style-cast -Wshadow=compatible-local -Wzero-as-null-pointer-constant
 		-Wno-mismatched-tags -Wimplicit-fallthrough -Wno-pragmas
-		-Wsign-compare -fconcepts-diagnostics-depth=10
+		-Wsign-compare -Werror=implicit-fallthrough -Wsuggest-override
+		-fconcepts-diagnostics-depth=10
 		-fdevirtualize-at-ltrans)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
 	message("ICC detected")

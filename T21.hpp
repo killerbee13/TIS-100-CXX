@@ -249,7 +249,7 @@ struct T21 final : regular_node {
 		debug << '\n';
 	}
 
-	[[gnu::always_inline]] inline void finalize(logger& debug) {
+	[[gnu::always_inline]] inline void finalize(logger& debug) override {
 		if (s == activity::write) {
 			debug << "finalize(" << x << ',' << y << ',' << pc << "): mov ";
 			// if write just started
