@@ -171,9 +171,9 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		ret.inputs[0][idx] = ret.inputs[1][idx] = engine.next_int(10, 100);
 		ret.n_outputs.resize(1);
 		for (const auto i : range(13u)) {
-			auto v = std::minmax(ret.inputs[0][i], ret.inputs[1][i]);
-			ret.n_outputs[0].push_back(v.first);
-			ret.n_outputs[0].push_back(v.second);
+			auto [min, max] = std::minmax(ret.inputs[0][i], ret.inputs[1][i]);
+			ret.n_outputs[0].push_back(min);
+			ret.n_outputs[0].push_back(max);
 			ret.n_outputs[0].push_back(0);
 		}
 	} break;
@@ -190,7 +190,7 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 				ret.n_outputs[1].push_back(std::exchange(count, 0));
 			} else {
 				++count;
-				sum = sat_add(sum, w);
+				sum += w;
 			}
 		}
 	} break;
@@ -198,8 +198,8 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		xorshift128_engine engine(seed);
 		ret.inputs.push_back(empty_vec());
 		ret.inputs[0][1] = engine.next_int(25, 75);
-		std::size_t i = 2;
-		while (i < max_test_length) {
+
+		for (std::size_t i = 2; i < max_test_length; i++) {
 			switch (engine.next(0, 6)) {
 			case 1:
 				ret.inputs[0][i] = ret.inputs[0][i - 1] + engine.next_int(-11, -8);
@@ -210,7 +210,6 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 			default:
 				ret.inputs[0][i] = ret.inputs[0][i - 1] + engine.next_int(-4, 5);
 			}
-			++i;
 		}
 
 		ret.n_outputs.resize(1);
@@ -353,8 +352,7 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 			ret.inputs[0].push_back(h);
 			for (int j = 0; j < w; ++j) {
 				for (int k = 0; k < h; ++k) {
-					[[maybe_unused]] std::size_t index = static_cast<std::size_t>(
-					    x_c + j + (y_c + k) * image_width);
+					[[maybe_unused]] auto index = x_c + j + (y_c + k) * image_width;
 					ret.i_output.at(x_c + j, y_c + k) = 3;
 					assert(ret.i_output.at(index)
 					       == ret.i_output.at(x_c + j, y_c + k));
@@ -370,10 +368,9 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		ret.inputs[0][0] = engine.next_int(3, 14);
 		for (std::size_t x = 1; x < image_width; ++x) {
 			if (engine.next(0, 4) != 0) {
-				ret.inputs[0][x]
-				    = std::clamp(static_cast<word_t>(ret.inputs[0][x - 1]
-				                                     + engine.next_int(-2, 3)),
-				                 word_t{1}, word_t{image_height - 1});
+				ret.inputs[0][x] = std::clamp<word_t>(ret.inputs[0][x - 1]
+				                                          + engine.next_int(-2, 3),
+				                                      1, image_height - 1);
 			} else {
 				ret.inputs[0][x] = engine.next_int(3, 14);
 			}
@@ -381,10 +378,7 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		for (int y = 0; y < image_height; ++y) {
 			for (int x = 0; x < image_width; ++x) {
 				ret.i_output.at(x, y)
-				    = (to_signed(image_height - y)
-				       <= ret.inputs[0][static_cast<std::size_t>(x)])
-				          ? 3
-				          : 0;
+				    = (image_height - y <= ret.inputs[0][x]) ? 3 : 0;
 			}
 		}
 	} break;
@@ -406,14 +400,12 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		}
 	} break;
 	case "SIGNAL DIVIDER"_lvl: {
-		ret.inputs.push_back(make_random_array(seed, 39, 10, 100));
-		ret.inputs.push_back(make_random_array(seed + 1, 39, 1, 10));
+		ret.inputs.push_back(make_random_array(seed, max_test_length, 10, 100));
+		ret.inputs.push_back(make_random_array(seed + 1, max_test_length, 1, 10));
 		ret.n_outputs.resize(2, empty_vec());
 		for (std::size_t i = 0; i < max_test_length; ++i) {
-			ret.n_outputs[0][i]
-			    = static_cast<word_t>(ret.inputs[0][i] / ret.inputs[1][i]);
-			ret.n_outputs[1][i]
-			    = static_cast<word_t>(ret.inputs[0][i] % ret.inputs[1][i]);
+			ret.n_outputs[0][i] = ret.inputs[0][i] / ret.inputs[1][i];
+			ret.n_outputs[1][i] = ret.inputs[0][i] % ret.inputs[1][i];
 		}
 	} break;
 	case "SEQUENCE INDEXER"_lvl: {
@@ -446,11 +438,11 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		ret.i_output.reshape(image_width, image_height);
 		std::vector<tis_pixel> image;
 		while (image.size() < image_width * image_height) {
-			word_t num = engine.next_int(20, 45);
-			word_t num2 = engine.next_int(0, 4);
-			ret.inputs[0].push_back(num);
-			ret.inputs[0].push_back(num2);
-			image.insert(image.end(), to_unsigned(num), tis_pixel(num2));
+			word_t count = engine.next_int(20, 45);
+			word_t pix = engine.next_int(0, 4);
+			ret.inputs[0].push_back(count);
+			ret.inputs[0].push_back(pix);
+			image.insert(image.end(), to_unsigned(count), tis_pixel(pix));
 		}
 		image.resize(ret.i_output.size());
 		ret.i_output.assign(std::move(image));
@@ -465,6 +457,8 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 			for (int i = 0; i < size; ++i) {
 				if (ret.n_outputs[0].size() < max_test_length) {
 					ret.n_outputs[0].push_back(item);
+				} else {
+					break;
 				}
 			}
 		}
@@ -474,18 +468,18 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		}
 		ret.n_outputs[0].back() = -1;
 		ret.inputs[0].back() = -1;
-		word_t num4 = -1;
-		word_t num5 = 0;
+		word_t prev = -1;
+		word_t count = 0;
 		for (std::size_t k = 0; k < max_test_length; ++k) {
-			if (num4 != ret.n_outputs[0][k]) {
-				if (num4 >= 0) {
-					ret.n_outputs[1].push_back(num5);
-					ret.n_outputs[1].push_back(num4);
+			if (prev != ret.n_outputs[0][k]) {
+				if (prev >= 0) {
+					ret.n_outputs[1].push_back(count);
+					ret.n_outputs[1].push_back(prev);
 				}
-				num4 = ret.n_outputs[0][k];
-				num5 = 1;
+				prev = ret.n_outputs[0][k];
+				count = 1;
 			} else {
-				++num5;
+				++count;
 			}
 		}
 	} break;
@@ -511,18 +505,15 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 				maxout = maxmax;
 			} else {
 				do {
-					maxout = static_cast<std::size_t>(
-					    engine.next(0, static_cast<word_t>(maxmax)));
+					maxout = engine.next(0, static_cast<word_t>(maxmax));
 				} while (! canzero and maxout == 0);
 			}
 
 			std::size_t count1;
 			if (prevempty and maxout >= 2) {
-				count1 = static_cast<std::size_t>(
-				    engine.next(1, static_cast<word_t>(maxout - 1)));
+				count1 = engine.next(1, static_cast<word_t>(maxout - 1));
 			} else {
-				count1 = static_cast<std::size_t>(
-				    engine.next(0, static_cast<word_t>(maxout)));
+				count1 = engine.next(0, static_cast<word_t>(maxout));
 			}
 			if (maxout == 0) {
 				canzero = false;
@@ -646,8 +637,7 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		std::array<word_t, 8> seq_lengths = {2, 3, 3, 4, 4, 4, 5, 6};
 		// Shuffle the subsequence lengths:
 		for (std::size_t i = seq_lengths.size() - 1; i >= 1; i--) {
-			std::size_t j
-			    = static_cast<std::size_t>(engine.next(0, static_cast<word_t>(i)));
+			std::size_t j = engine.next(0, static_cast<word_t>(i));
 			std::swap(seq_lengths[i], seq_lengths[j]);
 		}
 
@@ -754,7 +744,7 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 				// generate frequency map
 				std::array frequency = {0u, 0u, 0u, 0u, 0u};
 				for (word_t element : sequence) {
-					frequency[static_cast<std::size_t>(element - 1)]++;
+					frequency[element - 1]++;
 				}
 
 				// determine mode, and whether it is unique
@@ -799,7 +789,7 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 			// and no longer than 8.
 			// Also ensure final sequence is ended properly - may cause shorter
 			// sequence length.
-			if ((engine.next(1, 3) % 3 == 0 and cur_seq.size() > 2)
+			if ((engine.next(1, 3) == 3 and cur_seq.size() > 2)
 			    or (cur_seq.size() > 7) or (i == max_test_length - 3)) {
 				// Generate 'output'
 				word_t min_in_seq = *std::ranges::min_element(cur_seq);
@@ -869,29 +859,25 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		std::vector<tis_pixel> image(image_width * image_height, tis_pixel{0});
 
 		// Helper methods
-		auto shuffle = [&engine](std::vector<word_t> t) {
-			for (std::size_t n = t.size() - 1; n > 0; n--) {
-				// n is now the last pertinent index
-				std::size_t k = engine.next(0, static_cast<word_t>(n));
-				// Quick swap
-				std::swap(t[n], t[k]);
-			}
-			return t;
-		};
-
-		auto one_to_n = [](word_t n) {
-			std::vector<word_t> a = {};
+		auto shuffled_one_to_n = [&engine](word_t n) {
+			std::vector<word_t> res(n);
 			for (word_t i = 0; i < n; i++) {
-				a.push_back(i + 1);
+				res[i] = i + 1;
 			}
-			return a;
+			for (std::size_t i = n - 1; i > 0; i--) {
+				// n is now the last pertinent index
+				std::size_t k = engine.next(0, static_cast<word_t>(i));
+				// Quick swap
+				std::swap(res[i], res[k]);
+			}
+			return res;
 		};
 
 		auto makePoints = [&](std::size_t n, word_t maxX, word_t maxY) {
 			std::vector<word_t> xCoors = {0};
 			std::vector<word_t> yCoors = {0};
-			std::vector<word_t> remainingX = shuffle(one_to_n(maxX));
-			std::vector<word_t> remainingY = shuffle(one_to_n(maxY));
+			std::vector<word_t> remainingX = shuffled_one_to_n(maxX);
+			std::vector<word_t> remainingY = shuffled_one_to_n(maxY);
 			while (xCoors.size() < n) {
 				for (std::size_t i = 0; i < remainingX.size(); i++) {
 					int dx = std::abs(xCoors.back() - remainingX[i]);
@@ -1186,7 +1172,7 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 				while (inp >= fac * fac) {
 					if (inp % fac == 0) {
 						factors.push_back(fac);
-						inp = static_cast<word_t>(inp / fac);
+						inp /= fac;
 					} else {
 						++fac;
 					}
@@ -1298,10 +1284,10 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		ret.n_outputs.resize(1, empty_vec());
 		std::array<word_t, 4> sums{};
 
-		for (const auto i : kblib::range(39u)) {
-			for (const auto j : kblib::range(4u)) {
+		for (const auto i : kblib::range(max_test_length)) {
+			for (const auto j : kblib::range(4)) {
 				auto n = engine.next(0, 1);
-				if (i > 0 and ret.n_outputs[0][i - 1] == to_signed(j + 1)) {
+				if (i > 0 and ret.n_outputs[0][i - 1] == j + 1) {
 					n = engine.next(-1, 0);
 				}
 				ret.inputs[j][i] = n;
@@ -1313,7 +1299,7 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 	} break;
 	default:
 		// no need to throw, the -L flag checks the range anyway
-		assert(false);
+		std::unreachable();
 	}
 
 	auto log = log_debug();
