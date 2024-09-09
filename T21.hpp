@@ -349,7 +349,7 @@ struct T21 final : regular_node {
 	/// Attempt to read a value from this node's port p, which may be
 	/// any, last, or immediate, unlike the general do_read and emit
 	/// functions
-	inline optional_word read(port p, word_t imm) {
+	[[gnu::always_inline]] inline optional_word read(port p, word_t imm) {
 		switch (p) {
 		[[likely]] case port::immediate:
 			return imm;
