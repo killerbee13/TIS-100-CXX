@@ -212,7 +212,7 @@ std::pair<port, word_t> parse_port_or_immediate(const std::string& token) {
 	std::pair<port, word_t> ret{};
 	if ("-0123456789"sv.contains(token.front())) {
 		ret.first = port::immediate;
-		ret.second = kblib::parse_integer<word_t>(token);
+		ret.second = kblib::parse_integer<word_t>(token, 10);
 		if (ret.second < word_min or ret.second > word_max) {
 			throw std::invalid_argument{
 			    concat("Immediate value ", ret.second, " out of range -999:999")};
