@@ -24,6 +24,7 @@
 #include <kblib/convert.h>
 #include <kblib/stringops.h>
 
+#include <map>
 #include <set>
 
 using namespace std::literals;
@@ -199,44 +200,6 @@ port parse_port(std::string_view str) {
 	}
 }
 
-std::pair<port, word_t> parse_port_or_immediate(const std::string& token) {
-	std::pair<port, word_t> ret{};
-	if ("-0123456789"sv.contains(token.front())) {
-		ret.first = port::immediate;
-		ret.second = kblib::parse_integer<word_t>(token, 10);
-		if (ret.second < word_min or ret.second > word_max) {
-			throw std::invalid_argument{
-			    concat("Immediate value ", ret.second, " out of range -999:999")};
-		}
-	} else {
-		ret.first = parse_port(token);
-	}
-	return ret;
-}
-
-void push_label(std::string_view lab, int l,
-                std::vector<std::pair<std::string, word_t>>& labels) {
-	for (const auto& o : labels) {
-		if (o.first == lab) {
-			throw std::invalid_argument{
-			    concat("Label ", kblib::quoted(lab), " defined multiple times")};
-		}
-	}
-	log_debug("L: ", lab, " (", l, ")");
-	labels.emplace_back(lab, l);
-}
-
-word_t parse_label(std::string_view label,
-                   const std::vector<std::pair<std::string, word_t>>& labels) {
-	for (const auto& lab : labels) {
-		if (lab.first == label) {
-			return lab.second;
-		}
-	}
-	throw std::invalid_argument{
-	    concat("Label ", kblib::quoted(label), " used but not defined")};
-}
-
 std::vector<instr> assemble(std::string_view source, int node,
                             std::size_t T21_size) {
 	auto lines = kblib::split_dsv(source, '\n');
@@ -246,7 +209,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 		                                   " exceeds limit ", T21_size)};
 	}
 	std::vector<instr> ret;
-	std::vector<std::pair<std::string, word_t>> labels;
+	std::map<std::string, word_t, std::less<>> labels;
 
 	int l{};
 	for (auto& line : lines) {
@@ -267,11 +230,11 @@ std::vector<instr> assemble(std::string_view source, int node,
 		auto tokens
 		    = kblib::split_tokens(line.substr(0, line.find_first_of('#')),
 		                          [](char c) { return " \t,"sv.contains(c); });
-		for (auto j : range(tokens.size())) {
-			const auto& tok = tokens[j];
-			if (tok.empty()) {
-				continue; // ?
-			}
+		// the game allows only a single label per line, but multiple labels can
+		// still be attached to the same instruction if put in different lines, we
+		// simply allow multiple labels per line
+		for (const auto& tok : tokens) {
+			assert(not tok.empty());
 			std::string tmp;
 			for (auto c : tok) {
 				if (c == ':') {
@@ -279,12 +242,15 @@ std::vector<instr> assemble(std::string_view source, int node,
 						throw std::invalid_argument{
 						    concat('@', node, ':', l, ": Invalid label \"\"")};
 					}
-					push_label(tmp, l, labels);
-					tmp.clear();
-				} else if (not " \t"sv.contains(c)) {
-					tmp.push_back(c);
+					if (labels.contains(tmp)) {
+						throw std::invalid_argument{
+						    concat('@', node, ':', l, ": Label ", kblib::quoted(tmp),
+						           " defined multiple times")};
+					}
+					log_debug("L: ", tmp, " (", l, ")");
+					labels[std::exchange(tmp, "")] = static_cast<word_t>(l);
 				} else {
-					break;
+					tmp.push_back(c);
 				}
 			}
 			if (not tmp.empty()) {
@@ -300,10 +266,8 @@ std::vector<instr> assemble(std::string_view source, int node,
 		auto tokens
 		    = kblib::split_tokens(line.substr(0, line.find_first_of('#')),
 		                          [](char c) { return " \t,"sv.contains(c); });
-		std::optional<instr> tmp;
 		// remove labels
-		for (auto j : range(tokens.size())) {
-			auto& tok = tokens[j];
+		for (auto& tok : tokens) {
 			if (tok.contains(':')) {
 				if (seen_op) {
 					throw std::invalid_argument{concat(
@@ -311,9 +275,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 				}
 				tok = tok.substr(tok.find_last_of(':') + 1);
 			}
-			if (tok.empty()) {
-				continue;
-			} else {
+			if (not tok.empty()) {
 				seen_op = true;
 			}
 		}
@@ -330,82 +292,94 @@ std::vector<instr> assemble(std::string_view source, int node,
 				                                   kblib::quoted(tokens[j + 1]))};
 			}
 		};
-		for (auto j : range(tokens.size())) {
-			auto& tok = tokens[j];
-			if (tok.empty()) {
-				continue;
+		auto parse_label = [&](std::string_view label) -> word_t {
+			auto it = labels.find(label);
+			if (it != labels.end()) {
+				return it->second;
 			}
-			auto& i = tmp.emplace();
+			throw std::invalid_argument{concat('@', node, ':', l, ": Label ",
+			                                   kblib::quoted(label),
+			                                   " used but not defined")};
+		};
+		auto load_port_or_immediate = [&](instr& i, const std::string& token) {
+			if ("+-0123456789"sv.contains(token.front())) {
+				// the game accepts int32 immediates and clamps them to [min, max],
+				// the sim enforces the limit in the source directly
+				auto immediate = kblib::parse_integer<int32_t>(token, 10);
+				if (immediate < word_min or immediate > word_max) {
+					throw std::invalid_argument{
+					    concat('@', node, ':', l, ": Immediate value ", immediate,
+					           " out of range -999:999")};
+				}
+				i.src = port::immediate;
+				i.val = static_cast<word_t>(immediate);
+			} else {
+				i.src = parse_port(token);
+			}
+		};
+		if (not tokens.empty()) {
+			auto& opcode = tokens[0];
+			instr i{};
 			using enum instr::op;
-			if (tok == "HCF") {
+			if (opcode == "HCF") {
 				i.op_ = hcf;
-				assert_last_operand(j);
-			} else if (tok == "NOP") {
+				assert_last_operand(0);
+			} else if (opcode == "NOP") {
 				i.op_ = nop;
-				assert_last_operand(j);
-			} else if (tok == "SWP") {
+				assert_last_operand(0);
+			} else if (opcode == "SWP") {
 				i.op_ = swp;
-				assert_last_operand(j);
-			} else if (tok == "SAV") {
+				assert_last_operand(0);
+			} else if (opcode == "SAV") {
 				i.op_ = sav;
-				assert_last_operand(j);
-			} else if (tok == "NEG") {
+				assert_last_operand(0);
+			} else if (opcode == "NEG") {
 				i.op_ = neg;
-				assert_last_operand(j);
-			} else if (tok == "MOV") {
+				assert_last_operand(0);
+			} else if (opcode == "MOV") {
 				i.op_ = mov;
-				assert_last_operand(j + 2);
-				auto r = parse_port_or_immediate(tokens[j + 1]);
-				i.src = r.first;
-				i.val = r.second;
-				i.data = parse_port(tokens[j + 2]);
-			} else if (tok == "ADD") {
+				assert_last_operand(2);
+				load_port_or_immediate(i, tokens[1]);
+				i.data = parse_port(tokens[2]);
+			} else if (opcode == "ADD") {
 				i.op_ = add;
-				assert_last_operand(j + 1);
-				auto r = parse_port_or_immediate(tokens[j + 1]);
-				i.src = r.first;
-				i.val = r.second;
-			} else if (tok == "SUB") {
+				assert_last_operand(1);
+				load_port_or_immediate(i, tokens[1]);
+			} else if (opcode == "SUB") {
 				i.op_ = sub;
-				assert_last_operand(j + 1);
-				auto r = parse_port_or_immediate(tokens[j + 1]);
-				i.src = r.first;
-				i.val = r.second;
-			} else if (tok == "JMP") {
+				assert_last_operand(1);
+				load_port_or_immediate(i, tokens[1]);
+			} else if (opcode == "JMP") {
 				i.op_ = jmp;
-				assert_last_operand(j + 1);
-				i.data = parse_label(tokens[j + 1], labels);
-			} else if (tok == "JEZ") {
+				assert_last_operand(1);
+				i.data = parse_label(tokens[1]);
+			} else if (opcode == "JEZ") {
 				i.op_ = jez;
-				assert_last_operand(j + 1);
-				i.data = parse_label(tokens[j + 1], labels);
-			} else if (tok == "JNZ") {
+				assert_last_operand(1);
+				i.data = parse_label(tokens[1]);
+			} else if (opcode == "JNZ") {
 				i.op_ = jnz;
-				assert_last_operand(j + 1);
-				i.data = parse_label(tokens[j + 1], labels);
-			} else if (tok == "JGZ") {
+				assert_last_operand(1);
+				i.data = parse_label(tokens[1]);
+			} else if (opcode == "JGZ") {
 				i.op_ = jgz;
-				assert_last_operand(j + 1);
-				i.data = parse_label(tokens[j + 1], labels);
-			} else if (tok == "JLZ") {
+				assert_last_operand(1);
+				i.data = parse_label(tokens[1]);
+			} else if (opcode == "JLZ") {
 				i.op_ = jlz;
-				assert_last_operand(j + 1);
-				i.data = parse_label(tokens[j + 1], labels);
-			} else if (tok == "JRO") {
+				assert_last_operand(1);
+				i.data = parse_label(tokens[1]);
+			} else if (opcode == "JRO") {
 				i.op_ = jro;
-				assert_last_operand(j + 1);
-				auto r = parse_port_or_immediate(tokens[j + 1]);
-				i.src = r.first;
-				i.val = r.second;
+				assert_last_operand(1);
+				load_port_or_immediate(i, tokens[1]);
 			} else {
 				throw std::invalid_argument{
-				    concat('@', node, ':', l, ": ", kblib::quoted(tok),
+				    concat('@', node, ':', l, ": ", kblib::quoted(opcode),
 				           " is not a valid instruction opcode")};
 			}
 			log_debug_r([&] { return "parsed: " + to_string(i); });
 			ret.push_back(i);
-			tmp.reset();
-			break;
 		}
 		++l;
 	}
