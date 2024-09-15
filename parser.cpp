@@ -114,22 +114,22 @@ std::string to_string(instr i) {
 		return to_string(i.op_);
 	} else if (i.op_ == mov) {
 		if (i.src == immediate) {
-			return concat(to_string(i.op_), ' ', i.val, ',', port_name(i.dst()));
+			return concat(to_string(i.op_), ' ', i.val, ',', port_name(i.dst));
 		} else {
 			return concat(to_string(i.op_), ' ', port_name(i.src), ',',
-			              port_name(i.dst()));
+			              port_name(i.dst));
 		}
 	} else if (i.op_ <= sub) {
 		if (i.src == immediate) {
-			return concat(to_string(i.op_), ' ', std::to_string(i.val));
+			return concat(to_string(i.op_), ' ', i.val);
 		} else {
 			return concat(to_string(i.op_), ' ', port_name(i.src));
 		}
 	} else if (i.op_ <= jlz) {
-		return concat(to_string(i.op_), ' ', 'L', i.data);
+		return concat(to_string(i.op_), ' ', 'L', i.target());
 	} else if (i.op_ == jro) {
 		if (i.src == immediate) {
-			return concat(to_string(i.op_), ' ', std::to_string(i.val));
+			return concat(to_string(i.op_), ' ', i.val);
 		} else {
 			return concat(to_string(i.op_), ' ', port_name(i.src));
 		}
@@ -340,7 +340,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 				i.op_ = mov;
 				assert_last_operand(2);
 				load_port_or_immediate(i, tokens[1]);
-				i.data = parse_port(tokens[2]);
+				i.dst = parse_port(tokens[2]);
 			} else if (opcode == "ADD") {
 				i.op_ = add;
 				assert_last_operand(1);
@@ -352,23 +352,23 @@ std::vector<instr> assemble(std::string_view source, int node,
 			} else if (opcode == "JMP") {
 				i.op_ = jmp;
 				assert_last_operand(1);
-				i.data = parse_label(tokens[1]);
+				i.val = parse_label(tokens[1]);
 			} else if (opcode == "JEZ") {
 				i.op_ = jez;
 				assert_last_operand(1);
-				i.data = parse_label(tokens[1]);
+				i.val = parse_label(tokens[1]);
 			} else if (opcode == "JNZ") {
 				i.op_ = jnz;
 				assert_last_operand(1);
-				i.data = parse_label(tokens[1]);
+				i.val = parse_label(tokens[1]);
 			} else if (opcode == "JGZ") {
 				i.op_ = jgz;
 				assert_last_operand(1);
-				i.data = parse_label(tokens[1]);
+				i.val = parse_label(tokens[1]);
 			} else if (opcode == "JLZ") {
 				i.op_ = jlz;
 				assert_last_operand(1);
-				i.data = parse_label(tokens[1]);
+				i.val = parse_label(tokens[1]);
 			} else if (opcode == "JRO") {
 				i.op_ = jro;
 				assert_last_operand(1);
@@ -387,9 +387,9 @@ std::vector<instr> assemble(std::string_view source, int node,
 	// normalize labels at the end of the code
 	for (auto& i : ret) {
 		if (i.op_ >= instr::jmp and i.op_ <= instr::jlz) {
-			if (std::cmp_greater_equal(i.data, ret.size())) {
-				log_debug("Normalized label ", i.data, "/", ret.size(), "->0");
-				i.data = 0;
+			if (std::cmp_greater_equal(i.val, ret.size())) {
+				log_debug("Normalized label ", i.val, "/", ret.size(), "->0");
+				i.val = 0;
 			}
 		}
 	}

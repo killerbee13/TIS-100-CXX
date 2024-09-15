@@ -41,7 +41,7 @@ constexpr dir_mask in_links(const regular_node* n) {
 		for (auto i : p->code) {
 			switch (i.op_) {
 			case instr::mov:
-				if (i.dst() == any) {
+				if (i.dst == any) {
 					writes_to_any = true;
 				}
 				[[fallthrough]];
@@ -75,8 +75,8 @@ constexpr dir_mask out_links(const regular_node* n) {
 		for (auto i : p->code) {
 			switch (i.op_) {
 			case instr::mov:
-				mask |= port_mask(i.dst());
-				if (i.dst() == last) {
+				mask |= port_mask(i.dst);
+				if (i.dst == last) {
 					writes_to_last = true;
 				}
 				[[fallthrough]];

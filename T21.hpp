@@ -46,13 +46,13 @@ struct instr {
 	};
 	op op_;
 	port src{immediate};
+	// stores either immediate value or jump target
 	word_t val{};
-	// stores either MOV dst or jump target
-	word_t data{};
+	port dst{};
 
-	inline port dst() const {
-		assert(op_ == mov);
-		return static_cast<port>(data);
+	inline word_t target() const {
+		assert(jmp <= op_ && op_ <= jlz);
+		return val;
 	}
 };
 constexpr std::string to_string(instr::op o) {
@@ -144,7 +144,7 @@ struct T21 final : regular_node {
 		} break;
 		[[likely]] case instr::mov: {
 			debug << " (" << r << ") ";
-			switch (instr.dst()) {
+			switch (instr.dst) {
 			case port::acc:
 				debug << "acc = " << r;
 				acc = r;
@@ -193,14 +193,14 @@ struct T21 final : regular_node {
 			next();
 		} break;
 		case instr::jmp: {
-			debug << " " << +instr.data;
-			pc = instr.data;
+			debug << " " << instr.target();
+			pc = instr.target();
 		} break;
 		case instr::jez: {
 			debug << " (" << (acc == 0 ? "taken" : "not taken") << ") "
-			      << instr.data;
+			      << instr.target();
 			if (acc == 0) {
-				pc = instr.data;
+				pc = instr.target();
 			} else {
 				next();
 			}
@@ -208,9 +208,9 @@ struct T21 final : regular_node {
 		} break;
 		case instr::jnz: {
 			debug << " (" << (acc != 0 ? "taken" : "not taken") << ") "
-			      << instr.data;
+			      << instr.target();
 			if (acc != 0) {
-				pc = instr.data;
+				pc = instr.target();
 			} else {
 				next();
 			}
@@ -218,9 +218,9 @@ struct T21 final : regular_node {
 		} break;
 		case instr::jgz: {
 			debug << " (" << (acc > 0 ? "taken" : "not taken") << ") "
-			      << instr.data;
+			      << instr.target();
 			if (acc > 0) {
-				pc = instr.data;
+				pc = instr.target();
 			} else {
 				next();
 			}
@@ -228,9 +228,9 @@ struct T21 final : regular_node {
 		} break;
 		case instr::jlz: {
 			debug << " (" << (acc < 0 ? "taken" : "not taken") << ") "
-			      << instr.data;
+			      << instr.target();
 			if (acc < 0) {
-				pc = instr.data;
+				pc = instr.target();
 			} else {
 				next();
 			}
@@ -255,7 +255,7 @@ struct T21 final : regular_node {
 			// if write just started
 			if (write_port == port::nil) {
 				debug << "started";
-				port p = code[to_unsigned(pc)].dst();
+				port p = code[to_unsigned(pc)].dst;
 				if (p == port::last) {
 					write_port = last;
 				} else {
