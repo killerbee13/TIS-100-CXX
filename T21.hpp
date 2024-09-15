@@ -114,6 +114,7 @@ struct T21 final : regular_node {
 			s = activity::read;
 			return;
 		}
+		s = activity::run;
 
 		switch (instr.op_) {
 		[[unlikely]] case instr::hcf: {
@@ -122,24 +123,20 @@ struct T21 final : regular_node {
 		}
 		case instr::nop: {
 			next();
-			s = activity::run;
 		} break;
 		case instr::swp: {
 			debug << " (" << acc << "<->" << bak << ')';
 			std::swap(acc, bak);
-			s = activity::run;
 			next();
 		} break;
 		case instr::sav: {
 			debug << " (" << acc << "->" << bak << ')';
 			bak = acc;
-			s = activity::run;
 			next();
 		} break;
 		case instr::neg: {
 			debug << " (" << acc << ')';
 			acc = -acc;
-			s = activity::run;
 			next();
 		} break;
 		[[likely]] case instr::mov: {
@@ -150,14 +147,12 @@ struct T21 final : regular_node {
 				acc = r;
 				[[fallthrough]];
 			case port::nil:
-				// log << "nil = " << *r;
-				s = activity::run;
+				// log << "nil = " << r;
 				next();
 				break;
 			case port::last:
 				if (last == port::nil) {
 					debug << "last[N/A] = " << r;
-					s = activity::run;
 					next();
 					break;
 				}
@@ -182,14 +177,12 @@ struct T21 final : regular_node {
 			debug << " (" << acc << ") ";
 			debug << r;
 			acc = sat_add(acc, r);
-			s = activity::run;
 			next();
 		} break;
 		case instr::sub: {
 			debug << " (" << acc << ") ";
 			debug << r;
 			acc = sat_sub(acc, r);
-			s = activity::run;
 			next();
 		} break;
 		case instr::jmp: {
@@ -204,7 +197,6 @@ struct T21 final : regular_node {
 			} else {
 				next();
 			}
-			s = activity::run;
 		} break;
 		case instr::jnz: {
 			debug << " (" << (acc != 0 ? "taken" : "not taken") << ") "
@@ -214,7 +206,6 @@ struct T21 final : regular_node {
 			} else {
 				next();
 			}
-			s = activity::run;
 		} break;
 		case instr::jgz: {
 			debug << " (" << (acc > 0 ? "taken" : "not taken") << ") "
@@ -224,7 +215,6 @@ struct T21 final : regular_node {
 			} else {
 				next();
 			}
-			s = activity::run;
 		} break;
 		case instr::jlz: {
 			debug << " (" << (acc < 0 ? "taken" : "not taken") << ") "
@@ -234,14 +224,11 @@ struct T21 final : regular_node {
 			} else {
 				next();
 			}
-			s = activity::run;
 		} break;
 		case instr::jro: {
-			debug << " ";
-			debug << '(' << pc << '+' << r << " -> ";
+			debug << " (" << pc << '+' << r << " -> ";
 			pc = sat_add(pc, r, word_t{}, static_cast<word_t>(code.size() - 1));
 			debug << pc << ")";
-			s = activity::run;
 		} break;
 		default:
 			std::unreachable();
