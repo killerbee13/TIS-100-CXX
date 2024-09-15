@@ -278,7 +278,7 @@ static_assert(std::input_iterator<seed_range_iterator>);
 static_assert(
     std::sentinel_for<seed_range_iterator::sentinel, seed_range_iterator>);
 
-void score_summary(score sc, int fixed, int quiet, int cycles_limit) {
+void failure_summary(score sc, int fixed, int quiet, int cycles_limit) {
 	// we use stdout here, so flush logs to avoid mangled messages in the shell
 	log_flush();
 	if (sc.validated) {
@@ -317,7 +317,8 @@ struct run_params {
 #pragma GCC diagnostic ignored "-Wshadow=compatible-local"
 score run_seed_ranges(field& f, uint level_id,
                       const std::vector<range_t> seed_ranges, run_params params,
-                      unsigned num_threads) {
+                      unsigned num_threads, std::size_t cycles,
+                      std::vector<std::ptrdiff_t>& histogram) {
 	assert(not seed_ranges.empty());
 	score worst{};
 	seed_range_iterator seed_it(seed_ranges);
@@ -326,79 +327,90 @@ score run_seed_ranges(field& f, uint level_id,
 	std::vector<std::thread> threads;
 	std::vector<int> counters(num_threads);
 
-	auto task = [](std::mutex& it_m, std::mutex& sc_m,
-	               seed_range_iterator& seed_it, field f, uint level_id,
-	               run_params params, score& worst, int& counter) static {
-		while (true) {
-			std::uint32_t seed;
-			score last{};
-			{
-				std::unique_lock l(it_m);
-				if (seed_it == seed_it.end()) {
-					return;
-				} else {
-					seed = *seed_it++;
-				}
-			}
+	auto task =
+	    [](std::mutex& it_m, std::mutex& sc_m, seed_range_iterator& seed_it,
+	       field f, uint level_id, run_params params, score& worst, int& counter,
+	       std::size_t cycles, std::vector<std::ptrdiff_t>& histogram) static {
+		    while (true) {
+			    std::uint32_t seed;
+			    score last{};
+			    {
+				    std::unique_lock l(it_m);
+				    if (seed_it == seed_it.end()) {
+					    return;
+				    } else {
+					    seed = *seed_it++;
+				    }
+			    }
 
-			auto test = random_test(level_id, seed);
-			if (not test) {
-				continue;
-			}
-			++counter;
-			set_expected(f, *test);
-			last = run(f, params.cycles_limit, false);
-			if (stop_requested) {
-				return;
-			}
+			    auto test = random_test(level_id, seed);
+			    if (not test) {
+				    continue;
+			    }
+			    ++counter;
+			    set_expected(f, *test);
+			    last = run(f, params.cycles_limit, false);
 
-			// none of this is hot, so it doesn't need to be parallelized
-			// so it's simplest to just hold a lock the whole time
-			std::unique_lock l(sc_m);
-			++params.count;
-			worst.cycles = std::max(worst.cycles, last.cycles);
-			worst.instructions = last.instructions;
-			worst.nodes = last.nodes;
-			params.total_cycles += last.cycles;
-			if (last.validated) {
-				// for random tests, only one validation is needed
-				worst.validated = true;
-				params.valid_count++;
-			} else {
-				if (std::exchange(params.failure_printed, true) == false) {
-					log_info("Random test failed for seed: ", seed,
-					         std::cmp_equal(last.cycles, params.cycles_limit)
-					             ? " [timeout]"
-					             : "");
-					print_validation_failure(f, log_info(), color_logs);
-				} else {
-					log_debug("Random test failed for seed: ", seed);
-				}
-			}
-			if (not params.stats) {
-				// at least K passes and at least one fail
-				if (params.valid_count >= params.cheating_success_threshold
-				    and params.valid_count < params.count) {
-					return;
-				}
-			}
-			if (params.total_cycles >= params.total_cycles_limit) {
-				log_info("Total cycles timeout reached, stopping tests at ",
-				         params.count);
-				return;
-			}
-		}
-	};
+			    if (stop_requested) {
+				    return;
+			    }
+
+			    // none of this is hot, so it doesn't need to be parallelized
+			    // so it's simplest to just hold a lock the whole time
+			    std::unique_lock l(sc_m);
+			    ++params.count;
+			    auto ratio = static_cast<double>(last.cycles) / cycles;
+			    if (last.validated and std::floor(ratio) < histogram.size() - 1) {
+				    ++histogram[std::floor(ratio)];
+			    } else if (last.cycles == params.cycles_limit) {
+				    ++histogram.back();
+			    }
+			    worst.instructions = last.instructions;
+			    worst.nodes = last.nodes;
+			    params.total_cycles += last.cycles;
+			    if (last.validated) {
+				    // for random tests, only one validation is needed
+				    worst.validated = true;
+				    params.valid_count++;
+				    // don't count timeouts in max cycles
+				    worst.cycles = std::max(worst.cycles, last.cycles);
+			    } else {
+				    if (std::exchange(params.failure_printed, true) == false) {
+					    log_info("Random test failed for seed: ", seed,
+					             std::cmp_equal(last.cycles, params.cycles_limit)
+					                 ? " [timeout]"
+					                 : "");
+					    print_validation_failure(f, log_info(), color_logs);
+				    } else {
+					    log_debug("Random test failed for seed: ", seed);
+				    }
+			    }
+			    if (not params.stats) {
+				    // at least K passes and at least one fail
+				    if (params.valid_count >= params.cheating_success_threshold
+				        and params.valid_count < params.count) {
+					    return;
+				    }
+			    }
+			    if (params.total_cycles >= params.total_cycles_limit) {
+				    log_info("Total cycles timeout reached, stopping tests at ",
+				             params.count);
+				    return;
+			    }
+		    }
+	    };
 	if (f.inputs().empty()) {
 		log_info("Secondary random tests skipped for invariant level");
 		range_t r{0, 1};
 		seed_range_iterator it2(std::span(&r, 1));
-		task(it_m, sc_m, it2, std::move(f), level_id, params, worst, counters[0]);
+		task(it_m, sc_m, it2, std::move(f), level_id, params, worst, counters[0],
+		     cycles, histogram);
 	} else if (num_threads > 1) {
 		for (auto i : range(num_threads)) {
 			threads.emplace_back(task, std::ref(it_m), std::ref(sc_m),
 			                     std::ref(seed_it), f.clone(), level_id, params,
-			                     std::ref(worst), std::ref(counters[i]));
+			                     std::ref(worst), std::ref(counters[i]), cycles,
+			                     std::ref(histogram));
 		}
 
 		for (auto& t : threads) {
@@ -409,7 +421,7 @@ score run_seed_ranges(field& f, uint level_id,
 		}
 	} else {
 		task(it_m, sc_m, seed_it, std::move(f), level_id, params, worst,
-		     counters[0]);
+		     counters[0], cycles, histogram);
 	}
 
 	if (stop_requested) {
@@ -703,7 +715,6 @@ int main(int argc, char** argv) try {
 				continue;
 			}
 		}
-
 		log_debug_r([&] { return "Layout:\n" + f.layout(); });
 
 		score sc{};
@@ -738,13 +749,15 @@ int main(int argc, char** argv) try {
 				}
 			}
 			sc.achievement = check_achievement(level_id, f, sc);
-			score_summary(sc, succeeded, quiet.getValue(), cycles_limit);
+			failure_summary(sc, succeeded, quiet.getValue(), cycles_limit);
 		}
 
+		std::vector<std::ptrdiff_t> histogram(27);
 		int count = 0;
 		int valid_count = 0;
-		if ((fixed.getValue() == 0 or sc.validated or stats.getValue())
-		    and not stop_requested and not seed_ranges.empty()) {
+		score worst{};
+		if ((fixed.getValue() == 0 or sc.validated) and not stop_requested
+		    and not seed_ranges.empty()) {
 			bool failure_printed{};
 			run_params params{total_cycles,
 			                  failure_printed,
@@ -755,18 +768,18 @@ int main(int argc, char** argv) try {
 			                  static_cast<int>(cheat_rate * total_random_tests),
 			                  static_cast<uint8_t>(quiet.getValue()),
 			                  stats.getValue()};
-			auto worst
-			    = run_seed_ranges(f, level_id, seed_ranges, params, num_threads);
+			worst = run_seed_ranges(f, level_id, seed_ranges, params, num_threads,
+			                        sc.cycles, histogram);
 
 			log_info("Random test results: ", valid_count, " passed out of ",
 			         count, " total");
 
-			sc.cheat = (count != valid_count);
-			sc.hardcoded = (valid_count <= static_cast<int>(count * cheat_rate));
 			if (not fixed.getValue()) {
 				sc = worst;
-				score_summary(sc, -1, quiet.getValue(), cycles_limit);
+				failure_summary(sc, -1, quiet.getValue(), cycles_limit);
 			}
+			sc.cheat = (count != valid_count);
+			sc.hardcoded = (valid_count <= static_cast<int>(count * cheat_rate));
 		}
 
 		if (not quiet.getValue()) {
@@ -785,6 +798,37 @@ int main(int argc, char** argv) try {
 			}
 			std::cout << rate << '%' << print_escape(none) << " (" << valid_count
 			          << '/' << count << ")";
+
+			if (valid_count != 0) {
+				auto ratio = static_cast<double>(worst.cycles) / sc.cycles;
+				auto color = (ratio < 2) ? ""s : print_escape(yellow);
+				std::cout << " random max_cycles: " << worst.cycles << " (" << color
+				          << ratio << print_escape(none) << ')';
+			} else {
+				std::cout << " random max_cycles: - (0)";
+			}
+			if (std::ranges::any_of(histogram, std::identity{})) {
+				auto scale
+				    = std::min(130. / *std::ranges::max_element(histogram), 1.0);
+				auto count = 0uz;
+				for (auto i : range(histogram.size() - 1)) {
+					if (histogram[i]) {
+						count = i;
+					}
+				}
+				std::cout << "\nhistogram: (█ = " << 1 / scale << '\n';
+				for (auto i : range(count)) {
+					std::cout << std::setw(3) << i << ": " << std::setw(6)
+					          << histogram[i] << ' '
+					          << kblib::repeat("█"s, std::ceil(histogram[i] * scale))
+					          << '\n';
+				}
+				std::cout << "inf: " << std::setw(6) << histogram.back() << ' '
+				          << kblib::repeat("█"s,
+				                           std::ceil(histogram.back() * scale));
+			} else {
+				std::cout << "\nNo tests passed--no histogram to display";
+			}
 		}
 		std::cout << std::endl;
 		if (not sc.validated) {
