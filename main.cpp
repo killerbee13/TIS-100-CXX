@@ -531,6 +531,10 @@ int main(int argc, char** argv) try {
 	    "Threshold between /c and /h solutions, "
 	    "as a fraction of total random tests. (Default 0.05)",
 	    false, 0.05, &percentage, cmd);
+	TCLAP::SwitchArg hist(
+	    "", "histogram",
+	    "Print histograms of the random score ratios (cycles/fixed cycles)",
+	    cmd);
 
 	// Size constraint of word_max guarantees that JRO can reach every
 	// instruction
@@ -807,27 +811,30 @@ int main(int argc, char** argv) try {
 			} else {
 				std::cout << " random max_cycles: - (0)";
 			}
-			if (std::ranges::any_of(histogram, std::identity{})) {
-				auto scale
-				    = std::min(130. / *std::ranges::max_element(histogram), 1.0);
-				auto count = 0uz;
-				for (auto i : range(histogram.size() - 1)) {
-					if (histogram[i]) {
-						count = i;
+			if (hist) {
+				if (std::ranges::any_of(histogram, std::identity{})) {
+					auto scale
+					    = std::min(130. / *std::ranges::max_element(histogram), 1.0);
+					auto count = 0uz;
+					for (auto i : range(histogram.size() - 1)) {
+						if (histogram[i]) {
+							count = i + 1;
+						}
 					}
+					std::cout << "\nhistogram: (█ = " << 1 / scale << '\n';
+					for (auto i : range(count)) {
+						std::cout
+						    << std::setw(3) << i << ": " << std::setw(6)
+						    << histogram[i] << ' '
+						    << kblib::repeat("█"s, std::ceil(histogram[i] * scale))
+						    << '\n';
+					}
+					std::cout << "inf: " << std::setw(6) << histogram.back() << ' '
+					          << kblib::repeat("█"s,
+					                           std::ceil(histogram.back() * scale));
+				} else {
+					std::cout << "\nNo tests passed--no histogram to display";
 				}
-				std::cout << "\nhistogram: (█ = " << 1 / scale << '\n';
-				for (auto i : range(count)) {
-					std::cout << std::setw(3) << i << ": " << std::setw(6)
-					          << histogram[i] << ' '
-					          << kblib::repeat("█"s, std::ceil(histogram[i] * scale))
-					          << '\n';
-				}
-				std::cout << "inf: " << std::setw(6) << histogram.back() << ' '
-				          << kblib::repeat("█"s,
-				                           std::ceil(histogram.back() * scale));
-			} else {
-				std::cout << "\nNo tests passed--no histogram to display";
 			}
 		}
 		std::cout << std::endl;
