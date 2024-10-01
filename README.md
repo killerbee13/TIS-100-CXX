@@ -33,7 +33,9 @@ By default, it will run the simulation and if it passes, it will print
 `cycles/nodes/instructions/flags`, where flags may be `a` for achievement,
 `c` for cheat, i.e. a solution which does not pass all random tests,
 and `h` for a solution that passes < 5% of the random tests
-(meaning that it made no real effort to pass any).
+(meaning that it made no real effort to pass any). "Passing" for a random test
+means doing it in less than 5x as many cycles as the slowest fixed test (see
+--limit-multiplier below).
 
 If it does not pass, it will instead print the inputs and outputs
 (expected and received) for the failed test, then
@@ -86,6 +88,11 @@ Other options:
   respectively.
 - `--cheat-rate C`: change the threshold between /c and /h to any proportion in
   the range 0-1. The default value is .05, or 5%.
+- `-k N`, `--limit-multiplier N`: change the scale factor for dynamic timeouts for random
+  tests (will not exceed --limit). Higher values are more lenient toward slow
+  random tests. The default value is 5, meaning that if a solution takes 100
+  cycles to pass the slowest fixed test, it will time out after 500 cycles on
+  random tests (even when that is less than --limit).
 - `-c`, `--color`: force color for important info even when redirecting output
 - `-C`, `--log-color`: force color for logs even when redirecting stderr
 - `-S`, `--stats`: run all requested random tests and report the pass rate at

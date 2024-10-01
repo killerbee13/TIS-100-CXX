@@ -519,6 +519,11 @@ int main(int argc, char** argv) try {
 	    "Threshold between /c and /h solutions, "
 	    "as a fraction of total random tests. (Default 0.05)",
 	    false, 0.05, &percentage, cmd);
+	TCLAP::ValueArg<double> limit_multiplier(
+	    "k", "limit-multiplier",
+	    "Value to multiply cycle score by to determine random test timeout "
+	    "limit. (Default 5)",
+	    false, 5, "number", cmd);
 
 	// Size constraint of word_max guarantees that JRO can reach every
 	// instruction
@@ -709,6 +714,7 @@ int main(int argc, char** argv) try {
 		score sc{};
 		std::size_t total_cycles{};
 		sc.validated = true;
+		auto random_limit = cycles_limit;
 		if (fixed.getValue()) {
 			int succeeded{1};
 			for (auto test : static_suite(level_id)) {
@@ -739,6 +745,10 @@ int main(int argc, char** argv) try {
 			}
 			sc.achievement = check_achievement(level_id, f, sc);
 			score_summary(sc, succeeded, quiet.getValue(), cycles_limit);
+			random_limit = std::min(
+			    cycles_limit,
+			    static_cast<int>(sc.cycles * limit_multiplier.getValue()));
+			log_info("Setting random test timeout to ", random_limit);
 		}
 
 		int count = 0;
@@ -751,7 +761,7 @@ int main(int argc, char** argv) try {
 			                  count,
 			                  valid_count,
 			                  total_cycles_limit,
-			                  cycles_limit,
+			                  random_limit,
 			                  static_cast<int>(cheat_rate * total_random_tests),
 			                  static_cast<uint8_t>(quiet.getValue()),
 			                  stats.getValue()};
@@ -765,7 +775,7 @@ int main(int argc, char** argv) try {
 			sc.hardcoded = (valid_count <= static_cast<int>(count * cheat_rate));
 			if (not fixed.getValue()) {
 				sc = worst;
-				score_summary(sc, -1, quiet.getValue(), cycles_limit);
+				score_summary(sc, -1, quiet.getValue(), random_limit);
 			}
 		}
 
