@@ -747,7 +747,7 @@ int main(int argc, char** argv) try {
 			score_summary(sc, succeeded, quiet.getValue(), cycles_limit);
 			random_limit = std::min(
 			    cycles_limit,
-			    static_cast<int>(sc.cycles * limit_multiplier.getValue()));
+			    static_cast<int>(static_cast<double>(sc.cycles) * limit_multiplier.getValue()));
 			log_info("Setting random test timeout to ", random_limit);
 		}
 
