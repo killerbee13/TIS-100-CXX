@@ -383,8 +383,6 @@ score run_seed_ranges(field& f, uint level_id,
 				}
 			}
 			if (params.total_cycles >= params.total_cycles_limit) {
-				log_info("Total cycles timeout reached, stopping tests at ",
-				         params.count);
 				return;
 			}
 		}
@@ -403,6 +401,10 @@ score run_seed_ranges(field& f, uint level_id,
 
 		for (auto& t : threads) {
 			t.join();
+		}
+		if (params.total_cycles >= params.total_cycles_limit) {
+			log_info("Total cycles timeout reached, stopping tests at ",
+			         params.count);
 		}
 		for (auto [x, i] : kblib::enumerate(counters)) {
 			log_info("Thread ", i, " ran ", x, " tests");
@@ -470,7 +472,8 @@ int main(int argc, char** argv) try {
 	}
 
 	TCLAP::UnlabeledMultiArg<std::string> solutions(
-	    "Solution", "Path to solution file. ('-' for stdin)", true, "path", cmd);
+	    "Solution", "Paths to solution files. ('-' for stdin)", true, "path",
+	    cmd);
 
 	TCLAP::ValuesConstraint<std::string> ids_c(ids_v);
 	TCLAP::ValueArg<std::string> id_arg("l", "ID", "Level ID (Segment or name).",
@@ -667,7 +670,14 @@ int main(int argc, char** argv) try {
 	}
 
 	exit_code return_code = exit_code::SUCCESS;
+	bool break_filenames = false;
 	for (auto& solution : solutions.getValue()) {
+		if (solutions.getValue().size() > 1) {
+			if (std::exchange(break_filenames, true)) {
+				std::cout << '\n';
+			}
+			std::cout << kblib::escapify(solution) << ":\n";
+		}
 		uint level_id;
 		if (id_arg.isSet()) {
 			level_id = find_level_id(id_arg.getValue());
@@ -678,9 +688,10 @@ int main(int argc, char** argv) try {
 		           auto maybeId = guess_level_id(filename)) {
 			level_id = *maybeId;
 			log_debug("Deduced level ", layouts.at(level_id).segment,
-			          " from filename \"", filename, "\"");
+			          " from filename ", kblib::quoted(filename));
 		} else {
-			log_err("Impossible to determine the level ID for \"", filename, "\"");
+			log_err("Impossible to determine the level ID for ",
+			        kblib::quoted(filename));
 			return_code = exit_code::EXCEPTION;
 			continue;
 		}
