@@ -3,10 +3,10 @@ A TIS-100 simulator and save validator.
 
 This is a validator for saves for the game
 [TIS-100](https://zachtronics.com/tis-100/), designed to be used for the 
-community-run leaderboard. Unlike other simulators, TIS-100-CXX includes
-definitions for the base game's levels and can generate suitable random tests
-for them. This simulator aims for exact parity with the game in both execution
-and test generation.
+[community-run leaderboard](https://www.reddit.com/r/tis100/wiki/index). Unlike
+other simulators, TIS-100-CXX includes definitions for the base game's levels
+and can generate suitable random tests for them. This simulator aims for exact
+parity with the game in both execution and test generation.
 
 ## Build instructions:
 
@@ -103,3 +103,20 @@ Other options:
   described above, the numeric ID (0..50) can be used instead.
 - `--dry-run`: Mainly useful for debugging the command-line parser and initial
   setup. Checks the command line as normal and quits before running any tests.
+  
+There are two shell scripts distributed with the sim, mainly intended for
+testing the sim itself, test_saves_single.sh and test_saves_lb.sh, both of
+which require [fish](https://fishshell.com/) to run. test_saves_single.sh can
+be used to consume an entire folder of solutions, such as the saves folder used
+by the official game, and simulate each of them. test_saves_lb.sh can be used
+to consume the hierarchical folder structure used by the leaderboard.
+
+In addition to all options accepted by the sim itself, these scripts both
+accept options -d, which identifies the top-level folder to consume (required);
+-s, -w, and -f, which identify files to write reports to, for success (score
+and flags correct), wrong scores, and failed validations (including wrong
+scores if -w is not separately specified), respectively; -a, which identifies a
+file to receive a report of each score (like -s and -f pointing to the same
+file, but fully independent of those flags); -n, which is an abbreviation of
+--fixed 0; and -i, which prompts for input after each test. Note that fish's
+argparse does not always accept spaces between flags and option values.
