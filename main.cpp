@@ -741,8 +741,8 @@ int main(int argc, char** argv) try {
 				}
 				total_cycles += last.cycles;
 				log_info("fixed test ", succeeded, ' ',
-				         last.validated ? "validated"sv : "failed"sv,
-				         " with score ", to_string(last, false));
+				         last.validated ? "validated"sv : "failed"sv, " in ",
+				         last.cycles, " cycles");
 				if (not last.validated) {
 					break;
 				}
@@ -793,7 +793,7 @@ int main(int argc, char** argv) try {
 		if (not quiet.getValue()) {
 			std::cout << "score: ";
 		}
-		std::cout << sc;
+		std::cout << to_string(sc);
 		if (count > 0 and stats.isSet()) {
 			const auto rate = 100. * valid_count / count;
 			std::cout << " PR: ";

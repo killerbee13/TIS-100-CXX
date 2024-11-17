@@ -44,37 +44,13 @@ struct score {
 	bool cheat{};
 	bool hardcoded{};
 
-	friend std::ostream& operator<<(std::ostream& os, score sc) {
-		if (sc.validated) {
-			os << sc.cycles << '/';
-		} else {
-			os << print_escape(red) << "-/";
-		}
-		os << sc.nodes << '/' << sc.instructions;
-		if (sc.validated) {
-			if (sc.achievement or sc.cheat) {
-				os << '/';
-			}
-			if (sc.achievement) {
-				os << print_escape(bright_blue, bold) << 'a' << print_escape(none);
-			}
-			if (sc.hardcoded) {
-				os << print_escape(red) << 'h';
-			} else if (sc.cheat) {
-				os << print_escape(yellow) << 'c';
-			}
-		}
-		os << print_escape(none);
-		return os;
-	}
-
 	friend std::string to_string(score sc, bool colored = color_stdout) {
 		std::string ret;
 		if (sc.validated) {
 			append(ret, sc.cycles);
 		} else {
 			if (colored) {
-				ret += print_escape(red);
+				ret += escape_code(red);
 			}
 			ret += "-";
 		}
@@ -85,27 +61,27 @@ struct score {
 			}
 			if (sc.achievement) {
 				if (colored) {
-					ret += print_escape(bright_blue, bold);
+					ret += escape_code(bright_blue, bold);
 				}
 				ret += 'a';
 				if (colored) {
-					ret += print_escape(none);
+					ret += escape_code(none);
 				}
 			}
 			if (sc.hardcoded) {
 				if (colored) {
-					ret += print_escape(red);
+					ret += escape_code(red);
 				}
 				ret += 'h';
 			} else if (sc.cheat) {
 				if (colored) {
-					ret += print_escape(yellow);
+					ret += escape_code(yellow);
 				}
 				ret += 'c';
 			}
 		}
 		if (colored) {
-			ret += print_escape(none);
+			ret += escape_code(none);
 		}
 		return ret;
 	}
