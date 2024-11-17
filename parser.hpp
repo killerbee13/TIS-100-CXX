@@ -52,7 +52,7 @@ struct score {
 		}
 		os << sc.nodes << '/' << sc.instructions;
 		if (sc.validated) {
-			if ((sc.achievement or sc.cheat)) {
+			if (sc.achievement or sc.cheat) {
 				os << '/';
 			}
 			if (sc.achievement) {

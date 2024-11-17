@@ -746,8 +746,8 @@ int main(int argc, char** argv) try {
 			sc.achievement = check_achievement(level_id, f, sc);
 			score_summary(sc, succeeded, quiet.getValue(), cycles_limit);
 			random_limit = std::min(
-			    cycles_limit,
-			    static_cast<int>(static_cast<double>(sc.cycles) * limit_multiplier.getValue()));
+			    cycles_limit, static_cast<int>(static_cast<double>(sc.cycles)
+			                                   * limit_multiplier.getValue()));
 			log_info("Setting random test timeout to ", random_limit);
 		}
 
@@ -771,7 +771,7 @@ int main(int argc, char** argv) try {
 			log_info("Random test results: ", valid_count, " passed out of ",
 			         count, " total");
 
-			sc.cheat = (count != valid_count);
+			sc.cheat = (count == 0 or count != valid_count);
 			sc.hardcoded = (valid_count <= static_cast<int>(count * cheat_rate));
 			if (not fixed.getValue()) {
 				sc = worst;
