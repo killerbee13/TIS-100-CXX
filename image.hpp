@@ -639,7 +639,7 @@ struct image_t : pnm::image<tis_pixel> {
 	constexpr std::string write_text(bool colored) const {
 		return write_text(
 		    {" ", "░", "▒", "█",
-		     colored ? concat(print_escape(red), "▓", print_escape(reset_color))
+		     colored ? concat(escape_code(red), "▓", escape_code(reset_color))
 		             : "#"});
 	}
 };

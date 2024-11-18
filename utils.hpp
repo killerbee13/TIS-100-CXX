@@ -181,7 +181,7 @@ inline Stream&& write_list(Stream&& os, const word_vec& v,
 		return std::forward<Stream>(os);
 	}
 	if (colored and expected and v.size() != expected->size()) {
-		os << print_escape(bright_red);
+		os << escape_code(bright_red);
 	}
 	os << '(';
 	os << v.size();
@@ -190,17 +190,17 @@ inline Stream&& write_list(Stream&& os, const word_vec& v,
 	}
 	os << ')';
 	if (colored) {
-		os << print_escape(none);
+		os << escape_code(none);
 	}
 	os << " [\n\t";
 	for (std::size_t i = 0; i < v.size(); ++i) {
 		if (colored and expected
 		    and (i >= expected->size() or v[i] != (*expected)[i])) {
-			os << print_escape(bright_red);
+			os << escape_code(bright_red);
 		}
 		os << v[i] << ' ';
 		if (colored) {
-			os << print_escape(none);
+			os << escape_code(none);
 		}
 	}
 	os << "\n]";
