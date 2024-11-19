@@ -98,7 +98,6 @@ for map in $save_dir/TIS*
 			set -l result (filter_result)
 			set -l PR (filter_pr)
 			echo "$file; $result; $expected; $PR" >> $all_file
-			fgrep '##' $file
 			if set -q _flag_i
 				read _
 			end

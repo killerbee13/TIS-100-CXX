@@ -94,12 +94,11 @@ for file in $save_dir/$id*
 	set -l result (filter_result)
 	set -l PR (filter_pr)
 	echo "$file; $result; $expected; $PR" >> $all_file
-	fgrep '##' $file
 	if set -q _flag_i
 		read _
 	end
 	echo
 end
 
-echo "$files_count saves tested. $success_count validated, $wrong_count scored incorrectly, $fail_count failed."
+echo "$files_count saves tested. $success_count validated, $flag_count flagged incorrectly, $wrong_count scored incorrectly, $fail_count failed."
 rm $tmp_result
