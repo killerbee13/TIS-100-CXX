@@ -548,16 +548,21 @@ int main(int argc, char** argv) try {
 	TCLAP::ValueArg<std::string> loglevel(
 	    "", "loglevel", "Set the logging level. (Default 'notice')", false,
 	    "notice", &loglevels);
+#if TIS_ENABLE_DEBUG
 	TCLAP::SwitchArg debug_loglevel("", "debug",
 	                                "Equivalent to --loglevel debug");
+#endif
 	TCLAP::SwitchArg trace_loglevel("", "trace",
 	                                "Equivalent to --loglevel trace");
 	TCLAP::SwitchArg info_loglevel("", "info", "Equivalent to --loglevel info");
 	TCLAP::EitherOf log_arg(cmd);
-	log_arg.add(loglevel)
-	    .add(info_loglevel)
+	log_arg
+	    .add(loglevel)
+#if TIS_ENABLE_DEBUG
+	    .add(debug_loglevel)
+#endif
 	    .add(trace_loglevel)
-	    .add(debug_loglevel);
+	    .add(info_loglevel);
 
 	TCLAP::MultiSwitchArg quiet("q", "quiet",
 	                            "Suppress printing anything but score and "
@@ -593,9 +598,12 @@ int main(int argc, char** argv) try {
 
 	set_log_level([&] {
 		using namespace kblib::literals;
+#if TIS_ENABLE_DEBUG
 		if (debug_loglevel.isSet()) {
 			return log_level::debug;
-		} else if (trace_loglevel.isSet()) {
+		} else
+#endif
+		    if (trace_loglevel.isSet()) {
 			return log_level::trace;
 		} else if (info_loglevel.isSet()) {
 			return log_level::info;
@@ -614,8 +622,10 @@ int main(int argc, char** argv) try {
 			return log_level::info;
 		case "trace"_fnv32:
 			return log_level::trace;
+#if TIS_ENABLE_DEBUG
 		case "debug"_fnv32:
 			return log_level::debug;
+#endif
 		default:
 			log_warn("Unknown log level ", kblib::quoted(loglevel.getValue()),
 			         " ignored. Validation bug?");

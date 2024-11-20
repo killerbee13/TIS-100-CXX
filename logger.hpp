@@ -46,10 +46,12 @@ auto log_flush() -> void;
 auto set_log_flush(bool do_flush) -> void;
 
 template <typename... Strings>
-auto log_debug(Strings&&... strings) -> void {
+auto log_debug([[maybe_unused]] Strings&&... strings) -> void {
+#if TIS_ENABLE_DEBUG
 	if (get_log_level() >= log_level::debug) {
 		detail::log(concat("DEBUG: ", strings...));
 	}
+#endif
 }
 template <typename... Strings>
 auto log_trace(Strings&&... strings) -> void {
@@ -90,10 +92,12 @@ auto log_err(Strings&&... strings) -> void {
 
 // Only these are provided because higher priority log messages are rare enough
 // not to impact performance
-auto log_debug_r(std::invocable<> auto supplier) -> void {
+auto log_debug_r([[maybe_unused]] std::invocable<> auto supplier) -> void {
+#if TIS_ENABLE_DEBUG
 	if (get_log_level() >= log_level::debug) {
 		detail::log(concat("DEBUG: ", supplier()));
 	}
+#endif
 }
 auto log_trace_r(std::invocable<> auto supplier) -> void {
 	if (get_log_level() >= log_level::trace) {
@@ -149,8 +153,12 @@ class logger {
 };
 
 inline auto log_debug() {
-	return (get_log_level() >= log_level::debug) ? logger("DEBUG: ")
-	                                             : logger(nullptr);
+#if TIS_ENABLE_DEBUG
+	if (get_log_level() >= log_level::debug) {
+		return logger("DEBUG: ");
+	}
+#endif
+	return logger(nullptr);
 }
 inline auto log_trace() {
 	return (get_log_level() >= log_level::trace) ? logger("TRACE: ")

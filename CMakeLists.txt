@@ -66,6 +66,8 @@ add_executable(TIS-100-CXX main.cpp parser.hpp node.hpp T21.hpp T30.hpp io.hpp
 	test_saves_lb.sh test_saves_single.sh
 	README.md LICENSE)
 
+option(TIS_ENABLE_DEBUG "Enable Debug log support for low level testing" ON)
+
 if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
 	# Used to generate the standalone build for the GitHub release
 	# Static linking interferes with sanitizers
@@ -78,6 +80,10 @@ target_include_directories(TIS-100-CXX
 	"${CMAKE_CURRENT_SOURCE_DIR}/tclap/include" "${EXTRA_INCLUDES}"
 	INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
 	PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+
+if(TIS_ENABLE_DEBUG)
+	target_compile_definitions(TIS-100-CXX PUBLIC TIS_ENABLE_DEBUG)
+endif()
 
 install(TARGETS TIS-100-CXX
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
