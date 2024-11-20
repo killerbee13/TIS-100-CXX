@@ -506,7 +506,7 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 			} else {
 				do {
 					maxout = engine.next(0, static_cast<word_t>(maxmax));
-				} while (! canzero and maxout == 0);
+				} while (not canzero and maxout == 0);
 			}
 
 			std::size_t count1;
@@ -520,19 +520,15 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 			}
 
 			prevempty = (count1 == 0 or count1 == maxout);
-			word_vec outseq(maxout);
-			word_vec in1seq(count1);
-			word_vec in2seq(maxout - count1);
 			if (maxout > 0) {
+				word_vec outseq(maxout);
+				word_vec in1seq(count1);
+				word_vec in2seq(maxout - count1);
 				for (std::size_t i = 0; i < maxout; i++) {
 					word_t val;
-					while (true) {
+					do {
 						val = engine.next(10, 99);
-						if (std::find(outseq.begin(), outseq.end(), val)
-						    == outseq.end()) {
-							break;
-						}
-					}
+					} while (std::ranges::contains(outseq, val));
 					outseq[i] = val;
 					if (i < count1) {
 						in1seq[i] = val;
@@ -540,17 +536,12 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 						in2seq[i - count1] = val;
 					}
 				}
-			}
-			std::ranges::sort(outseq.begin(), outseq.end());
-			std::ranges::sort(in1seq.begin(), in1seq.end());
-			std::ranges::sort(in2seq.begin(), in2seq.end());
-			for (std::size_t i = 0; i < maxout; i++) {
-				out.push_back(outseq[i]);
-				if (i < count1) {
-					ret.inputs[0].push_back(in1seq[i]);
-				} else {
-					ret.inputs[1].push_back(in2seq[i - count1]);
-				}
+				std::ranges::sort(outseq);
+				std::ranges::sort(in1seq);
+				std::ranges::sort(in2seq);
+				std::ranges::copy(outseq, std::back_inserter(out));
+				std::ranges::copy(in1seq, std::back_inserter(ret.inputs[0]));
+				std::ranges::copy(in2seq, std::back_inserter(ret.inputs[1]));
 			}
 			out.push_back(0);
 			ret.inputs[0].push_back(0);
@@ -721,32 +712,26 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 	} break;
 	case "SEQUENCE MODE CALCULATOR"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(1);
+		ret.inputs.resize(1, empty_vec());
 		ret.n_outputs.resize(1);
 
 		// generate input stream
 		int last_zero = -1;
 		for (int i = 0; i < max_test_length - 1; i++) {
-			ret.inputs[0].push_back(engine.next(1, 5));
+			ret.inputs[0][i] = engine.next(1, 5);
 			// tuned to give nice balance of sequence lengths
 			if (i - last_zero > 3 and engine.next_double() < 0.5
 			    and i < max_test_length - 2) {
-				ret.inputs[0].back() = 0;
+				ret.inputs[0][i] = 0;
 				last_zero = i;
 			}
 		}
-		ret.inputs[0].push_back(0);
+		ret.inputs[0].back() = 0;
 
 		// generate output stream
-		word_vec sequence = {};
+		std::array frequency = {0u, 0u, 0u, 0u, 0u};
 		for (word_t input : ret.inputs[0]) {
 			if (input == 0) {
-				// generate frequency map
-				std::array frequency = {0u, 0u, 0u, 0u, 0u};
-				for (word_t element : sequence) {
-					frequency[element - 1]++;
-				}
-
 				// determine mode, and whether it is unique
 				uint max_frequency = 0;
 				uint most_frequent = 1;
@@ -767,9 +752,10 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 					ret.n_outputs[0].push_back(0);
 				}
 
-				sequence.clear();
+				frequency.fill(0);
 			} else {
-				sequence.push_back(input);
+				// update frequency map
+				frequency[input - 1]++;
 			}
 		}
 	} break;
@@ -792,7 +778,7 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 			if ((engine.next(1, 3) == 3 and cur_seq.size() > 2)
 			    or (cur_seq.size() > 7) or (i == max_test_length - 3)) {
 				// Generate 'output'
-				word_t min_in_seq = *std::ranges::min_element(cur_seq);
+				word_t min_in_seq = std::ranges::min(cur_seq);
 				for (word_t seqval : cur_seq) {
 					ret.n_outputs[0].push_back(seqval - min_in_seq);
 				}
@@ -1023,22 +1009,24 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 	} break;
 	case "DYNAMIC PATTERN DETECTOR"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(2);
-		ret.n_outputs.resize(1);
+		ret.inputs = {word_vec(4), word_vec(max_test_length)};
+		ret.n_outputs.push_back(word_vec(max_test_length));
 		auto& pattern = ret.inputs[0];
 		auto& input = ret.inputs[1];
+		auto& output = ret.n_outputs[0];
 
 		for (int i = 0; i < 12; i++) {
 			// RNG manip (There has to be a 42 in the pattern.)
-			engine.next(1, 101);
+			// NOTE: there is not, because the custom puzzle seed is different
+			engine.next_double();
 		}
 
 		for (int i = 0; i < 3; i++) {
-			pattern.push_back(engine.next(1, 42)); // PATTERN gen
+			pattern[i] = engine.next(1, 42); // PATTERN gen
 		}
-		pattern.push_back(0);
+		pattern.back() = 0;
 		for (int i = 0; i < max_test_length; i++) {
-			input.push_back(engine.next(1, 42)); // SEQUENCE gen
+			input[i] = engine.next(1, 42); // SEQUENCE gen
 		}
 
 		for (int k = 0; k < 2; k++) {
@@ -1082,14 +1070,14 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 			input[j + i + 1] = pattern[i];
 		}
 
-		ret.n_outputs[0].push_back(0);
-		ret.n_outputs[0].push_back(0);
+		output[0] = 0;
+		output[1] = 0;
 		for (int i = 2; i < max_test_length; i++) {
 			if (input[i - 2] == pattern[0] and input[i - 1] == pattern[1]
 			    and input[i] == pattern[2]) {
-				ret.n_outputs[0].push_back(1);
+				output[i] = 1;
 			} else {
-				ret.n_outputs[0].push_back(0);
+				output[i] = 0;
 			}
 		}
 	} break;
@@ -1097,64 +1085,66 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.n_outputs.resize(1);
-
-		auto shuffle_tables = [&](word_vec& t) {
-			for (auto i : kblib::range(std::ssize(t) - 1, 0z, -1)) {
-				auto j = engine.next(0, static_cast<word_t>(i));
-				std::swap(t[i], t[j]);
-			}
-		};
+		auto& in = ret.inputs[0];
+		in.reserve(max_test_length);
 
 		std::array lengths{5, 4, 4, 4, 5, 4, 5, 4, 4};
 		for (auto length : lengths) {
+			// Figure out the min, max, and missing values:
 			word_t min = engine.next(10, 90);
 			word_t max = static_cast<word_t>(min + length - 1);
 			auto missing_value = engine.next(min + 1, max - 1);
-			word_vec values;
+			// Insert the values into the stream
+			auto start = std::ssize(in);
 			for (auto i : kblib::range<word_t>(min, max + 1)) {
 				if (i != missing_value) {
-					values.push_back(i);
+					in.push_back(i);
 				}
 			}
-			shuffle_tables(values);
-			ret.inputs[0].insert(ret.inputs[0].end(), values.begin(),
-			                     values.end());
-			ret.inputs[0].push_back(0);
+			// Shuffle list in place
+			for (auto i : kblib::range(std::ssize(in) - 1, start, -1)) {
+				auto j = engine.next(static_cast<word_t>(start),
+				                     static_cast<word_t>(i));
+				std::swap(in[i], in[j]);
+			}
+			in.push_back(0);
 			ret.n_outputs[0].push_back(missing_value);
 		}
 	} break;
 	case "DECIMAL TO OCTAL CONVERTER"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(1);
-		ret.n_outputs.resize(1);
+		ret.inputs.resize(1, empty_vec());
+		ret.n_outputs.resize(1, empty_vec());
 		auto to_octal = [](word_t i) { return (i / 8) * 10 + (i % 8); };
 
-		for ([[maybe_unused]] auto _ : kblib::range(max_test_length)) {
-			auto i = ret.inputs[0].emplace_back(engine.next(1, 63));
-			ret.n_outputs[0].push_back(static_cast<word_t>(to_octal(i)));
+		for ([[maybe_unused]] auto i : kblib::range(max_test_length)) {
+			auto v = ret.inputs[0][i] = engine.next(1, 63);
+			ret.n_outputs[0][i] = static_cast<word_t>(to_octal(v));
 		}
 	} break;
 	case "PROLONGED SEQUENCE SORTER"_lvl: {
 		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1, empty_vec());
 		ret.n_outputs.resize(1, empty_vec());
-		std::array<int, 10> counts{};
+
+		// I want to force at least 1 number to not appear
+		// otherwise there's a few shortcuts you can take
+		std::array<bool, 10> seen{};
 		int zeros = 10;
 		for (std::size_t i = 0; i < max_test_length - 1; ++i) {
 			do {
 				ret.inputs[0][i] = engine.next(0, 9);
-				ret.n_outputs[0][i] = ret.inputs[0][i];
-			} while (not (
-			    zeros > 1
-			    or (zeros == 1 and counts[to_unsigned(ret.inputs[0][i])] > 0)));
-			if (counts[to_unsigned(ret.inputs[0][i])] == 0) {
+			} while (zeros == 1 and not seen[ret.inputs[0][i]]);
+
+			if (not seen[ret.inputs[0][i]]) {
+				seen[ret.inputs[0][i]] = true;
 				--zeros;
 			}
-			++counts[to_unsigned(ret.inputs[0][i])];
 		}
 		ret.inputs[0].back() = -1;
+
+		std::ranges::copy(ret.inputs[0], ret.n_outputs[0].begin());
 		std::ranges::sort(ret.n_outputs[0].begin(), ret.n_outputs[0].end() - 1);
-		ret.n_outputs[0].back() = -1;
 	} break;
 	case "PRIME FACTOR CALCULATOR"_lvl: {
 		// the algorithm used in the actual game spec is extremely slow, as it
@@ -1183,9 +1173,8 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		}();
 
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(1);
+		ret.inputs.resize(1, empty_vec(10));
 		ret.n_outputs.resize(1);
-		ret.inputs[0].resize(10);
 		int sum;
 		do {
 			sum = 0;
@@ -1202,15 +1191,15 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 	} break;
 	case "SIGNAL EXPONENTIATOR"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(2);
-		ret.n_outputs.resize(1);
+		ret.inputs.resize(2, empty_vec());
+		ret.n_outputs.resize(1, empty_vec());
 		// extra 0 at the beginning because Lua arrays start at 1
 		std::array<word_t, 11> max_exp{0, 10, 9, 6, 4, 4, 3, 3, 3, 3, 2};
 
-		for ([[maybe_unused]] auto _ : kblib::range(max_test_length)) {
-			auto a = ret.inputs[0].emplace_back(engine.next(1, 10));
-			auto b = ret.inputs[1].emplace_back(engine.next(1, max_exp[a]));
-			ret.n_outputs[0].push_back(static_cast<word_t>(std::pow(a, b)));
+		for ([[maybe_unused]] auto i : kblib::range(max_test_length)) {
+			auto a = ret.inputs[0][i] = engine.next(1, 10);
+			auto b = ret.inputs[1][i] = engine.next(1, max_exp[a]);
+			ret.n_outputs[0][i] = static_cast<word_t>(std::pow(a, b));
 		}
 	} break;
 	case "T20 NODE EMULATOR"_lvl: {
@@ -1243,9 +1232,8 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 				std::swap(p, q);
 			} break;
 			case 3: {
-				p = p + q;
+				p += q;
 			} break;
-			case 5:
 			default: {
 				output.push_back(p);
 			} break;
@@ -1256,15 +1244,15 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.n_outputs.resize(1);
+		ret.inputs[0].reserve(max_test_length);
 
 		std::array<word_t, 8> memory{};
-		std::array<bool, 8> written{};
 
 		do {
 			auto index = engine.next(0, 7);
 			auto value = engine.next(10, 99);
 			if (engine.next(0, 1)) {
-				if (written[index]) {
+				if (memory[index]) { // 0 can be used as sentinel
 					ret.inputs[0].push_back(1);
 					ret.inputs[0].push_back(index);
 					ret.n_outputs[0].push_back(memory[index]);
@@ -1274,7 +1262,6 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 				ret.inputs[0].push_back(index);
 				ret.inputs[0].push_back(value);
 				memory[index] = value;
-				written[index] = true;
 			}
 		} while (ret.inputs[0].size() <= 36);
 	} break;
@@ -1291,7 +1278,7 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 					n = engine.next(-1, 0);
 				}
 				ret.inputs[j][i] = n;
-				sums[j] = sums[j] + n;
+				sums[j] += n;
 			}
 			auto max = std::ranges::max_element(sums);
 			ret.n_outputs[0][i] = static_cast<word_t>(max - sums.begin() + 1);
