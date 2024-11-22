@@ -16,11 +16,10 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * ****************************************************************************/
 
-#include "builtin_levels.hpp"
+#include "levels.hpp"
 #include "logger.hpp"
 #include "node.hpp"
 #include "parser.hpp"
-#include "random_levels.hpp"
 
 #include <atomic>
 #include <csignal>
@@ -38,14 +37,12 @@
 #include <cxxabi.h>
 #include <typeinfo>
 
-using namespace std::literals;
-
 std::atomic<std::sig_atomic_t> stop_requested;
 
 extern "C" void sigterm_handler(int signal) { stop_requested = signal; }
 
 template <typename T>
-void print_validation_failure(field& f, T&& os, bool color) {
+void print_validation_failure(const field& f, T&& os, bool color) {
 	for (auto& i : f.inputs()) {
 		os << "input " << i->x << ": ";
 		write_list(os, i->inputs, nullptr, color) << '\n';
@@ -71,28 +68,28 @@ void print_validation_failure(field& f, T&& os, bool color) {
 	}
 }
 
-score run(field& l, int cycles_limit, bool print_err) {
+score run(field& f, int cycles_limit, bool print_err) {
 	score sc{};
-	sc.instructions = l.instructions();
-	sc.nodes = l.nodes_used();
+	sc.instructions = f.instructions();
+	sc.nodes = f.nodes_used();
 	try {
 		do {
 			++sc.cycles;
 			log_trace("step ", sc.cycles);
-			log_trace_r([&] { return "Current state:\n" + l.state(); });
-			l.step();
-		} while (stop_requested == 0 and l.active()
+			log_trace_r([&] { return "Current state:\n" + f.state(); });
+			f.step();
+		} while (stop_requested == 0 and f.active()
 		         and std::cmp_less(sc.cycles, cycles_limit));
 		sc.validated = true;
 
 		log_flush();
-		for (auto& p : l.numerics()) {
+		for (auto& p : f.numerics()) {
 			if (p->wrong || ! p->complete) {
 				sc.validated = false;
 				break;
 			}
 		}
-		for (auto& p : l.images()) {
+		for (auto& p : f.images()) {
 			if (p->wrong_pixels) {
 				sc.validated = false;
 				break;
@@ -100,7 +97,7 @@ score run(field& l, int cycles_limit, bool print_err) {
 		}
 
 		if (print_err and not sc.validated) {
-			print_validation_failure(l, std::cout, color_stdout);
+			print_validation_failure(f, std::cout, color_stdout);
 		}
 	} catch (hcf_exception& e) {
 		log_info("Test aborted by HCF (node ", e.x, ',', e.y, ':', e.line, ')');
@@ -203,9 +200,9 @@ std::vector<range_t> parse_ranges(const std::vector<std::string>& seed_exprs) {
 				} else if ("0123456789kKmM"sv.contains(r[i])) {
 					begin.push_back(r[i]);
 				} else {
-					throw std::invalid_argument{kblib::concat("Invalid character ",
-					                                          kblib::escapify(r[i]),
-					                                          " in seed expr")};
+					throw std::invalid_argument{concat("Invalid character ",
+					                                   kblib::escapify(r[i]),
+					                                   " in seed expr")};
 				}
 			}
 			auto b = parse_int<std::uint32_t>(begin);
@@ -217,15 +214,15 @@ std::vector<range_t> parse_ranges(const std::vector<std::string>& seed_exprs) {
 				if ("0123456789kKmM"sv.contains(r[i])) {
 					end->push_back(r[i]);
 				} else {
-					throw std::invalid_argument{kblib::concat("Invalid character ",
-					                                          kblib::escapify(r[i]),
-					                                          " in seed expr")};
+					throw std::invalid_argument{concat("Invalid character ",
+					                                   kblib::escapify(r[i]),
+					                                   " in seed expr")};
 				}
 			}
 			auto e = end->empty() ? kblib::max : parse_int<std::uint32_t>(*end);
 			if (e < b) {
-				throw std::invalid_argument{kblib::concat(
-				    "Seed ranges must be low..high, got: ", b, "..", e)};
+				throw std::invalid_argument{
+				    concat("Seed ranges must be low..high, got: ", b, "..", e)};
 			}
 			seed_ranges.push_back({b, e + 1});
 		}
@@ -278,7 +275,8 @@ static_assert(std::input_iterator<seed_range_iterator>);
 static_assert(
     std::sentinel_for<seed_range_iterator::sentinel, seed_range_iterator>);
 
-void score_summary(score sc, int fixed, int quiet, int cycles_limit) {
+void validation_summary(const score& sc, int fixed, int quiet,
+                        int cycles_limit) {
 	// we use stdout here, so flush logs to avoid mangled messages in the shell
 	log_flush();
 	if (sc.validated) {
@@ -315,7 +313,7 @@ struct run_params {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wshadow=compatible-local"
-score run_seed_ranges(field& f, uint level_id,
+score run_seed_ranges(level& l, field& f,
                       const std::vector<range_t> seed_ranges, run_params params,
                       unsigned num_threads) {
 	assert(not seed_ranges.empty());
@@ -327,13 +325,12 @@ score run_seed_ranges(field& f, uint level_id,
 	std::vector<int> counters(num_threads);
 
 	auto task = [](std::mutex& it_m, std::mutex& sc_m,
-	               seed_range_iterator& seed_it, field f, uint level_id,
+	               seed_range_iterator& seed_it, level& l, field f,
 	               run_params params, score& worst, int& counter) static {
 		while (true) {
 			std::uint32_t seed;
-			score last{};
 			{
-				std::unique_lock l(it_m);
+				std::unique_lock lock(it_m);
 				if (seed_it == seed_it.end()) {
 					return;
 				} else {
@@ -341,28 +338,28 @@ score run_seed_ranges(field& f, uint level_id,
 				}
 			}
 
-			auto test = random_test(level_id, seed);
+			auto test = l.random_test(seed);
 			if (not test) {
 				continue;
 			}
 			++counter;
 			set_expected(f, *test);
-			last = run(f, params.cycles_limit, false);
+			score last = run(f, params.cycles_limit, false);
 			if (stop_requested) {
 				return;
 			}
 
 			// none of this is hot, so it doesn't need to be parallelized
 			// so it's simplest to just hold a lock the whole time
-			std::unique_lock l(sc_m);
+			std::unique_lock lock(sc_m);
 			++params.count;
-			worst.cycles = std::max(worst.cycles, last.cycles);
 			worst.instructions = last.instructions;
 			worst.nodes = last.nodes;
 			params.total_cycles += last.cycles;
 			if (last.validated) {
 				// for random tests, only one validation is needed
 				worst.validated = true;
+				worst.cycles = std::max(worst.cycles, last.cycles);
 				params.valid_count++;
 			} else {
 				if (std::exchange(params.failure_printed, true) == false) {
@@ -391,11 +388,11 @@ score run_seed_ranges(field& f, uint level_id,
 		log_info("Secondary random tests skipped for invariant level");
 		range_t r{0, 1};
 		seed_range_iterator it2(std::span(&r, 1));
-		task(it_m, sc_m, it2, std::move(f), level_id, params, worst, counters[0]);
+		task(it_m, sc_m, it2, l, std::move(f), params, worst, counters[0]);
 	} else if (num_threads > 1) {
 		for (auto i : range(num_threads)) {
 			threads.emplace_back(task, std::ref(it_m), std::ref(sc_m),
-			                     std::ref(seed_it), f.clone(), level_id, params,
+			                     std::ref(seed_it), std::ref(l), f.clone(), params,
 			                     std::ref(worst), std::ref(counters[i]));
 		}
 
@@ -410,8 +407,7 @@ score run_seed_ranges(field& f, uint level_id,
 			log_info("Thread ", i, " ran ", x, " tests");
 		}
 	} else {
-		task(it_m, sc_m, seed_it, std::move(f), level_id, params, worst,
-		     counters[0]);
+		task(it_m, sc_m, seed_it, l, std::move(f), params, worst, counters[0]);
 	}
 
 	if (stop_requested) {
@@ -466,7 +462,7 @@ int main(int argc, char** argv) try {
 	    "for thousand, million, or billion respectively.");
 
 	std::vector<std::string> ids_v;
-	for (auto l : layouts) {
+	for (auto l : builtin_layouts) {
 		ids_v.emplace_back(l.segment);
 		ids_v.emplace_back(l.name);
 	}
@@ -478,11 +474,14 @@ int main(int argc, char** argv) try {
 	TCLAP::ValuesConstraint<std::string> ids_c(ids_v);
 	TCLAP::ValueArg<std::string> id_arg("l", "ID", "Level ID (Segment or name).",
 	                                    false, "", &ids_c);
-	range_constraint<uint> level_nums_constraint(0, layouts.size() - 1);
-	TCLAP::ValueArg<uint> level_num("L", "level", "Numeric level ID", false, 0,
-	                                &level_nums_constraint);
+#if TIS_ENABLE_LUA
+	TCLAP::ValueArg<std::string> custom_spec_arg(
+	    "L", "custom-spec", "Custom Lua Spec file", false, "", "path");
 	TCLAP::EitherOf level_args(cmd);
-	level_args.add(id_arg).add(level_num);
+	level_args.add(id_arg).add(custom_spec_arg);
+#else
+	cmd.add(id_arg);
+#endif
 
 	TCLAP::ValueArg<human_readable_integer<int>> cycles_limit_arg(
 	    "", "limit",
@@ -597,7 +596,6 @@ int main(int argc, char** argv) try {
 	auto base_seed = seed_arg.getValue().val;
 
 	set_log_level([&] {
-		using namespace kblib::literals;
 #if TIS_ENABLE_DEBUG
 		if (debug_loglevel.isSet()) {
 			return log_level::debug;
@@ -679,6 +677,17 @@ int main(int argc, char** argv) try {
 		return exit_code::SUCCESS;
 	}
 
+	// try to fill as much as possible before the loop
+	std::unique_ptr<level> l;
+	if (id_arg.isSet()) {
+		l = std::make_unique<builtin_level>(find_level_id(id_arg.getValue()));
+	}
+#if TIS_ENABLE_LUA
+	else if (custom_spec_arg.isSet()) {
+		l = std::make_unique<custom_level>(custom_spec_arg.getValue());
+	}
+#endif
+
 	exit_code return_code = exit_code::SUCCESS;
 	bool break_filenames = false;
 	for (auto& solution : solutions.getValue()) {
@@ -686,18 +695,15 @@ int main(int argc, char** argv) try {
 			if (std::exchange(break_filenames, true)) {
 				std::cout << '\n';
 			}
-			std::cout << kblib::escapify(solution) << ":\n";
+			std::cout << kblib::escapify(solution) << ":" << std::endl;
 		}
-		uint level_id;
-		if (id_arg.isSet()) {
-			level_id = find_level_id(id_arg.getValue());
-		} else if (level_num.isSet()) {
-			level_id = level_num.getValue();
+
+		if (l) {
 		} else if (auto filename
 		           = std::filesystem::path(solution).filename().string();
-		           auto maybeId = guess_level_id(filename)) {
-			level_id = *maybeId;
-			log_debug("Deduced level ", layouts.at(level_id).segment,
+		           auto maybe_id = guess_level_id(filename)) {
+			l = std::make_unique<builtin_level>(*maybe_id);
+			log_debug("Deduced level ", builtin_layouts[*maybe_id].segment,
 			          " from filename ", kblib::quoted(filename));
 		} else {
 			log_err("Impossible to determine the level ID for ",
@@ -705,7 +711,7 @@ int main(int argc, char** argv) try {
 			return_code = exit_code::EXCEPTION;
 			continue;
 		}
-		field f(layouts.at(level_id).layout, T30_size.getValue());
+		field f = l->new_field(T30_size.getValue());
 
 		if (solution == "-") {
 			std::ostringstream in;
@@ -738,7 +744,7 @@ int main(int argc, char** argv) try {
 		auto random_limit = cycles_limit;
 		if (fixed.getValue()) {
 			int succeeded{1};
-			for (auto test : static_suite(level_id)) {
+			for (auto test : l->static_suite()) {
 				set_expected(f, test);
 				score last = run(f, cycles_limit, true);
 				sc.cycles = std::max(sc.cycles, last.cycles);
@@ -764,8 +770,8 @@ int main(int argc, char** argv) try {
 					break;
 				}
 			}
-			sc.achievement = check_achievement(level_id, f, sc);
-			score_summary(sc, succeeded, quiet.getValue(), cycles_limit);
+			sc.achievement = l->has_achievement(f, sc);
+			validation_summary(sc, succeeded, quiet.getValue(), cycles_limit);
 			random_limit = std::min(
 			    cycles_limit, static_cast<int>(static_cast<double>(sc.cycles)
 			                                   * limit_multiplier.getValue()));
@@ -786,20 +792,23 @@ int main(int argc, char** argv) try {
 			                  static_cast<int>(cheat_rate * total_random_tests),
 			                  static_cast<uint8_t>(quiet.getValue()),
 			                  stats.getValue()};
-			auto worst
-			    = run_seed_ranges(f, level_id, seed_ranges, params, num_threads);
+			auto worst = run_seed_ranges(*l, f, seed_ranges, params, num_threads);
 
 			log_info("Random test results: ", valid_count, " passed out of ",
 			         count, " total");
 
-			sc.cheat = (count == 0 or count != valid_count);
-			sc.hardcoded = (valid_count <= static_cast<int>(count * cheat_rate));
 			if (not fixed.getValue()) {
 				sc = worst;
-				score_summary(sc, -1, quiet.getValue(), random_limit);
+				if (not sc.validated) {
+					sc.cycles = total_cycles;
+				}
+				validation_summary(sc, -1, quiet.getValue(), random_limit);
 			}
+			sc.cheat = (count == 0 or count != valid_count);
+			sc.hardcoded = (valid_count <= static_cast<int>(count * cheat_rate));
 		}
 
+		log_flush();
 		if (not quiet.getValue()) {
 			std::cout << "score: ";
 		}

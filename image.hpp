@@ -28,16 +28,11 @@
 #include <array>
 #include <compare>
 #include <concepts>
-#include <cstdint>
-#include <fstream>
 #include <initializer_list>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
 #include <vector>
-
-using kblib::concat, kblib::etoi, kblib::range, kblib::to_signed,
-    kblib::to_unsigned;
 
 namespace pnm {
 
@@ -205,7 +200,7 @@ struct tis_pixel {
 		C_red
 	} val{};
 
-	static color normalize(auto c) {
+	static constexpr color normalize(auto c) {
 		if (c > C_red or c < 0) {
 			return C_black;
 		}
@@ -217,6 +212,8 @@ struct tis_pixel {
 	    : val(normalize(c)) {}
 	explicit(false) constexpr tis_pixel(std::integral auto c) noexcept
 	    : val(normalize(c)) {}
+	constexpr tis_pixel(std::floating_point auto c) noexcept
+	    : val(normalize(static_cast<std::underlying_type_t<color>>(c))) {}
 
 	constexpr friend std::strong_ordering operator<=>(tis_pixel, tis_pixel)
 	    = default;

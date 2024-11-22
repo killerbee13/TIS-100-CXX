@@ -27,8 +27,6 @@
 #include <map>
 #include <set>
 
-using namespace std::literals;
-
 std::string_view pop(std::string_view& str, std::size_t n) {
 	n = std::min(n, str.size());
 	auto r = str.substr(0, n);

@@ -20,10 +20,11 @@
 
 #include "utils.hpp"
 
-#include "kblib/stringops.h"
+#include <concepts>
+#include <memory>
 #include <sstream>
-
-using kblib::concat;
+#include <string_view>
+#include <utility>
 
 namespace detail {
 auto log(std::string_view str) -> void;

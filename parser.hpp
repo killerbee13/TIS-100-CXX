@@ -20,11 +20,46 @@
 
 #include "T21.hpp"
 #include "field.hpp"
+#include "image.hpp"
 #include "node.hpp"
-#include "random_levels.hpp"
+#include "utils.hpp"
 
 #include <string>
 #include <vector>
+
+struct single_test {
+	std::vector<word_vec> inputs{};
+	std::vector<word_vec> n_outputs{};
+	image_t i_output{};
+};
+
+inline void clamp_test_values(single_test& t) {
+	auto debug = log_debug();
+	// The game clamps negative values to -99 to fit in the 3 columns UI, but
+	// it breaks tests (segment 32050 seed 103061) so we're doing the sensible
+	// thing even if it's wrong as far as a simulational versimilitude is
+	// concerned
+	auto clamp_vec = [&](auto& vec) {
+		write_list(debug, vec);
+		std::ranges::transform(vec, vec.begin(), [](word_t v) {
+			return std::clamp(v, word_min, word_max);
+		});
+		debug << " to ";
+		write_list(debug, vec);
+	};
+	for (auto& v : t.inputs) {
+		debug << "Clamping in: ";
+		clamp_vec(v);
+	}
+	for (auto& v : t.n_outputs) {
+		debug << "Clamping out: ";
+		clamp_vec(v);
+	}
+}
+
+constexpr inline word_t image_width = 30;
+constexpr inline word_t image_height = 18;
+constexpr inline int max_test_length = 39;
 
 /// Assemble a single node's code
 std::vector<instr> assemble(std::string_view source, int node,
