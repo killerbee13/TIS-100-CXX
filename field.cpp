@@ -17,6 +17,7 @@
  * ****************************************************************************/
 
 #include "field.hpp"
+
 #include <bitset>
 #include <queue>
 #include <unordered_set>

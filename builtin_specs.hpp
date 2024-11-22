@@ -1,9 +1,46 @@
-#ifndef LAYOUTSPECS_HPP
-#define LAYOUTSPECS_HPP
+/* *****************************************************************************
+ * TIS-100-CXX
+ * Copyright (c) 2024 killerbee, Andrea Stacchiotti
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * ****************************************************************************/
+#ifndef BUILTIN_SPECS_HPP
+#define BUILTIN_SPECS_HPP
 
 #include "node.hpp"
 
-struct builtin_layout_spec {
+#include <array>
+#include <vector>
+
+inline constexpr size_t builtin_levels_num = 51;
+
+// use placeholder value 1 for sandbox levels
+inline constexpr std::array<uint32_t, builtin_levels_num> builtin_seeds{
+    50,      2,       3,       4,       22,      //
+    5,       9,       7,       19,      1,       //
+    888,     18,      10,      6,       1,       //
+    13,      14,      60,      15,      1,       //
+    55,      16,      11,      12,      21,      //
+    23,                                          //
+    0 * 23,  1 * 23,  2 * 23,  3 * 23,  4 * 23,  //
+    5 * 23,  6 * 23,  7 * 23,  8 * 23,  9 * 23,  //
+    10 * 23, 11 * 23, 12 * 23, 13 * 23, 14 * 23, //
+    15 * 23, 16 * 23, 17 * 23, 18 * 23, 19 * 23, //
+    20 * 23, 21 * 23, 22 * 23, 23 * 23, 24 * 23, //
+};
+
+struct standard_layout_spec {
 	std::array<std::array<node::type_t, 4>, 3> nodes;
 	std::array<node::type_t, 4> inputs;
 	std::array<node::type_t, 4> outputs;
@@ -14,18 +51,20 @@ struct dynamic_layout_spec {
 	std::vector<node::type_t> outputs;
 };
 
-struct level_layout {
+struct builtin_level_layout {
 	std::string_view segment;
 	std::string_view name;
-	builtin_layout_spec layout;
+	standard_layout_spec layout;
 };
 
 // clang-format off
 
-// the reason this is a function is the "using enum" line at the beginning
-constexpr std::array<level_layout, 51> gen_layouts() {
+// the reason this is a lambda is the "using enum" line at the beginning
+// this needs to sit on an header file where it doesn't see the node type
+// classes, or there will be a name conflict
+inline constexpr std::array builtin_layouts = []{
 	using enum node::type_t;
-	return {{
+	return std::array<builtin_level_layout, builtin_levels_num>{{
 	{"00150", "SELF-TEST DIAGNOSTIC", {
 		.nodes = {{
 			{T21, Damaged, T21, T21, },
@@ -486,8 +525,6 @@ constexpr std::array<level_layout, 51> gen_layouts() {
 		.outputs = {{null, out, null, null, }},
 	}},
 	}};
-}
+}();
 
-inline constexpr std::array<level_layout, 51> layouts = gen_layouts();
-
-#endif
+#endif // BUILTIN_SPECS_HPP

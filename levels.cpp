@@ -16,21 +16,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * ****************************************************************************/
 
-#include "random_levels.hpp"
-#include "builtin_levels.hpp"
+#include "levels.hpp"
+#include "parser.hpp"
 #include "tis_random.hpp"
 
 #include <ranges>
-
-static_assert(xorshift128_engine(400).next_int(-10, 0) < 0);
+#include <vector>
 
 static word_vec make_random_array(xorshift128_engine& engine,
                                   std::uint32_t size, word_t min, word_t max) {
 	word_vec array(size);
-	std::uint32_t num = 0;
-	while (num < size) {
+	for (std::uint32_t num = 0; num < size; ++num) {
 		array[num] = engine.next_int(min, max);
-		num++;
 	}
 	return array;
 }
@@ -46,8 +43,7 @@ static word_vec make_composite_array(xorshift128_engine& engine, word_t size,
 	word_vec list;
 	while (std::cmp_less(list.size(), size)) {
 		int sublistsize = engine.next_int(sublistmin, sublistmax);
-		int i = 0;
-		for (; i < sublistsize; ++i) {
+		for (int i = 0; i < sublistsize; ++i) {
 			list.push_back(engine.next_int(valuemin, valuemax));
 		}
 		list.push_back(0);
@@ -66,31 +62,15 @@ static word_vec make_composite_array(uint seed, word_t size, word_t sublistmin,
 	                            valuemax);
 }
 
-constexpr static word_t image_width = 30;
-constexpr static word_t image_height = 18;
-constexpr static int max_test_length = 39;
-
-// use placeholder value 1 for sandbox levels
-constexpr static std::array<std::uint32_t, layouts.size()> seeds{
-    50,      2,       3,       4,       22,      //
-    5,       9,       7,       19,      1,       //
-    888,     18,      10,      6,       1,       //
-    13,      14,      60,      15,      1,       //
-    55,      16,      11,      12,      21,      //
-    23,                                          //
-    0 * 23,  1 * 23,  2 * 23,  3 * 23,  4 * 23,  //
-    5 * 23,  6 * 23,  7 * 23,  8 * 23,  9 * 23,  //
-    10 * 23, 11 * 23, 12 * 23, 13 * 23, 14 * 23, //
-    15 * 23, 16 * 23, 17 * 23, 18 * 23, 19 * 23, //
-    20 * 23, 21 * 23, 22 * 23, 23 * 23, 24 * 23, //
-};
-
-std::array<single_test, 3> static_suite(uint level_id) {
-	return {
-	    *random_test(level_id, seeds.at(level_id) * 100),
-	    *random_test(level_id, seeds[level_id] * 100 + 1),
-	    *random_test(level_id, seeds[level_id] * 100 + 2),
-	};
+static image_t checkerboard(std::ptrdiff_t w, std::ptrdiff_t h) {
+	image_t ret(w, h);
+	for (const auto y : range(h)) {
+		for (const auto x : range(w)) {
+			ret.at(x, y)
+			    = ((x + y % 2) % 2) ? tis_pixel::C_black : tis_pixel::C_white;
+		}
+	}
+	return ret;
 }
 
 template <typename F>
@@ -105,12 +85,12 @@ void for_each_subsequence_of(word_vec& in, word_t delim, F f) {
 	}
 }
 
-word_vec empty_vec(word_t size = max_test_length) {
+inline word_vec empty_vec(word_t size = max_test_length) {
 	assert(size >= 0);
-	return word_vec(kblib::to_unsigned(size));
+	return word_vec(to_unsigned(size));
 }
 
-std::optional<single_test> random_test(uint level_id, uint32_t seed) {
+std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	// log_info("random_test(", level_id, ", ", seed, ")");
 	single_test ret{};
 	switch (level_id) {
@@ -300,8 +280,7 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		ret.n_outputs.resize(1);
 	} break;
 	case "IMAGE TEST PATTERN 1"_lvl: {
-		ret.i_output.reshape(image_width, image_height,
-		                     tis_pixel{tis_pixel::color::C_white});
+		ret.i_output.reshape(image_width, image_height, tis_pixel::C_white);
 	} break;
 	case "IMAGE TEST PATTERN 2"_lvl: {
 		ret.i_output = checkerboard(image_width, image_height);
@@ -484,7 +463,7 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		}
 	} break;
 	case "SEQUENCE MERGER"_lvl: {
-		lua_random engine(kblib::to_signed(seed));
+		lua_random engine(to_signed(seed));
 		ret.inputs.resize(2);
 		ret.n_outputs.resize(1);
 		word_vec& out = ret.n_outputs[0];
@@ -1096,13 +1075,13 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 			auto missing_value = engine.next(min + 1, max - 1);
 			// Insert the values into the stream
 			auto start = std::ssize(in);
-			for (auto i : kblib::range<word_t>(min, max + 1)) {
+			for (auto i : range<word_t>(min, max + 1)) {
 				if (i != missing_value) {
 					in.push_back(i);
 				}
 			}
 			// Shuffle list in place
-			for (auto i : kblib::range(std::ssize(in) - 1, start, -1)) {
+			for (auto i : range(std::ssize(in) - 1, start, -1)) {
 				auto j = engine.next(static_cast<word_t>(start),
 				                     static_cast<word_t>(i));
 				std::swap(in[i], in[j]);
@@ -1117,7 +1096,7 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		ret.n_outputs.resize(1, empty_vec());
 		auto to_octal = [](word_t i) { return (i / 8) * 10 + (i % 8); };
 
-		for ([[maybe_unused]] auto i : kblib::range(max_test_length)) {
+		for ([[maybe_unused]] auto i : range(max_test_length)) {
 			auto v = ret.inputs[0][i] = engine.next(1, 63);
 			ret.n_outputs[0][i] = static_cast<word_t>(to_octal(v));
 		}
@@ -1178,7 +1157,7 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		int sum;
 		do {
 			sum = 0;
-			for (auto i : kblib::range(10)) {
+			for (auto i : range(10)) {
 				auto inp = ret.inputs[0][i] = engine.next(10, 99);
 				sum += static_cast<int>(cache[inp].size()) + 1;
 			}
@@ -1196,7 +1175,7 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		// extra 0 at the beginning because Lua arrays start at 1
 		std::array<word_t, 11> max_exp{0, 10, 9, 6, 4, 4, 3, 3, 3, 3, 2};
 
-		for ([[maybe_unused]] auto i : kblib::range(max_test_length)) {
+		for ([[maybe_unused]] auto i : range(max_test_length)) {
 			auto a = ret.inputs[0][i] = engine.next(1, 10);
 			auto b = ret.inputs[1][i] = engine.next(1, max_exp[a]);
 			ret.n_outputs[0][i] = static_cast<word_t>(std::pow(a, b));
@@ -1216,7 +1195,7 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		word_t p = 0;
 		word_t q = 0;
 
-		for ([[maybe_unused]] auto _ : kblib::range(2, max_test_length)) {
+		for ([[maybe_unused]] auto _ : range(2, max_test_length)) {
 			auto instr = engine.next(0, 4);
 			instructions.push_back(instr);
 			switch (instr) {
@@ -1271,8 +1250,8 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		ret.n_outputs.resize(1, empty_vec());
 		std::array<word_t, 4> sums{};
 
-		for (const auto i : kblib::range(max_test_length)) {
-			for (const auto j : kblib::range(4)) {
+		for (const auto i : range(max_test_length)) {
+			for (const auto j : range(4)) {
 				auto n = engine.next(0, 1);
 				if (i > 0 and ret.n_outputs[0][i - 1] == j + 1) {
 					n = engine.next(-1, 0);
@@ -1289,30 +1268,6 @@ std::optional<single_test> random_test(uint level_id, uint32_t seed) {
 		std::unreachable();
 	}
 
-	auto log = log_debug();
-	// The game clamps negative values to -99 to fit in the 3 columns UI, but it
-	// breaks tests (segment 32050 seed 103061) so we're doing the sensible thing
-	// even if it's wrong as far as a simulational versimilitude is concerned
-	auto clamp = [](auto& vec) {
-		std::ranges::transform(vec, vec.begin(), [](word_t v) {
-			return std::clamp(v, word_min, word_max);
-		});
-	};
-	for (auto& v : ret.inputs) {
-		log << "Clamping in: ";
-		write_list(log, v);
-		clamp(v);
-		log << " to ";
-		write_list(log, v);
-	}
-	for (auto& v : ret.n_outputs) {
-		log << "Clamping out: ";
-		write_list(log, v);
-		clamp(v);
-		log << " to ";
-		write_list(log, v);
-		log << "\n";
-	}
-
+	clamp_test_values(ret);
 	return ret;
 }

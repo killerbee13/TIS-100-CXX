@@ -30,8 +30,13 @@
 #	define RELEASE 0
 #endif
 
+using namespace std::literals;
+using namespace kblib::literals;
+
 using kblib::append, kblib::concat, kblib::etoi, kblib::range, kblib::to_signed,
     kblib::to_unsigned;
+
+using uint = unsigned int;
 
 using word_t = std::int16_t;
 constexpr inline word_t word_min = -999;

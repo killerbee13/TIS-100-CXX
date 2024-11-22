@@ -59,13 +59,13 @@ check_ipo_supported()
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON)
 
-add_executable(TIS-100-CXX main.cpp parser.hpp node.hpp T21.hpp T30.hpp io.hpp
-	parser.cpp builtin_levels.hpp image.hpp logger.hpp
-	logger.cpp random_levels.hpp random_levels.cpp tis_random.hpp
-	field.cpp field.hpp layoutspecs.hpp utils.hpp
+add_executable(TIS-100-CXX builtin_specs.hpp field.cpp field.hpp image.hpp
+	io.hpp levels.cpp levels.hpp logger.cpp logger.hpp main.cpp node.hpp
+	parser.cpp parser.hpp T21.hpp T30.hpp tis_random.hpp utils.hpp
 	test_saves_lb.sh test_saves_single.sh
 	README.md LICENSE)
 
+option(TIS_ENABLE_LUA "Enable Lua support to run custom puzzles" ON)
 option(TIS_ENABLE_DEBUG "Enable Debug log support for low level testing" ON)
 
 if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
@@ -81,6 +81,13 @@ target_include_directories(TIS-100-CXX
 	INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
 	PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 
+if(TIS_ENABLE_LUA)
+	target_compile_definitions(TIS-100-CXX PUBLIC TIS_ENABLE_LUA)
+	target_include_directories(TIS-100-CXX SYSTEM PUBLIC
+		"/usr/include/luajit-2.1"
+		"${CMAKE_CURRENT_SOURCE_DIR}/sol2/include")
+	target_link_libraries(TIS-100-CXX luajit-5.1)
+endif()
 if(TIS_ENABLE_DEBUG)
 	target_compile_definitions(TIS-100-CXX PUBLIC TIS_ENABLE_DEBUG)
 endif()

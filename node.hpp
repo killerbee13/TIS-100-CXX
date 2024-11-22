@@ -112,7 +112,15 @@ constexpr static std::string_view port_name(port p) {
 
 struct node {
  public:
-	enum type_t { T21 = 1, T30, in, out, image, Damaged = -1, null = -2 };
+	enum type_t : int8_t {
+		T21 = 1,
+		T30,
+		in,
+		out,
+		image,
+		Damaged = -1,
+		null = -2
+	};
 
 	/// Returns the type of the node
 	virtual type_t type() const noexcept = 0;
