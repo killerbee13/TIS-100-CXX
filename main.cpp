@@ -20,92 +20,21 @@
 #include "logger.hpp"
 #include "node.hpp"
 #include "parser.hpp"
+#include "runner.hpp"
+#include "utils.hpp"
 
-#include <atomic>
 #include <csignal>
 #include <iostream>
 #include <kblib/hash.h>
 #include <kblib/io.h>
 #include <kblib/stringops.h>
-#include <mutex>
 #include <random>
-#include <thread>
 
 #define TCLAP_SETBASE_ZERO 1
 #include <tclap/CmdLine.h>
 
 #include <cxxabi.h>
 #include <typeinfo>
-
-std::atomic<std::sig_atomic_t> stop_requested;
-
-extern "C" void sigterm_handler(int signal) { stop_requested = signal; }
-
-template <typename T>
-void print_validation_failure(const field& f, T&& os, bool color) {
-	for (auto& i : f.inputs()) {
-		os << "input " << i->x << ": ";
-		write_list(os, i->inputs, nullptr, color) << '\n';
-	}
-	for (auto& p : f.numerics()) {
-		if (p->outputs_expected != p->outputs_received) {
-			os << "validation failure for output " << p->x;
-			os << "\noutput: ";
-			write_list(os, p->outputs_received, &p->outputs_expected, color);
-			os << "\nexpected: ";
-			write_list(os, p->outputs_expected, nullptr, color);
-			os << "\n";
-		}
-	}
-	for (auto& p : f.images()) {
-		if (p->wrong_pixels) {
-			os << "validation failure for output " << p->x << "\noutput: ("
-			   << p->width << ',' << p->height << ")\n"
-			   << p->image_received.write_text(color) //
-			   << "expected:\n"
-			   << p->image_expected.write_text(color);
-		}
-	}
-}
-
-score run(field& f, int cycles_limit, bool print_err) {
-	score sc{};
-	sc.instructions = f.instructions();
-	sc.nodes = f.nodes_used();
-	try {
-		do {
-			++sc.cycles;
-			log_trace("step ", sc.cycles);
-			log_trace_r([&] { return "Current state:\n" + f.state(); });
-			f.step();
-		} while (stop_requested == 0 and f.active()
-		         and std::cmp_less(sc.cycles, cycles_limit));
-		sc.validated = true;
-
-		log_flush();
-		for (auto& p : f.numerics()) {
-			if (p->wrong || ! p->complete) {
-				sc.validated = false;
-				break;
-			}
-		}
-		for (auto& p : f.images()) {
-			if (p->wrong_pixels) {
-				sc.validated = false;
-				break;
-			}
-		}
-
-		if (print_err and not sc.validated) {
-			print_validation_failure(f, std::cout, color_stdout);
-		}
-	} catch (hcf_exception& e) {
-		log_info("Test aborted by HCF (node ", e.x, ',', e.y, ':', e.line, ')');
-		sc.validated = false;
-	}
-
-	return sc;
-}
 
 std::optional<std::string> demangle(const char* name) {
 	int status{};
@@ -174,12 +103,6 @@ class range_constraint : public TCLAP::Constraint<T> {
 	T high{};
 };
 
-/// numbers in [begin, end)
-struct range_t {
-	std::uint32_t begin{};
-	std::uint32_t end{};
-};
-
 std::vector<range_t> parse_ranges(const std::vector<std::string>& seed_exprs) {
 	std::vector<range_t> seed_ranges;
 	for (auto& ex : seed_exprs) {
@@ -230,195 +153,6 @@ std::vector<range_t> parse_ranges(const std::vector<std::string>& seed_exprs) {
 	return seed_ranges;
 }
 
-class seed_range_iterator {
- public:
-	using seed_range_t = std::span<const range_t>;
-	using value_type = std::uint32_t;
-	using difference_type = std::ptrdiff_t;
-	using iterator_concept = std::input_iterator_tag;
-
-	seed_range_iterator() = default;
-	explicit seed_range_iterator(const seed_range_t& ranges) noexcept
-	    : v_end(ranges.end())
-	    , it(ranges.begin())
-	    , cur(it->begin) {}
-
-	std::uint32_t operator*() const noexcept { return cur; }
-	seed_range_iterator& operator++() noexcept {
-		++cur;
-		if (cur == it->end) {
-			++it;
-			if (it != v_end) {
-				cur = it->begin;
-			}
-		}
-		return *this;
-	}
-	seed_range_iterator operator++(int) noexcept {
-		auto tmp = *this;
-		++*this;
-		return tmp;
-	}
-
-	struct sentinel {};
-	bool operator==(sentinel) const noexcept { return it == v_end; }
-
-	static sentinel end() noexcept { return {}; }
-
- private:
-	seed_range_t::iterator v_end{};
-	seed_range_t::iterator it{};
-	std::uint32_t cur{};
-};
-
-static_assert(std::input_iterator<seed_range_iterator>);
-static_assert(
-    std::sentinel_for<seed_range_iterator::sentinel, seed_range_iterator>);
-
-void validation_summary(const score& sc, int fixed, int quiet,
-                        int cycles_limit) {
-	// we use stdout here, so flush logs to avoid mangled messages in the shell
-	log_flush();
-	if (sc.validated) {
-		if (not quiet) {
-			std::cout << print_escape(bright_blue, bold) << "validation successful"
-			          << print_escape(none) << "\n";
-		}
-	} else if (quiet < 2) {
-		std::cout << print_escape(red) << "validation failed"
-		          << print_escape(none);
-		if (fixed != -1) {
-			std::cout << " for fixed test " << fixed;
-		}
-		std::cout << " after " << sc.cycles << " cycles";
-		if (std::cmp_equal(sc.cycles, cycles_limit)) {
-			std::cout << " [timeout]";
-		}
-		std::cout << '\n';
-	}
-}
-
-struct run_params {
-	std::size_t& total_cycles;
-	bool& failure_printed;
-	int& count;
-	int& valid_count;
-	std::size_t total_cycles_limit;
-	int cycles_limit;
-	int cheating_success_threshold;
-	std::uint8_t quiet;
-	bool stats;
-};
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunknown-warning-option"
-#pragma GCC diagnostic ignored "-Wshadow=compatible-local"
-score run_seed_ranges(level& l, field& f,
-                      const std::vector<range_t> seed_ranges, run_params params,
-                      unsigned num_threads) {
-	assert(not seed_ranges.empty());
-	score worst{};
-	seed_range_iterator seed_it(seed_ranges);
-	std::mutex it_m;
-	std::mutex sc_m;
-	std::vector<std::thread> threads;
-	std::vector<int> counters(num_threads);
-
-	auto task = [](std::mutex& it_m, std::mutex& sc_m,
-	               seed_range_iterator& seed_it, level& l, field f,
-	               run_params params, score& worst, int& counter) static {
-		while (true) {
-			std::uint32_t seed;
-			{
-				std::unique_lock lock(it_m);
-				if (seed_it == seed_it.end()) {
-					return;
-				} else {
-					seed = *seed_it++;
-				}
-			}
-
-			auto test = l.random_test(seed);
-			if (not test) {
-				continue;
-			}
-			++counter;
-			set_expected(f, *test);
-			score last = run(f, params.cycles_limit, false);
-			if (stop_requested) {
-				return;
-			}
-
-			// none of this is hot, so it doesn't need to be parallelized
-			// so it's simplest to just hold a lock the whole time
-			std::unique_lock lock(sc_m);
-			++params.count;
-			worst.instructions = last.instructions;
-			worst.nodes = last.nodes;
-			params.total_cycles += last.cycles;
-			if (last.validated) {
-				// for random tests, only one validation is needed
-				worst.validated = true;
-				worst.cycles = std::max(worst.cycles, last.cycles);
-				params.valid_count++;
-			} else {
-				if (std::exchange(params.failure_printed, true) == false) {
-					log_info("Random test failed for seed: ", seed,
-					         std::cmp_equal(last.cycles, params.cycles_limit)
-					             ? " [timeout]"
-					             : "");
-					print_validation_failure(f, log_info(), color_logs);
-				} else {
-					log_debug("Random test failed for seed: ", seed);
-				}
-			}
-			if (not params.stats) {
-				// at least K passes and at least one fail
-				if (params.valid_count >= params.cheating_success_threshold
-				    and params.valid_count < params.count) {
-					return;
-				}
-			}
-			if (params.total_cycles >= params.total_cycles_limit) {
-				return;
-			}
-		}
-	};
-	if (f.inputs().empty()) {
-		log_info("Secondary random tests skipped for invariant level");
-		range_t r{0, 1};
-		seed_range_iterator it2(std::span(&r, 1));
-		task(it_m, sc_m, it2, l, std::move(f), params, worst, counters[0]);
-	} else if (num_threads > 1) {
-		for (auto i : range(num_threads)) {
-			threads.emplace_back(task, std::ref(it_m), std::ref(sc_m),
-			                     std::ref(seed_it), std::ref(l), f.clone(), params,
-			                     std::ref(worst), std::ref(counters[i]));
-		}
-
-		for (auto& t : threads) {
-			t.join();
-		}
-		if (params.total_cycles >= params.total_cycles_limit) {
-			log_info("Total cycles timeout reached, stopping tests at ",
-			         params.count);
-		}
-		for (auto [x, i] : kblib::enumerate(counters)) {
-			log_info("Thread ", i, " ran ", x, " tests");
-		}
-	} else {
-		task(it_m, sc_m, seed_it, l, std::move(f), params, worst, counters[0]);
-	}
-
-	if (stop_requested) {
-		log_warn("Stop requested");
-		log_flush();
-	}
-
-	return worst;
-}
-#pragma GCC diagnostic pop
-
 template <typename Int>
 struct human_readable_integer {
 	using ValueCategory = TCLAP::StringLike;
@@ -448,6 +182,29 @@ struct human_readable_integer {
 static_assert(human_readable_integer<int>("10").val == 10);
 static_assert(human_readable_integer<int>("10k").val == 10'000);
 static_assert(human_readable_integer<int>("10M").val == 10'000'000);
+
+void validation_summary(const score& sc, int fixed, int quiet,
+                        int cycles_limit) {
+	// we use stdout here, so flush logs to avoid mangled messages in the shell
+	log_flush();
+	if (sc.validated) {
+		if (not quiet) {
+			std::cout << print_escape(bright_blue, bold) << "validation successful"
+			          << print_escape(none) << "\n";
+		}
+	} else if (quiet < 2) {
+		std::cout << print_escape(red) << "validation failed"
+		          << print_escape(none);
+		if (fixed != -1) {
+			std::cout << " for fixed test " << fixed;
+		}
+		std::cout << " after " << sc.cycles << " cycles";
+		if (std::cmp_equal(sc.cycles, cycles_limit)) {
+			std::cout << " [timeout]";
+		}
+		std::cout << '\n';
+	}
+}
 
 enum exit_code : int { SUCCESS = 0, FAILURE = 1, EXCEPTION = 2 };
 
@@ -592,8 +349,6 @@ int main(int argc, char** argv) try {
 
 	auto cycles_limit = cycles_limit_arg.getValue().val;
 	auto total_cycles_limit = total_cycles_limit_arg.getValue().val;
-	auto random_count = random_arg.getValue().val;
-	auto base_seed = seed_arg.getValue().val;
 
 	set_log_level([&] {
 #if TIS_ENABLE_DEBUG
@@ -654,11 +409,12 @@ int main(int argc, char** argv) try {
 	} else if (random_arg.isSet()) {
 		std::uint32_t seed;
 		if (seed_arg.isSet()) {
-			seed = base_seed;
+			seed = seed_arg.getValue().val;
 		} else {
 			seed = std::random_device{}();
 			log_info("random seed: ", seed);
 		}
+		auto random_count = random_arg.getValue().val;
 		seed_ranges.push_back({seed, seed + random_count});
 	}
 
@@ -673,9 +429,6 @@ int main(int argc, char** argv) try {
 		}
 		log << "\n} sum: " << total_random_tests << " tests";
 	}
-	if (dry_run.getValue()) {
-		return exit_code::SUCCESS;
-	}
 
 	// try to fill as much as possible before the loop
 	std::unique_ptr<level> l;
@@ -687,6 +440,10 @@ int main(int argc, char** argv) try {
 		l = std::make_unique<custom_level>(custom_spec_arg.getValue());
 	}
 #endif
+
+	if (dry_run.getValue()) {
+		return exit_code::SUCCESS;
+	}
 
 	exit_code return_code = exit_code::SUCCESS;
 	bool break_filenames = false;
