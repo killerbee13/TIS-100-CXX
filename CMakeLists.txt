@@ -61,7 +61,7 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON)
 
 add_executable(TIS-100-CXX builtin_specs.hpp field.cpp field.hpp image.hpp
 	io.hpp levels.cpp levels.hpp logger.cpp logger.hpp main.cpp node.hpp
-	parser.cpp parser.hpp T21.hpp T30.hpp tis_random.hpp utils.hpp
+	parser.cpp parser.hpp T21.hpp T30.hpp tis_random.hpp runner.hpp utils.hpp
 	test_saves_lb.sh test_saves_single.sh
 	README.md LICENSE)
 
