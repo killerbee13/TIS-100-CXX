@@ -44,7 +44,7 @@
 struct level {
 	std::uint32_t base_seed;
 
-	virtual field new_field(uint T30_size) = 0;
+	virtual field new_field(uint T30_size) const = 0;
 
 	virtual std::optional<single_test> random_test(std::uint32_t seed) = 0;
 
@@ -98,7 +98,7 @@ struct builtin_level final : level {
 		base_seed = builtin_seeds[level_id];
 	}
 
-	field new_field(uint T30_size) override {
+	field new_field(uint T30_size) const override {
 		return field(builtin_layouts[level_id].layout, T30_size);
 	}
 
@@ -228,7 +228,7 @@ struct custom_level final : level {
 		}
 	}
 
-	field new_field(uint T30_size) override { return field(spec, T30_size); }
+	field new_field(uint T30_size) const override { return field(spec, T30_size); }
 
 	std::optional<single_test> random_test(std::uint32_t seed) override {
 		single_test ret;

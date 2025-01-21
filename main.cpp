@@ -28,6 +28,7 @@
 #include <kblib/hash.h>
 #include <kblib/io.h>
 #include <kblib/stringops.h>
+#include <memory>
 #include <random>
 
 #define TCLAP_SETBASE_ZERO 1
@@ -431,13 +432,13 @@ int main(int argc, char** argv) try {
 	}
 
 	// try to fill as much as possible before the loop
-	std::unique_ptr<level> l;
+	std::unique_ptr<level> global_level;
 	if (id_arg.isSet()) {
-		l = std::make_unique<builtin_level>(find_level_id(id_arg.getValue()));
+		global_level = std::make_unique<builtin_level>(find_level_id(id_arg.getValue()));
 	}
 #if TIS_ENABLE_LUA
 	else if (custom_spec_arg.isSet()) {
-		l = std::make_unique<custom_level>(custom_spec_arg.getValue());
+		global_level = std::make_unique<custom_level>(custom_spec_arg.getValue());
 	}
 #endif
 
@@ -455,11 +456,15 @@ int main(int argc, char** argv) try {
 			std::cout << kblib::escapify(solution) << ":" << std::endl;
 		}
 
-		if (l) {
+		level* l;
+		std::unique_ptr<level> level_from_name;
+		if (global_level) {
+			l = global_level.get();
 		} else if (auto filename
 		           = std::filesystem::path(solution).filename().string();
 		           auto maybe_id = guess_level_id(filename)) {
-			l = std::make_unique<builtin_level>(*maybe_id);
+			level_from_name = std::make_unique<builtin_level>(*maybe_id);
+			l = level_from_name.get();
 			log_debug("Deduced level ", builtin_layouts[*maybe_id].segment,
 			          " from filename ", kblib::quoted(filename));
 		} else {
