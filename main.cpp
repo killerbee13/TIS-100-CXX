@@ -465,6 +465,7 @@ int main(int argc, char** argv) try {
 		} else {
 			log_err("Impossible to determine the level ID for ",
 			        kblib::quoted(filename));
+			log_flush();
 			return_code = exit_code::EXCEPTION;
 			continue;
 		}
@@ -483,11 +484,13 @@ int main(int argc, char** argv) try {
 					parse_code(f, code, T21_size.getValue());
 				} catch (const std::invalid_argument& e) {
 					log_err(e.what());
+					log_flush();
 					return_code = exit_code::EXCEPTION;
 					continue;
 				}
 			} else {
 				log_err("invalid file: ", kblib::quoted(solution));
+				log_flush();
 				return_code = exit_code::EXCEPTION;
 				continue;
 			}
