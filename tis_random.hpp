@@ -79,15 +79,16 @@ class xorshift128_engine {
 
 // based on
 // https://github.com/microsoft/referencesource/blob/master/mscorlib/system/random.cs
-// but with inextp = 31 instead of 21 and the min+1==max escape hatch, matching
-// the old mono version in the game
+// and
+// https://github.com/mono/mono/blob/mono-2.6/mcs/class/corlib/System/Random.cs
+// matching the old mono version in the game
 class lua_random {
  private:
-	i32 inext{};
-	i32 inextp{31};
+	u32 inext{};
+	u32 inextp{31};
 	std::array<i32, 56> seed_array{};
 
-	i32 map_negative(i32 x) {
+	static i32 map_negative(i32 x) {
 		if (x < 0) {
 			x += kblib::max.of<i32>();
 		}
@@ -96,16 +97,13 @@ class lua_random {
 
  public:
 	lua_random(i32 random_seed) {
-		assert(inextp >= 0 and to_unsigned(inextp) < seed_array.size());
-
 		i32 subtraction
 		    = (random_seed == kblib::min) ? kblib::max : std::abs(random_seed);
 		i32 mj = 161803398 - subtraction;
 		seed_array.back() = mj;
 		i32 mk = 1;
-		std::size_t ii;
 		for (const auto i : range(1u, 55u)) {
-			ii = (21u * i) % 55u;
+			std::size_t ii = (21u * i) % 55u;
 			seed_array[ii] = mk;
 			mk = map_negative(mj - mk);
 			mj = seed_array[ii];
@@ -128,8 +126,7 @@ class lua_random {
 			inextp = 1;
 		}
 
-		i32 ret
-		    = seed_array[to_unsigned(inext)] - seed_array[to_unsigned(inextp)];
+		i32 ret = seed_array[inext] - seed_array[inextp];
 
 		if (ret == kblib::max) {
 			--ret;
@@ -137,7 +134,7 @@ class lua_random {
 		if (ret < 0) {
 			ret += kblib::max.of<i32>();
 		}
-		seed_array[to_unsigned(inext)] = ret;
+		seed_array[inext] = ret;
 
 		return ret * (1.0 / kblib::max.of<i32>());
 	}
