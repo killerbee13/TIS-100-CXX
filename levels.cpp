@@ -17,6 +17,7 @@
  * ****************************************************************************/
 
 #include "levels.hpp"
+#include "image.hpp"
 #include "parser.hpp"
 #include "tis_random.hpp"
 
@@ -66,7 +67,7 @@ static image_t checkerboard(std::ptrdiff_t w, std::ptrdiff_t h) {
 	image_t ret(w, h);
 	for (const auto y : range(h)) {
 		for (const auto x : range(w)) {
-			ret.at(x, y)
+			ret[x, y]
 			    = ((x + y % 2) % 2) ? tis_pixel::C_black : tis_pixel::C_white;
 		}
 	}
@@ -317,7 +318,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 				// rectangle
 				for (int j = -1; j < w + 1; ++j) {
 					for (int k = -1; k < h + 1; ++k) {
-						if (ret.i_output.at(x_c + j, y_c + k) != 0) {
+						if (ret.i_output[x_c + j, y_c + k] != tis_pixel::C_black) {
 							++iterations;
 							goto retry;
 						}
@@ -331,10 +332,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			ret.inputs[0].push_back(h);
 			for (int j = 0; j < w; ++j) {
 				for (int k = 0; k < h; ++k) {
-					[[maybe_unused]] auto index = x_c + j + (y_c + k) * image_width;
-					ret.i_output.at(x_c + j, y_c + k) = 3;
-					assert(ret.i_output.at(index)
-					       == ret.i_output.at(x_c + j, y_c + k));
+					ret.i_output[x_c + j, y_c + k] = tis_pixel::C_white;
 				}
 			}
 			log_debug_r([&] { return "image:\n" + ret.i_output.write_text(); });
@@ -354,10 +352,9 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 				ret.inputs[0][x] = engine.next_int(3, 14);
 			}
 		}
-		for (int y = 0; y < image_height; ++y) {
-			for (int x = 0; x < image_width; ++x) {
-				ret.i_output.at(x, y)
-				    = (image_height - y <= ret.inputs[0][x]) ? 3 : 0;
+		for (int x = 0; x < image_width; ++x) {
+			for (int y = image_height - ret.inputs[0][x]; y < image_height; ++y) {
+				ret.i_output[x, y] = tis_pixel::C_white;
 			}
 		}
 	} break;
@@ -820,9 +817,6 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		ret.inputs.resize(1);
 		ret.i_output.reshape(image_width, image_height);
 
-		// Initialize the image
-		std::vector<tis_pixel> image(image_width * image_height, tis_pixel{0});
-
 		// Helper methods
 		auto shuffled_one_to_n = [&engine](word_t n) {
 			std::vector<word_t> res(n);
@@ -886,7 +880,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 				dx = 1;
 			}
 			for (word_t x = xOne; x != xTwo + dx; x += dx) {
-				image[x + yOne * image_width] = tis_pixel{3};
+				ret.i_output[x, yOne] = tis_pixel::C_white;
 			}
 			ret.inputs[0].push_back(
 			    static_cast<word_t>(std::abs(xOne - xTwo) + 1));
@@ -905,19 +899,16 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 				dy = 1;
 			}
 			for (word_t y = yOne; y != yTwo + dy; y += dy) {
-				image[xTwo + y * image_width] = tis_pixel{3};
+				ret.i_output[xTwo, y] = tis_pixel::C_white;
 			}
 			ret.inputs[0].push_back(
 			    static_cast<word_t>(std::abs(yOne - yTwo) + 1));
 		}
-		ret.i_output.assign(std::move(image));
 	} break;
 	case "CHARACTER TERMINAL"_lvl: {
 		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
 		ret.i_output.reshape(image_width, image_height);
-
-		std::vector<tis_pixel> image(image_width * image_height, tis_pixel{0});
 
 		// replace 2d arrays for alternative characters
 		bool char_decode[][2][2] = {{{0, 0}, {0, 0}},
@@ -933,7 +924,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 				for (int b : {0, 1}) {
 					if (ch[a][b]) {
 						// color for the character is set here
-						image[x + a + (y + b) * image_width] = tis_pixel{3};
+						ret.i_output[x + a, y + b] = tis_pixel::C_white;
 					}
 				}
 			}
@@ -965,7 +956,6 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			render_character(x * 3, y * 3, input[i + 1]);
 		}
 		input.erase(input.begin());
-		ret.i_output.assign(std::move(image));
 	} break;
 	case "BACK-REFERENCE REIFIER"_lvl: {
 		lua_random engine(to_signed(seed));

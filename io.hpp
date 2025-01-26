@@ -187,10 +187,9 @@ struct image_output final : output_node {
 
  private:
 	void poke(tis_pixel pix_new) {
-		if (c_x != word_empty and c_y != word_empty and c_x < width
-		    and c_y < height) {
-			auto& pix_rec = image_received.at(c_x, c_y);
-			auto& pix_exp = image_expected.at(c_x, c_y);
+		if (c_x < width and c_y < height) {
+			auto& pix_rec = image_received[c_x, c_y];
+			auto& pix_exp = image_expected[c_x, c_y];
 			if (pix_rec == pix_exp) {
 				wrong_pixels++;
 			}
