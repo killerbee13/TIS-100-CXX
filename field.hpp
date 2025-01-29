@@ -133,67 +133,49 @@ class field {
 	}
 
 	/// Advance the field one full cycle (step and finalize)
-	void step() {
+	bool step() {
 		if (allT21) {
-			do_step<true>();
+			return do_step<true>();
 		} else {
-			do_step<false>();
+			return do_step<false>();
 		}
 	}
 
 	template <bool allT21>
-	void do_step() {
-		auto log = log_debug();
-		log << "Field step\n";
+	bool do_step() {
+		auto debug = log_debug();
+		debug << "Field step\n";
 		// evaluate code
 		for (auto& p : regulars_to_sim) {
 			if constexpr (allT21) {
-				static_cast<T21*>(p)->step(log);
+				static_cast<T21*>(p)->step(debug);
 			} else {
-				p->step(log);
+				p->step(debug);
 			}
 		}
-		log << '\n';
+		debug << '\n';
+
 		// run io nodes, this may read from regular nodes, so it must be
 		// between the 2 regular methods
 		for (auto& p : inputs_to_sim) {
-			p->execute(log);
+			p->execute(debug);
 		}
+		bool active = false;
 		for (auto& p : numerics_to_sim) {
-			p->execute(log);
+			active |= p->execute(debug);
 		}
 		for (auto& p : images_to_sim) {
-			p->execute(log);
+			active |= p->execute(debug);
 		}
-		log << '\n';
+		debug << '\n';
+
 		// execute writes
 		// this is a separate step to ensure a consistent propagation delay
 		for (auto& p : regulars_to_sim) {
 			if constexpr (allT21) {
-				static_cast<T21*>(p)->finalize(log);
+				static_cast<T21*>(p)->finalize(debug);
 			} else {
-				p->finalize(log);
-			}
-		}
-	}
-
-	bool active() const {
-		bool active{};
-		for (auto& n : nodes_numeric) {
-			if (not n->complete) {
-				active = true;
-
-// speed up simulator by failing early when an incorrect output is written
-#if RELEASE
-				if (n->wrong) {
-					return false;
-				}
-#endif
-			}
-		}
-		for (auto& i : nodes_image) {
-			if (i->wrong_pixels) {
-				active = true;
+				p->finalize(debug);
 			}
 		}
 		return active;

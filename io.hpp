@@ -98,23 +98,29 @@ struct num_output final : output_node {
 	}
 
 	type_t type() const noexcept override { return out; }
-	// Attempt to read from neighbor every step
-	[[gnu::always_inline]] inline void execute(logger& debug) {
+	/// Attempt to read from neighbor every step
+	/// @returns is_active
+	[[gnu::always_inline]] inline bool execute(logger& debug) {
 		if (complete) {
-			return;
+			return false;
 		}
 		if (auto r = linked->emit(port::down); r != word_empty) {
-			debug << "O" << x << ": read";
+			debug << "O" << x << ": read\n";
 			auto i = outputs_received.size();
 			outputs_received.push_back(r);
+			complete = (outputs_expected.size() == outputs_received.size());
 			if (outputs_received[i] != outputs_expected[i]) {
 				wrong = true;
-				debug << "incorrect value written";
+				debug << "incorrect value written\n";
+// speed up simulator by failing early when an incorrect output is written
+#if RELEASE
+				return false;
+#endif
 			}
-			complete = (outputs_expected.size() == outputs_received.size());
-			debug << '\n';
 		}
+		return not complete;
 	}
+	[[gnu::always_inline]] inline bool valid() const { return complete and not wrong; }
 	/// Return a new node initialized in the same way as *this.
 	/// (Not a copy constructor; new node is as if reset() and has no neighbors)
 	std::unique_ptr<num_output> clone() const {
@@ -132,6 +138,8 @@ struct num_output final : output_node {
 
 	word_vec outputs_expected;
 	word_vec outputs_received;
+
+ private:
 	bool wrong{false};
 	bool complete{false};
 };
@@ -152,7 +160,8 @@ struct image_output final : output_node {
 	}
 
 	type_t type() const noexcept override { return image; }
-	[[gnu::always_inline]] inline void execute(logger&) {
+	/// @returns is_active
+	[[gnu::always_inline]] inline bool execute(logger&) {
 		if (auto r = linked->emit(port::down); r != word_empty) {
 			if (r < 0) {
 				c_x = word_empty;
@@ -166,7 +175,9 @@ struct image_output final : output_node {
 				++c_x;
 			}
 		}
+		return bool(wrong_pixels);
 	}
+	[[gnu::always_inline]] inline bool valid() const { return not wrong_pixels; }
 	/// Return a new node initialized in the same way as *this.
 	/// (Not a copy constructor; new node is as if reset() and has no neighbors)u
 	std::unique_ptr<image_output> clone() const {
@@ -181,7 +192,6 @@ struct image_output final : output_node {
 
 	image_t image_expected;
 	image_t image_received;
-	std::size_t wrong_pixels;
 	std::ptrdiff_t width{};
 	std::ptrdiff_t height{};
 
@@ -200,6 +210,7 @@ struct image_output final : output_node {
 		}
 	}
 
+	std::size_t wrong_pixels;
 	optional_word c_x = word_empty;
 	optional_word c_y = word_empty;
 };

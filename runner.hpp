@@ -41,7 +41,7 @@ void print_validation_failure(const field& f, T&& os, bool color) {
 		write_list(os, i->inputs, nullptr, color) << '\n';
 	}
 	for (auto& p : f.numerics()) {
-		if (p->outputs_expected != p->outputs_received) {
+		if (not p->valid()) {
 			os << "validation failure for output " << p->x;
 			os << "\noutput: ";
 			write_list(os, p->outputs_received, &p->outputs_expected, color);
@@ -51,7 +51,7 @@ void print_validation_failure(const field& f, T&& os, bool color) {
 		}
 	}
 	for (auto& p : f.images()) {
-		if (p->wrong_pixels) {
+		if (not p->valid()) {
 			os << "validation failure for output " << p->x << "\noutput: ("
 			   << p->width << ',' << p->height << ")\n"
 			   << p->image_received.write_text(color) //
@@ -66,29 +66,30 @@ inline score run(field& f, int cycles_limit, bool print_err) {
 	sc.instructions = f.instructions();
 	sc.nodes = f.nodes_used();
 	try {
+		bool active;
 		do {
 			++sc.cycles;
 			log_trace("step ", sc.cycles);
 			log_trace_r([&] { return "Current state:\n" + f.state(); });
-			f.step();
-		} while (stop_requested == 0 and f.active()
+			active = f.step();
+		} while (active and stop_requested == 0
 		         and std::cmp_less(sc.cycles, cycles_limit));
-		sc.validated = true;
 
-		log_flush();
+		sc.validated = true;
 		for (auto& p : f.numerics()) {
-			if (p->wrong || ! p->complete) {
+			if (not p->valid()) {
 				sc.validated = false;
 				break;
 			}
 		}
 		for (auto& p : f.images()) {
-			if (p->wrong_pixels) {
+			if (not p->valid()) {
 				sc.validated = false;
 				break;
 			}
 		}
 
+		log_flush();
 		if (print_err and not sc.validated) {
 			print_validation_failure(f, std::cout, color_stdout);
 		}
