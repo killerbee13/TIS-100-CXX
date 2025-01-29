@@ -62,7 +62,7 @@ void parse_code(field& f, std::string_view source, std::size_t T21_size) {
 	f.finalize_nodes();
 }
 
-void set_expected(field& f, const single_test& expected) {
+void set_expected(field& f, single_test&& expected) {
 	std::size_t in_idx{};
 	std::size_t out_idx{};
 	for (auto& i : f.regulars()) {
@@ -83,7 +83,7 @@ void set_expected(field& f, const single_test& expected) {
 	for (auto& i : f.inputs()) {
 		log_debug("reset input I", i->x);
 		assert(in_idx < expected.inputs.size());
-		i->reset(expected.inputs[in_idx++]);
+		i->reset(std::move(expected.inputs[in_idx++]));
 		auto log = log_debug();
 		log << "set expected input I" << i->x << ":";
 		write_list(log, i->inputs);
@@ -91,14 +91,14 @@ void set_expected(field& f, const single_test& expected) {
 	for (auto& o : f.numerics()) {
 		log_debug("reset output O", o->x);
 		assert(out_idx < expected.n_outputs.size());
-		o->reset(expected.n_outputs[out_idx++]);
+		o->reset(std::move(expected.n_outputs[out_idx++]));
 		auto log = log_debug();
 		log << "set expected output O" << o->x << ":";
 		write_list(log, o->outputs_expected);
 	}
 	for (auto& i : f.images()) {
 		log_debug("reset image O", i->x);
-		i->reset(expected.i_output);
+		i->reset(std::move(expected.i_output));
 		auto log = log_debug();
 		log << "set expected image O" << i->x << ": {\n";
 		log.log_r([&] { return i->image_expected.write_text(color_logs); });

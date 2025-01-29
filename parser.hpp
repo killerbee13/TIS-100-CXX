@@ -67,8 +67,8 @@ std::vector<instr> assemble(std::string_view source, int node,
 /// Read a TIS-100-compatible save file
 /// @throws `std::invalid_argument` for any lexing problem
 void parse_code(field& f, std::string_view source, std::size_t T21_size);
-/// Configure the field with a test case
-void set_expected(field& f, const single_test& expected);
+/// Configure the field with a test case, takes ownership of the test content
+void set_expected(field& f, single_test&& expected);
 
 struct score {
 	std::size_t cycles{};

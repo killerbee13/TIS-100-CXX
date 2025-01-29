@@ -510,7 +510,7 @@ int main(int argc, char** argv) try {
 		if (fixed.getValue()) {
 			int succeeded{1};
 			for (auto test : l->static_suite()) {
-				set_expected(f, test);
+				set_expected(f, std::move(test));
 				score last = run(f, cycles_limit, true);
 				sc.cycles = std::max(sc.cycles, last.cycles);
 				sc.instructions = last.instructions;

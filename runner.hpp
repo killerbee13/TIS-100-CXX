@@ -201,7 +201,7 @@ inline score run_seed_ranges(level& l, field& f,
 				continue;
 			}
 			++counter;
-			set_expected(f, *test);
+			set_expected(f, std::move(*test));
 			score last = run(f, params.cycles_limit, false);
 			if (stop_requested) {
 				return;
