@@ -61,7 +61,7 @@ void print_validation_failure(const field& f, T&& os, bool color) {
 	}
 }
 
-inline score run(field& f, int cycles_limit, bool print_err) {
+inline score run(field& f, uint cycles_limit, bool print_err) {
 	score sc{};
 	sc.instructions = f.instructions();
 	sc.nodes = f.nodes_used();
@@ -72,8 +72,12 @@ inline score run(field& f, int cycles_limit, bool print_err) {
 			log_trace("step ", sc.cycles);
 			log_trace_r([&] { return "Current state:\n" + f.state(); });
 			active = f.step();
-		} while (active and stop_requested == 0
-		         and std::cmp_less(sc.cycles, cycles_limit));
+		} while (
+		    active and sc.cycles < cycles_limit
+		    and not stop_requested // testing the atomic sighandler last is
+		                           // equivalent to relaxed memory order in my
+		                           // tests, testing it sooner loses performance
+		);
 
 		sc.validated = true;
 		for (auto& p : f.numerics()) {
@@ -155,11 +159,11 @@ static_assert(
 struct run_params {
 	std::size_t& total_cycles;
 	bool& failure_printed;
-	int& count;
-	int& valid_count;
+	uint& count;
+	uint& valid_count;
 	std::size_t total_cycles_limit;
-	int cycles_limit;
-	int cheating_success_threshold;
+	uint cycles_limit;
+	uint cheating_success_threshold;
 	std::uint8_t quiet;
 	bool stats;
 };
@@ -218,9 +222,7 @@ inline score run_seed_ranges(level& l, field& f,
 			} else {
 				if (std::exchange(params.failure_printed, true) == false) {
 					log_info("Random test failed for seed: ", seed,
-					         std::cmp_equal(last.cycles, params.cycles_limit)
-					             ? " [timeout]"
-					             : "");
+					         last.cycles == params.cycles_limit ? " [timeout]" : "");
 					print_validation_failure(f, log_info(), color_logs);
 				} else {
 					log_debug("Random test failed for seed: ", seed);

@@ -185,7 +185,7 @@ static_assert(human_readable_integer<int>("10k").val == 10'000);
 static_assert(human_readable_integer<int>("10M").val == 10'000'000);
 
 void validation_summary(const score& sc, int fixed, int quiet,
-                        int cycles_limit) {
+                        uint cycles_limit) {
 	// we use stdout here, so flush logs to avoid mangled messages in the shell
 	log_flush();
 	if (sc.validated) {
@@ -200,7 +200,7 @@ void validation_summary(const score& sc, int fixed, int quiet,
 			std::cout << " for fixed test " << fixed;
 		}
 		std::cout << " after " << sc.cycles << " cycles";
-		if (std::cmp_equal(sc.cycles, cycles_limit)) {
+		if (sc.cycles == cycles_limit) {
 			std::cout << " [timeout]";
 		}
 		std::cout << '\n';
@@ -241,7 +241,7 @@ int main(int argc, char** argv) try {
 	cmd.add(id_arg);
 #endif
 
-	TCLAP::ValueArg<human_readable_integer<int>> cycles_limit_arg(
+	TCLAP::ValueArg<human_readable_integer<uint>> cycles_limit_arg(
 	    "", "limit",
 	    "Number of cycles to run test for before timeout. (Default 100500)",
 	    false, 100'500, "integer", cmd);
@@ -538,13 +538,13 @@ int main(int argc, char** argv) try {
 			sc.achievement = l->has_achievement(f, sc);
 			validation_summary(sc, succeeded, quiet.getValue(), cycles_limit);
 			random_limit = std::min(
-			    cycles_limit, static_cast<int>(static_cast<double>(sc.cycles)
-			                                   * limit_multiplier.getValue()));
+			    cycles_limit, static_cast<uint>(static_cast<double>(sc.cycles)
+			                                    * limit_multiplier.getValue()));
 			log_info("Setting random test timeout to ", random_limit);
 		}
 
-		int count = 0;
-		int valid_count = 0;
+		uint count = 0;
+		uint valid_count = 0;
 		if ((fixed.getValue() == 0 or sc.validated or stats.getValue())
 		    and not stop_requested and not seed_ranges.empty()) {
 			bool failure_printed{};
@@ -554,7 +554,7 @@ int main(int argc, char** argv) try {
 			                  valid_count,
 			                  total_cycles_limit,
 			                  random_limit,
-			                  static_cast<int>(cheat_rate * total_random_tests),
+			                  static_cast<uint>(cheat_rate * total_random_tests),
 			                  static_cast<uint8_t>(quiet.getValue()),
 			                  stats.getValue()};
 			auto worst = run_seed_ranges(*l, f, seed_ranges, params, num_threads);
@@ -570,7 +570,7 @@ int main(int argc, char** argv) try {
 				validation_summary(sc, -1, quiet.getValue(), random_limit);
 			}
 			sc.cheat = (count == 0 or count != valid_count);
-			sc.hardcoded = (valid_count <= static_cast<int>(count * cheat_rate));
+			sc.hardcoded = (valid_count <= static_cast<uint>(count * cheat_rate));
 		}
 
 		log_flush();
