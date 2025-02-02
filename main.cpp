@@ -37,6 +37,11 @@
 #include <cxxabi.h>
 #include <typeinfo>
 
+#ifdef _WIN32
+#	include <io.h>
+#	define isatty(x) _isatty(x)
+#endif
+
 std::optional<std::string> demangle(const char* name) {
 	int status{};
 	auto type_name = abi::__cxa_demangle(name, nullptr, nullptr, &status);
@@ -345,8 +350,10 @@ int main(int argc, char** argv) try {
 	color_logs = log_color.isSet() or isatty(STDERR_FILENO);
 	signal(SIGTERM, sigterm_handler);
 	signal(SIGINT, sigterm_handler);
+#ifndef _WIN32
 	signal(SIGUSR1, sigterm_handler);
 	signal(SIGUSR2, sigterm_handler);
+#endif
 
 	auto cycles_limit = cycles_limit_arg.getValue().val;
 	auto total_cycles_limit = total_cycles_limit_arg.getValue().val;
@@ -434,7 +441,8 @@ int main(int argc, char** argv) try {
 	// try to fill as much as possible before the loop
 	std::unique_ptr<level> global_level;
 	if (id_arg.isSet()) {
-		global_level = std::make_unique<builtin_level>(find_level_id(id_arg.getValue()));
+		global_level
+		    = std::make_unique<builtin_level>(find_level_id(id_arg.getValue()));
 	}
 #if TIS_ENABLE_LUA
 	else if (custom_spec_arg.isSet()) {
