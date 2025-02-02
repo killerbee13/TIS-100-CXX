@@ -30,7 +30,7 @@ struct input_node final : node {
 	using node::node;
 
 	void reset(word_vec inputs_) noexcept {
-		inputs = inputs_;
+		inputs = std::move(inputs_);
 		idx = 0;
 		wrt = word_empty;
 		s = activity::idle;
@@ -91,10 +91,10 @@ struct num_output final : output_node {
 	using output_node::output_node;
 
 	void reset(word_vec outputs_expected_) {
-		outputs_expected = outputs_expected_;
+		outputs_expected = std::move(outputs_expected_);
 		outputs_received.clear();
 		wrong = false;
-		complete = outputs_expected_.empty();
+		complete = outputs_expected.empty();
 	}
 
 	type_t type() const noexcept override { return out; }
