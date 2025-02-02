@@ -265,12 +265,12 @@ struct custom_level final : level {
 			}
 		}
 
-		for (ssize_t i = spec.inputs.size() - 1; i >= 0; i--) {
+		for (ptrdiff_t i = spec.inputs.size() - 1; i >= 0; i--) {
 			if (spec.inputs[i] != node::in) {
 				ret.inputs.erase(ret.inputs.begin() + i);
 			}
 		}
-		for (ssize_t i = spec.outputs.size() - 1; i >= 0; i--) {
+		for (ptrdiff_t i = spec.outputs.size() - 1; i >= 0; i--) {
 			if (spec.outputs[i] != node::out) {
 				ret.n_outputs.erase(ret.n_outputs.begin() + i);
 			}

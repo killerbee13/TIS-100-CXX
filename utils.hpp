@@ -21,6 +21,7 @@
 #include <kblib/convert.h>
 #include <kblib/stats.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -36,6 +37,7 @@ using namespace kblib::literals;
 using kblib::append, kblib::concat, kblib::etoi, kblib::range, kblib::to_signed,
     kblib::to_unsigned;
 
+using std::size_t, std::ptrdiff_t;
 using uint = unsigned int;
 
 using word_t = std::int16_t;
