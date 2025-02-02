@@ -36,6 +36,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #if TIS_ENABLE_LUA
 #	include <sol/sol.hpp>
@@ -228,12 +229,15 @@ struct custom_level final : level {
 		}
 	}
 
-	field new_field(uint T30_size) const override { return field(spec, T30_size); }
+	field new_field(uint T30_size) const override {
+		return field(spec, T30_size);
+	}
 
 	std::optional<single_test> random_test(std::uint32_t seed) override {
 		single_test ret;
 		ret.inputs.resize(spec.inputs.size());
 		ret.n_outputs.resize(spec.outputs.size());
+		ret.i_outputs.resize(spec.outputs.size());
 
 		lua_random engine(to_signed(seed));
 
@@ -253,8 +257,8 @@ struct custom_level final : level {
 				ret.n_outputs[id] = table_to_vector<word_t>(values);
 			} break;
 			case node::image: {
-				ret.i_output.reshape(image_width, image_height);
-				ret.i_output.assign(table_to_vector<tis_pixel>(values));
+				ret.i_outputs[id] = image_t(image_width, image_height,
+				                            table_to_vector<tis_pixel>(values));
 			} break;
 			default:
 				throw std::invalid_argument{std::to_string(etoi(type))};
@@ -269,6 +273,9 @@ struct custom_level final : level {
 		for (ssize_t i = spec.outputs.size() - 1; i >= 0; i--) {
 			if (spec.outputs[i] != node::out) {
 				ret.n_outputs.erase(ret.n_outputs.begin() + i);
+			}
+			if (spec.outputs[i] != node::image) {
+				ret.i_outputs.erase(ret.i_outputs.begin() + i);
 			}
 		}
 		clamp_test_values(ret);

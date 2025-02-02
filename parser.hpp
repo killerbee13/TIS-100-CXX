@@ -30,7 +30,7 @@
 struct single_test {
 	std::vector<word_vec> inputs{};
 	std::vector<word_vec> n_outputs{};
-	image_t i_output{};
+	std::vector<image_t> i_outputs{};
 };
 
 inline void clamp_test_values(single_test& t) {

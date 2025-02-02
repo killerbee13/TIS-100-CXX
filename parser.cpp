@@ -25,6 +25,7 @@
 #include <kblib/stringops.h>
 
 #include <map>
+#include <ranges>
 #include <set>
 
 std::string_view pop(std::string_view& str, std::size_t n) {
@@ -63,8 +64,6 @@ void parse_code(field& f, std::string_view source, std::size_t T21_size) {
 }
 
 void set_expected(field& f, single_test&& expected) {
-	std::size_t in_idx{};
-	std::size_t out_idx{};
 	for (auto& i : f.regulars()) {
 		auto p = i.get();
 		log_debug("reset node (", p->x, ',', p->y, ')');
@@ -80,29 +79,28 @@ void set_expected(field& f, single_test&& expected) {
 			break;
 		}
 	}
-	for (auto& i : f.inputs()) {
-		log_debug("reset input I", i->x);
-		assert(in_idx < expected.inputs.size());
-		i->reset(std::move(expected.inputs[in_idx++]));
-		auto log = log_debug();
-		log << "set expected input I" << i->x << ":";
-		write_list(log, i->inputs);
+	using std::views::zip;
+	for (const auto& [n, i] : zip(f.inputs(), expected.inputs)) {
+		log_debug("reset input I", n->x);
+		n->reset(std::move(i));
+		auto debug = log_debug();
+		debug << "set expected input I" << n->x << ":";
+		write_list(debug, n->inputs);
 	}
-	for (auto& o : f.numerics()) {
-		log_debug("reset output O", o->x);
-		assert(out_idx < expected.n_outputs.size());
-		o->reset(std::move(expected.n_outputs[out_idx++]));
-		auto log = log_debug();
-		log << "set expected output O" << o->x << ":";
-		write_list(log, o->outputs_expected);
+	for (const auto& [n, o] : zip(f.numerics(), expected.n_outputs)) {
+		log_debug("reset output O", n->x);
+		n->reset(std::move(o));
+		auto debug = log_debug();
+		debug << "set expected output O" << n->x << ":";
+		write_list(debug, n->outputs_expected);
 	}
-	for (auto& i : f.images()) {
-		log_debug("reset image O", i->x);
-		i->reset(std::move(expected.i_output));
-		auto log = log_debug();
-		log << "set expected image O" << i->x << ": {\n";
-		log.log_r([&] { return i->image_expected.write_text(color_logs); });
-		log << '}';
+	for (const auto& [n, i] : zip(f.images(), expected.i_outputs)) {
+		log_debug("reset image O", n->x);
+		n->reset(std::move(i));
+		auto debug = log_debug();
+		debug << "set expected image O" << n->x << ": {\n";
+		debug.log_r([&] { return n->image_expected.write_text(color_logs); });
+		debug << '}';
 	}
 }
 

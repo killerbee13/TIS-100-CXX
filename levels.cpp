@@ -67,8 +67,7 @@ static image_t checkerboard(std::ptrdiff_t w, std::ptrdiff_t h) {
 	image_t ret(w, h);
 	for (const auto y : range(h)) {
 		for (const auto x : range(w)) {
-			ret[x, y]
-			    = ((x + y % 2) % 2) ? tis_pixel::C_black : tis_pixel::C_white;
+			ret[x, y] = ((x ^ y) % 2) ? tis_pixel::C_black : tis_pixel::C_white;
 		}
 	}
 	return ret;
@@ -281,15 +280,15 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		ret.n_outputs.resize(1);
 	} break;
 	case "IMAGE TEST PATTERN 1"_lvl: {
-		ret.i_output.reshape(image_width, image_height, tis_pixel::C_white);
+		ret.i_outputs.emplace_back(image_width, image_height, tis_pixel::C_white);
 	} break;
 	case "IMAGE TEST PATTERN 2"_lvl: {
-		ret.i_output = checkerboard(image_width, image_height);
+		ret.i_outputs.push_back(checkerboard(image_width, image_height));
 	} break;
 	case "EXPOSURE MASK VIEWER"_lvl: {
 		xorshift128_engine engine(seed);
 		ret.inputs.resize(1);
-		ret.i_output.reshape(image_width, image_height);
+		auto& image = ret.i_outputs.emplace_back(image_width, image_height);
 		for (int i = 0; i < 9; ++i) {
 			word_t w{};
 			word_t h{};
@@ -318,7 +317,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 				// rectangle
 				for (int j = -1; j < w + 1; ++j) {
 					for (int k = -1; k < h + 1; ++k) {
-						if (ret.i_output[x_c + j, y_c + k] != tis_pixel::C_black) {
+						if (image[x_c + j, y_c + k] != tis_pixel::C_black) {
 							++iterations;
 							goto retry;
 						}
@@ -332,16 +331,16 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			ret.inputs[0].push_back(h);
 			for (int j = 0; j < w; ++j) {
 				for (int k = 0; k < h; ++k) {
-					ret.i_output[x_c + j, y_c + k] = tis_pixel::C_white;
+					image[x_c + j, y_c + k] = tis_pixel::C_white;
 				}
 			}
-			log_debug_r([&] { return "image:\n" + ret.i_output.write_text(); });
+			log_debug_r([&] { return "image:\n" + image.write_text(); });
 		}
 	} break;
 	case "HISTOGRAM VIEWER"_lvl: {
 		xorshift128_engine engine(seed);
 		ret.inputs.push_back(empty_vec(image_width));
-		ret.i_output.reshape(image_width, image_height);
+		ret.i_outputs.emplace_back(image_width, image_height);
 		ret.inputs[0][0] = engine.next_int(3, 14);
 		for (std::size_t x = 1; x < image_width; ++x) {
 			if (engine.next(0, 4) != 0) {
@@ -354,13 +353,13 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		}
 		for (int x = 0; x < image_width; ++x) {
 			for (int y = image_height - ret.inputs[0][x]; y < image_height; ++y) {
-				ret.i_output[x, y] = tis_pixel::C_white;
+				ret.i_outputs[0][x, y] = tis_pixel::C_white;
 			}
 		}
 	} break;
 	case "IMAGE CONSOLE SANDBOX"_lvl: {
 		ret.inputs.resize(1);
-		ret.i_output.reshape(36, 22);
+		ret.i_outputs.emplace_back(36, 22);
 	} break;
 	case "SIGNAL WINDOW FILTER"_lvl: {
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 10, 100));
@@ -405,7 +404,6 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	case "STORED IMAGE DECODER"_lvl: {
 		xorshift128_engine engine(seed);
 		ret.inputs.resize(1);
-		ret.i_output.reshape(image_width, image_height);
 		std::vector<tis_pixel> image;
 		while (image.size() < image_width * image_height) {
 			word_t count = engine.next_int(20, 45);
@@ -414,8 +412,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			ret.inputs[0].push_back(pix);
 			image.insert(image.end(), to_unsigned(count), tis_pixel(pix));
 		}
-		image.resize(ret.i_output.size());
-		ret.i_output.assign(std::move(image));
+		image.resize(image_width * image_height);
+		ret.i_outputs.emplace_back(image_width, image_height, std::move(image));
 	} break;
 	case "UNKNOWN"_lvl: {
 		xorshift128_engine engine(seed);
@@ -765,7 +763,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		}
 	} break;
 	case "IMAGE TEST PATTERN 3"_lvl: {
-		ret.i_output.assign({
+		ret.i_outputs.emplace_back<image_t>({
 		    u"██████████████████████████████",
 		    u"█                            █",
 		    u"█ ██████████████████████████ █",
@@ -787,7 +785,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		});
 	} break;
 	case "IMAGE TEST PATTERN 4"_lvl: {
-		ret.i_output.assign({
+		ret.i_outputs.emplace_back<image_t>({
 		    u" ░▒█ ░▒█ ░▒█ ░▒█ ░▒█ ░▒█ ░▒█ ░",
 		    u"░ █▒░ █▒░ █▒░ █▒░ █▒░ █▒░ █▒░ ",
 		    u"▒█ ░▒█ ░▒█ ░▒█ ░▒█ ░▒█ ░▒█ ░▒█",
@@ -811,7 +809,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	case "SPATIAL PATH VIEWER"_lvl: {
 		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
-		ret.i_output.reshape(image_width, image_height);
+		ret.i_outputs.emplace_back(image_width, image_height);
 
 		// Helper method
 		auto makeCoords = [&engine](std::size_t size, word_t max) {
@@ -832,7 +830,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			for (std::size_t i = good; i < coors.size(); i++) {
 				int d = std::abs(coors[good - 1] - coors[i]);
 				if (d >= 3 and d <= 14) {
-					std::rotate(coors.begin() + good, coors.begin() + i, coors.begin() + i + 1);
+					std::rotate(coors.begin() + good, coors.begin() + i,
+					            coors.begin() + i + 1);
 					good++;
 					if (good == size) {
 						break;
@@ -870,7 +869,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 				dx = 1;
 			}
 			for (word_t x = xOne; x != xTwo + dx; x += dx) {
-				ret.i_output[x, yOne] = tis_pixel::C_white;
+				ret.i_outputs[0][x, yOne] = tis_pixel::C_white;
 			}
 			ret.inputs[0].push_back(
 			    static_cast<word_t>(std::abs(xOne - xTwo) + 1));
@@ -889,7 +888,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 				dy = 1;
 			}
 			for (word_t y = yOne; y != yTwo + dy; y += dy) {
-				ret.i_output[xTwo, y] = tis_pixel::C_white;
+				ret.i_outputs[0][xTwo, y] = tis_pixel::C_white;
 			}
 			ret.inputs[0].push_back(
 			    static_cast<word_t>(std::abs(yOne - yTwo) + 1));
@@ -898,7 +897,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	case "CHARACTER TERMINAL"_lvl: {
 		lua_random engine(to_signed(seed));
 		ret.inputs.resize(1);
-		ret.i_output.reshape(image_width, image_height);
+		ret.i_outputs.emplace_back(image_width, image_height);
 
 		// replace 2d arrays for alternative characters
 		bool char_decode[][2][2] = {{{0, 0}, {0, 0}},
@@ -914,7 +913,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 				for (int b : {0, 1}) {
 					if (ch[a][b]) {
 						// color for the character is set here
-						ret.i_output[x + a, y + b] = tis_pixel::C_white;
+						ret.i_outputs[0][x + a, y + b] = tis_pixel::C_white;
 					}
 				}
 			}
