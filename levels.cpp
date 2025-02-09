@@ -18,10 +18,12 @@
 
 #include "levels.hpp"
 #include "image.hpp"
+#include "logger.hpp"
 #include "parser.hpp"
 #include "tis_random.hpp"
 
 #include <algorithm>
+#include <iterator>
 #include <vector>
 
 static word_vec make_random_array(xorshift128_engine& engine,
@@ -402,17 +404,39 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		});
 	} break;
 	case "STORED IMAGE DECODER"_lvl: {
+		// the tests for this level are AWFUL, the first time you complete the
+		// level a cutscene test plays, which uses the following input:
+		// {270, 1, 2,  2, 28, 1, 3,  2, 27, 1, 3,   2, 27,
+		//    1, 4, 2, 26,  1, 5, 2, 27,  1, 3, 2, 115,  1}
+		// after the first win, the game SHOULD use normal random tests, but a bug
+		// makes it so the seed used is always `21 advance 1`,
+		// which results in the following input:
+		// {41, 2, 33, 2, 39, 1, 35, 2, 23, 1, 30, 1, 34, 2, 20, 3, 36, 0,
+		//  38, 0, 25, 1, 24, 2, 31, 0, 22, 1, 29, 1, 30, 0, 32, 1, 20, 0}
+		// this is the test everyone sees all the time
+		// the sim runs the intended tests, which are implemented below:
 		xorshift128_engine engine(seed);
 		ret.inputs.resize(1);
-		std::vector<tis_pixel> image;
-		while (image.size() < image_width * image_height) {
+		// this can theoretically generate up to W*H/20*2 = 54 input values,
+		// sizes up to 46 have been observed (seed 2955698), we just run with an
+		// oversized test in those case
+		const size_t image_size = image_width * image_height;
+		ret.inputs[0].reserve(image_size / 20 * 2);
+		std::vector<tis_pixel> image(image_size + 45);
+
+		auto im_it = image.begin();
+		while (to_unsigned(im_it - image.begin()) < image_size) {
 			word_t count = engine.next_int(20, 45);
 			word_t pix = engine.next_int(0, 4);
 			ret.inputs[0].push_back(count);
 			ret.inputs[0].push_back(pix);
-			image.insert(image.end(), to_unsigned(count), tis_pixel(pix));
+			im_it = std::fill_n(im_it, to_unsigned(count), tis_pixel(pix));
 		}
-		image.resize(image_width * image_height);
+		if (ret.inputs[0].size() > max_test_length) {
+			log_debug("Oversized test of size: ", ret.inputs[0].size(),
+			          " for seed: ", seed);
+		}
+		image.resize(image_size);
 		ret.i_outputs.emplace_back(image_width, image_height, std::move(image));
 	} break;
 	case "UNKNOWN"_lvl: {
