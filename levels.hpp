@@ -33,6 +33,7 @@
 #include <array>
 #include <cstdint>
 #include <filesystem>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -174,6 +175,8 @@ inline std::vector<T> table_to_vector(const sol::table& table) {
 struct custom_level final : level {
 	standard_layout_spec spec;
 	sol::state lua;
+	/// sol::state is not thread-safe
+	std::mutex lua_mutex;
 
 	custom_level(const std::string& spec_path) {
 		auto spec_filename = std::filesystem::path(spec_path)
@@ -238,30 +241,32 @@ struct custom_level final : level {
 		ret.inputs.resize(spec.inputs.size());
 		ret.n_outputs.resize(spec.outputs.size());
 		ret.i_outputs.resize(spec.outputs.size());
+		{
+			std::unique_lock<std::mutex> lock(lua_mutex);
 
-		lua_random engine(to_signed(seed));
+			lua_random engine(to_signed(seed));
+			lua["math"]["random"].set_function(&lua_random::next, std::move(engine));
+			sol::table streams = lua["get_streams"]();
 
-		lua["math"]["random"].set_function(&lua_random::next, engine);
-		sol::table streams = lua["get_streams"]();
-
-		for (const auto& [_, stream] : streams) {
-			sol::table io = stream.as<sol::table>();
-			node::type_t type = io[1];
-			uint id = io[3];
-			sol::table values = io[4];
-			switch (type) {
-			case node::in: {
-				ret.inputs[id] = table_to_vector<word_t>(values);
-			} break;
-			case node::out: {
-				ret.n_outputs[id] = table_to_vector<word_t>(values);
-			} break;
-			case node::image: {
-				ret.i_outputs[id] = image_t(image_width, image_height,
-				                            table_to_vector<tis_pixel>(values));
-			} break;
-			default:
-				throw std::invalid_argument{std::to_string(etoi(type))};
+			for (const auto& [_, stream] : streams) {
+				sol::table io = stream.as<sol::table>();
+				node::type_t type = io[1];
+				uint id = io[3];
+				sol::table values = io[4];
+				switch (type) {
+				case node::in: {
+					ret.inputs[id] = table_to_vector<word_t>(values);
+				} break;
+				case node::out: {
+					ret.n_outputs[id] = table_to_vector<word_t>(values);
+				} break;
+				case node::image: {
+					ret.i_outputs[id] = image_t(image_width, image_height,
+					                            table_to_vector<tis_pixel>(values));
+				} break;
+				default:
+					throw std::invalid_argument{std::to_string(etoi(type))};
+				}
 			}
 		}
 
