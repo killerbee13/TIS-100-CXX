@@ -185,7 +185,7 @@ inline auto log_warn() {
 
 inline auto log_err() {
 	return (get_log_level() >= log_level::err)
-	           ? logger(log_print_escape(yellow)
+	           ? logger(log_print_escape(red)
 	                    + "ERROR: " + log_print_escape(none))
 	           : logger(nullptr);
 }
