@@ -484,29 +484,27 @@ int main(int argc, char** argv) try {
 		}
 		field f = l->new_field(T30_size.getValue());
 
+		std::string code;
 		if (solution == "-") {
 			std::ostringstream in;
 			in << std::cin.rdbuf();
-			std::string code = std::move(in).str();
-
-			parse_code(f, code, T21_size.getValue());
+			code = std::move(in).str();
+		} else if (std::filesystem::is_regular_file(solution)) {
+			code = kblib::try_get_file_contents(solution, std::ios::in);
 		} else {
-			if (std::filesystem::is_regular_file(solution)) {
-				auto code = kblib::try_get_file_contents(solution);
-				try {
-					parse_code(f, code, T21_size.getValue());
-				} catch (const std::invalid_argument& e) {
-					log_err(e.what());
-					log_flush();
-					return_code = exit_code::EXCEPTION;
-					continue;
-				}
-			} else {
-				log_err("invalid file: ", kblib::quoted(solution));
-				log_flush();
-				return_code = exit_code::EXCEPTION;
-				continue;
-			}
+			log_err("invalid file: ", kblib::quoted(solution));
+			log_flush();
+			return_code = exit_code::EXCEPTION;
+			continue;
+		}
+
+		try {
+			parse_code(f, code, T21_size.getValue());
+		} catch (const std::invalid_argument& e) {
+			log_err(e.what());
+			log_flush();
+			return_code = exit_code::EXCEPTION;
+			continue;
 		}
 
 		log_debug_r([&] { return "Layout:\n" + f.layout(); });
