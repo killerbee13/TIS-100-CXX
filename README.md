@@ -28,10 +28,46 @@ apt install libluajit-5.1-dev
 Otherwise TIS-100-CXX has only header-only dependencies managed in submodules,
 so no further management is needed beyond the above steps.
 
+## Building on Windows (thanks gtw123):
+
+### Install MSYS2
+* Install MSYS2 by following the steps on https://www.msys2.org/ to download and run the installer.
+* Once installed it will automatically launch the MSYS2 UCRT64 environment.
+* Install packages:
+  * `pacman -S mingw-w64-ucrt-x86_64-toolchain`
+  * `pacman -S mingw-w64-ucrt-x86_64-cmake`
+    * (This might be automatically installed by the next one? I haven't tried)
+  * `pacman -S mingw-w64-ucrt-x86_64-ccmake`
+  * `pacman -S git`
+    * (This is required to avoid "WARNING Cannot determine rolling release version from git log"
+      when building LuaJIT. If you already have Git for Windows installed you may be able to
+      configure MSYS2 to use that instead.)
+
+### Build LuaJIT
+* `git clone https://luajit.org/git/luajit.git`
+* `cd luajit`
+* `mingw32-make`
+* This will create `lua51.dll` and `libluajit-5.1.dll.a` in the `src` directory of this repo.
+
+### Build TIS-100-CXX
+* `git clone https://github.com/killerbee13/TIS-100-CXX.git`
+* Edit CMakeLists.txt and tell it where to find LuaJIT:
+  * Replace `/usr/include/luajit-2.1` with the path to the `src` directory of the LuaJIT repo.
+    e.g. `C:/Users/username/source/repos/luajit/src`
+  * Find the `target_link_libraries` line and replace `luajit-5.1` with the path of
+    `libluajit-5.1.dll.a` built in the previous section.
+    e.g. `C:/Users/username/source/repos/luajit/src/libluajit-5.1.dll.a`
+  * (There's probably a better way to do this but I don't really know CMake.)
+* Follow the build instructions at
+  https://github.com/killerbee13/TIS-100-CXX?tab=readme-ov-file#build-instructions
+* Before running `TIS-100-CXX.exe`, copy `lua51.dll` into the directory containing the built
+  `TIS-100-CXX.exe`
+
 ## Run instructions:
 
 Invocation:
-`TIS-100-CXX [options] path/to/solution1.txt path/to/solution2.txt ...`
+`TIS-100-CXX [options] path/to/solution1.txt path/to/solution2.txt ...`  
+The special value `-` can be used to read a solution from STDIN.
 The level is autodeduced from the filename prefix, if this is not possible
 use an option to give it explicitely.
 
