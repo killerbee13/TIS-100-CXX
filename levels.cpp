@@ -201,22 +201,22 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		}
 	} break;
 	case "INTERRUPT HANDLER"_lvl: {
-		ret.inputs.resize(4, empty_vec(1));
-		ret.n_outputs.resize(1, empty_vec(1));
-		std::array<bool, 4> array2{};
+		ret.inputs.resize(4, empty_vec());
+		ret.n_outputs.resize(1, empty_vec());
+		std::array<bool, 4> vals{};
 
 		xorshift128_engine engine(seed);
 		for (std::size_t m = 1; m < max_test_length; ++m) {
 			auto rand = engine.next(0, 6);
 			if (rand < 4) {
-				array2[rand] = not array2[rand];
-				ret.n_outputs[0].push_back(
-				    array2[rand] ? static_cast<word_t>(rand + 1) : 0);
+				vals[rand] = not vals[rand];
+				ret.n_outputs[0][m]
+				    = vals[rand] ? static_cast<word_t>(rand + 1) : 0;
 			} else {
-				ret.n_outputs[0].push_back(0);
+				ret.n_outputs[0][m] = 0;
 			}
 			for (std::size_t n = 0; n < 4; ++n) {
-				ret.inputs[n].push_back(array2[n]);
+				ret.inputs[n][m] = vals[n];
 			}
 		}
 	} break;
@@ -262,12 +262,10 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	case "SEQUENCE REVERSER"_lvl: {
 		ret.inputs.push_back(
 		    make_composite_array(seed, max_test_length, 0, 6, 10, 100));
-		ret.n_outputs.resize(1);
+		ret.n_outputs = ret.inputs;
 
-		for_each_subsequence_of(ret.inputs[0], 0, [&](auto begin, auto end) {
-			std::ranges::reverse_copy(begin, end,
-			                          std::back_inserter(ret.n_outputs[0]));
-			ret.n_outputs[0].push_back(0);
+		for_each_subsequence_of(ret.n_outputs[0], 0, [&](auto begin, auto end) {
+			std::reverse(begin, end);
 		});
 	} break;
 	case "SIGNAL MULTIPLIER"_lvl: {
@@ -317,8 +315,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 				y_c = engine.next_int(1, image_height - 1 - h);
 				// Check if the rectangle would overlap or touch any already placed
 				// rectangle
-				for (int j = -1; j < w + 1; ++j) {
-					for (int k = -1; k < h + 1; ++k) {
+				for (int k = -1; k < h + 1; ++k) {
+					for (int j = -1; j < w + 1; ++j) {
 						if (image[x_c + j, y_c + k] != tis_pixel::C_black) {
 							++iterations;
 							goto retry;
@@ -331,8 +329,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			ret.inputs[0].push_back(y_c);
 			ret.inputs[0].push_back(w);
 			ret.inputs[0].push_back(h);
-			for (int j = 0; j < w; ++j) {
-				for (int k = 0; k < h; ++k) {
+			for (int k = 0; k < h; ++k) {
+				for (int j = 0; j < w; ++j) {
 					image[x_c + j, y_c + k] = tis_pixel::C_white;
 				}
 			}
@@ -365,15 +363,19 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "SIGNAL WINDOW FILTER"_lvl: {
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 10, 100));
-		ret.n_outputs.resize(2);
+		ret.n_outputs = {empty_vec(), empty_vec()};
+		word_t t3 = 0, t5 = 0;
 		for (std::size_t idx = 0; idx < max_test_length; ++idx) {
-			word_t t = ret.inputs[0][idx];
-			t += ((idx >= 1) ? ret.inputs[0][idx - 1] : word_t{});
-			t += ((idx >= 2) ? ret.inputs[0][idx - 2] : word_t{});
-			ret.n_outputs[0].push_back(t);
-			t += ((idx >= 3) ? ret.inputs[0][idx - 3] : word_t{});
-			t += ((idx >= 4) ? ret.inputs[0][idx - 4] : word_t{});
-			ret.n_outputs[1].push_back(t);
+			t3 += ret.inputs[0][idx];
+			t5 += ret.inputs[0][idx];
+			if (idx >= 3) {
+				t3 -= ret.inputs[0][idx - 3];
+			}
+			if (idx >= 5) {
+				t5 -= ret.inputs[0][idx - 5];
+			}
+			ret.n_outputs[0][idx] = t3;
+			ret.n_outputs[1][idx] = t5;
 		}
 	} break;
 	case "SIGNAL DIVIDER"_lvl: {
@@ -397,7 +399,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	case "SEQUENCE SORTER"_lvl: {
 		ret.inputs.push_back(
 		    make_composite_array(seed, max_test_length, 4, 8, 10, 100));
-		ret.n_outputs.resize(1, ret.inputs[0]);
+		ret.n_outputs = ret.inputs;
 
 		for_each_subsequence_of(ret.n_outputs[0], 0, [&](auto begin, auto end) {
 			std::ranges::sort(begin, end);
@@ -680,7 +682,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 				ret.inputs[j][i] = v;
 			}
 
-			std::nth_element(group.begin(), group.begin() + 2, group.end());
+			std::ranges::nth_element(group, group.begin() + 2);
 			ret.n_outputs[0][i] = group[2];
 		}
 	} break;
@@ -728,25 +730,17 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			if (input == 0) {
 				// determine mode, and whether it is unique
 				uint max_frequency = 0;
-				uint most_frequent = 1;
-				bool unique = true;
+				uint most_frequent = 0;
 				for (uint k = 0; k < 5; k++) {
 					if (frequency[k] > max_frequency) {
-						unique = true;
 						most_frequent = k + 1;
 						max_frequency = frequency[k];
 					} else if (frequency[k] == max_frequency) {
-						unique = false;
+						most_frequent = 0; // "error" if not unique
 					}
 				}
-
-				if (unique) {
-					ret.n_outputs[0].push_back(static_cast<word_t>(most_frequent));
-				} else {
-					ret.n_outputs[0].push_back(0);
-				}
-
-				frequency.fill(0);
+				ret.n_outputs[0].push_back(static_cast<word_t>(most_frequent));
+				frequency.fill(0u);
 			} else {
 				// update frequency map
 				frequency[input - 1]++;
@@ -1124,7 +1118,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		}
 		ret.inputs[0].back() = -1;
 
-		ret.n_outputs.resize(1, ret.inputs[0]);
+		ret.n_outputs = ret.inputs;
 		std::ranges::sort(ret.n_outputs[0].begin(), ret.n_outputs[0].end() - 1);
 	} break;
 	case "PRIME FACTOR CALCULATOR"_lvl: {
