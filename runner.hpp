@@ -268,7 +268,6 @@ inline score run_seed_ranges(level& l, field& f,
 
 	if (stop_requested) {
 		log_warn("Stop requested");
-		log_flush();
 	}
 
 	return worst;

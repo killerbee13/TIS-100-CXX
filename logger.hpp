@@ -80,6 +80,7 @@ auto log_warn(Strings&&... strings) -> void {
 	if (get_log_level() >= log_level::warn) {
 		detail::log(concat(log_print_escape(yellow),
 		                   "WARN: ", log_print_escape(none), strings...));
+		log_flush();
 	}
 }
 
@@ -88,6 +89,7 @@ auto log_err(Strings&&... strings) -> void {
 	if (get_log_level() >= log_level::err) {
 		detail::log(concat(log_print_escape(red),
 		                   "ERROR: ", log_print_escape(none), strings...));
+		log_flush();
 	}
 }
 

@@ -48,7 +48,6 @@ std::optional<std::string> demangle(const char* name) {
 	if (status != 0) {
 		log_err("Unexpected error occured while demangling ",
 		        kblib::quoted(std::string_view(name)));
-		log_flush();
 		return {};
 	}
 	std::string ret = type_name;
@@ -478,7 +477,6 @@ int main(int argc, char** argv) try {
 		} else {
 			log_err("Impossible to determine the level ID for ",
 			        kblib::quoted(filename));
-			log_flush();
 			return_code = exit_code::EXCEPTION;
 			continue;
 		}
@@ -493,7 +491,6 @@ int main(int argc, char** argv) try {
 			code = kblib::try_get_file_contents(solution, std::ios::in);
 		} else {
 			log_err("invalid file: ", kblib::quoted(solution));
-			log_flush();
 			return_code = exit_code::EXCEPTION;
 			continue;
 		}
@@ -502,7 +499,6 @@ int main(int argc, char** argv) try {
 			parse_code(f, code, T21_size.getValue());
 		} catch (const std::invalid_argument& e) {
 			log_err(e.what());
-			log_flush();
 			return_code = exit_code::EXCEPTION;
 			continue;
 		}
@@ -614,6 +610,5 @@ int main(int argc, char** argv) try {
 	}
 
 	log_err("Failed with exception of type ", *type_name, ": ", e.what());
-	log_flush();
 	return exit_code::EXCEPTION;
 }
