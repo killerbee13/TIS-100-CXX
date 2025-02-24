@@ -8,7 +8,7 @@ other simulators, TIS-100-CXX includes definitions for the base game's levels
 and can generate suitable random tests for them. This simulator aims for exact
 parity with the game in both execution and test generation.
 
-## Build instructions:
+## Building on Linux:
 
 Ensure you have a C++23 compliant compiler (clang 19+, gcc 14+), `cmake`, and
 `ccmake`.
@@ -53,16 +53,12 @@ so no further management is needed beyond the above steps.
   of this repo.
 
 ### Build TIS-100-CXX
-* `git clone https://github.com/killerbee13/TIS-100-CXX.git`
-* Edit CMakeLists.txt and tell it where to find LuaJIT:
-  * Replace `/usr/include/luajit-2.1` with the path to the `src` directory of
-    the LuaJIT repo. e.g. `C:/Users/username/source/repos/luajit/src`
-  * Find the `target_link_libraries` line and replace `luajit-5.1` with the path
-    of `libluajit-5.1.dll.a` built in the previous section.
-    e.g. `C:/Users/username/source/repos/luajit/src/libluajit-5.1.dll.a`
-  * (There's probably a better way to do this but I don't really know CMake.)
-* Follow the build instructions at
-  https://github.com/killerbee13/TIS-100-CXX?tab=readme-ov-file#build-instructions
+* Follow the instructions under [Building on Linux](#building-on-linux).
+  However, when configuring CMake you'll need to set the location of LuaJIT:
+  * `LUAJIT_INCLUDE_DIR` - Set this to the `src` directory of the LuaJIT repo,
+    e.g. `C:/Users/username/source/repos/luajit/src`
+  * `LUAJIT_LIB` - Set this to the path of `libluajit-5.1.dll.a` built in the previous
+    section, e.g. `C:/Users/username/source/repos/luajit/src/libluajit-5.1.dll.a`
 * Before running `TIS-100-CXX.exe`, copy `lua51.dll` into the directory
   containing the built `TIS-100-CXX.exe`
 
