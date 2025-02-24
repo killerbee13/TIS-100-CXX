@@ -1,0 +1,78 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Checkout submodules
+      run: git submodule update --init --recursive
+      
+    - name: Install luajit
+      run: sudo apt install -y libluajit-5.1-dev
+
+    - name: Configure CMake for building TIS-100-CXX
+      run: cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DTIS_ENABLE_LUA=ON
+
+    - name: Build TIS-100-CXX
+      run: cmake --build build --config ${{env.BUILD_TYPE}} -j
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: TIS-100-CXX-linux
+        path: |
+          build/TIS-100-CXX
+          
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Checkout submodules
+      run: git submodule update --init --recursive
+
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+        install: mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-cmake git
+
+    - name: Clone luajit
+      run: git clone https://luajit.org/git/luajit.git
+
+    - name: Build luajit
+      run: mingw32-make -j
+      shell: msys2 {0}
+      working-directory: luajit
+
+    - name: Configure CMake for building TIS-100-CXX
+      run: cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DTIS_ENABLE_LUA=ON -DLUAJIT_INCLUDE_DIR=luajit/src -DLUAJIT_LIB=luajit/src/libluajit-5.1.dll.a
+      shell: msys2 {0}
+
+    - name: Build TIS-100-CXX
+      run: cmake --build build --config ${{env.BUILD_TYPE}} -j
+      shell: msys2 {0}
+
+    - name: Create dist directory
+      run: |
+        mkdir -p dist
+        cp build/TIS-100-CXX.exe dist/
+        cp luajit/src/lua51.dll dist/
+      shell: msys2 {0}
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: TIS-100-CXX-windows
+        path: dist/*
