@@ -749,16 +749,17 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "SEQUENCE NORMALIZER"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(1, empty_vec());
-		ret.n_outputs.resize(1);
-		// Current sequence from 'input'
-		word_vec cur_seq;
+		ret.inputs.resize(1, empty_vec(max_test_length - 1));
+		ret.n_outputs.resize(1, empty_vec(max_test_length - 1));
 
+		int curr_start = 0;
 		for (int i = 0; i < max_test_length - 1; i++) {
 			word_t val = engine.next(1, 99);
 			ret.inputs[0][i] = val;
-			cur_seq.push_back(val);
+			ret.n_outputs[0][i] = val;
 
+			auto cur_seq = std::span(ret.n_outputs[0])
+			                   .subspan(curr_start, i - curr_start + 1);
 			// Possibly end sequence ensuring that the it is at least of length 3
 			// and no longer than 8.
 			// Also ensure final sequence is ended properly - may cause shorter
@@ -767,18 +768,20 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			    or (cur_seq.size() > 7) or (i == max_test_length - 3)) {
 				// Generate 'output'
 				word_t min_in_seq = std::ranges::min(cur_seq);
-				for (word_t seqval : cur_seq) {
-					ret.n_outputs[0].push_back(seqval - min_in_seq);
+				for (word_t& seqval : cur_seq) {
+					seqval -= min_in_seq;
 				}
 
 				// Add the sequence terminating -1
 				i++;
 				ret.inputs[0][i] = -1;
-				ret.n_outputs[0].push_back(-1);
-
-				cur_seq.clear();
+				ret.n_outputs[0][i] = -1;
+				// Update position of next sequence start
+				curr_start = i + 1;
 			}
 		}
+		// Clean up any unfinished sequence
+		ret.n_outputs[0].resize(curr_start);
 	} break;
 	case "IMAGE TEST PATTERN 3"_lvl: {
 		ret.i_outputs.emplace_back<image_t>({
