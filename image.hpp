@@ -141,6 +141,17 @@ class image {
 	constexpr const_iterator end() const { return data.end(); }
 	constexpr const_iterator cend() const { return data.end(); }
 
+	constexpr std::ranges::subrange<iterator, iterator> line(std::size_t y) {
+		assert(y <= to_unsigned(height()));
+		return {begin() + y * width_, begin() + (y + 1) * width_};
+	}
+	constexpr std::ranges::subrange<const_iterator, const_iterator> line(
+	    std::size_t y) const {
+		assert(y <= to_unsigned(height()));
+		return {begin() + y * width_, begin() + (y + 1) * width_};
+	}
+	constexpr auto cline(std::size_t y) const { return line(y); }
+
 	bool operator==(const image& other) const {
 		// to do this optimization we'd technically need to use
 		// `__is_trivially_equality_comparable(pixel)`, but it exists only in

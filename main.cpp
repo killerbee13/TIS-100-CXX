@@ -211,6 +211,122 @@ void validation_summary(const score& sc, int fixed, int quiet,
 	}
 }
 
+template <typename T>
+void dump_test(const single_test& t, T&& os, bool color) {
+	for (auto x : range(t.inputs.size())) {
+		os << "input " << x << ": ";
+		write_list(os, t.inputs[x], nullptr, color) << '\n';
+	}
+	for (auto x : range(t.n_outputs.size())) {
+		os << "output " << x << ": ";
+		write_list(os, t.n_outputs[x], nullptr, color) << "\n";
+	}
+	for (auto [i, x] : kblib::enumerate(t.i_outputs)) {
+		os << "output " << x << ": ";
+		os << '(' << i.width() << ',' << i.height() << ")\n"
+		   << i.write_text(color);
+	}
+}
+
+void do_comma(std::ostream& os, bool& comma) {
+	if (comma) {
+		os << ", ";
+	}
+	comma = true;
+}
+template <typename T>
+   requires requires(const T& val, std::ostream& os) { os << val; }
+void write_json_object(T&& val, std::ostream& os) {
+	os << val;
+}
+template <typename T>
+void write_json_object(const T& vec, std::ostream& os) {
+	os << "[ ";
+	bool comma = false;
+	for (auto v : vec) {
+		do_comma(os, comma);
+		write_json_object(v, os);
+	}
+	os << "]";
+}
+void write_json_object(const tis_pixel& p, std::ostream& os) { os << +p.val; }
+void write_json_object(const image_t& img, std::ostream& os) {
+	os << "[ ";
+	bool comma = false;
+	for (auto y : range(img.height())) {
+		do_comma(os, comma);
+		write_json_object(img.line(y), os);
+	}
+	os << ']';
+}
+
+void write_json_object(const single_test& t, std::ostream& os) {
+	os << '{';
+	bool comma = false;
+	if (not t.inputs.empty()) {
+		os << "\"inputs\": ";
+		write_json_object(t.inputs, os);
+		comma = true;
+	}
+	if (not t.n_outputs.empty()) {
+		if (std::exchange(comma, true)) {
+			os << ",\n";
+		}
+		os << "\"n_outputs\": ";
+		write_json_object(t.n_outputs, os);
+	}
+	if (not t.i_outputs.empty()) {
+		if (std::exchange(comma, true)) {
+			os << ",\n";
+		}
+		os << "\"i_outputs\": ";
+		write_json_object(t.i_outputs, os);
+	}
+	os << '}';
+}
+
+void dump_seed_ranges(std::ostream& os, level& l,
+                      const std::vector<range_t> seed_ranges, bool as_json) {
+	seed_range_iterator seed_it(seed_ranges);
+	auto end = seed_it.end();
+	bool comma = false;
+	if (as_json) {
+		os << "{ ";
+	}
+	std::ranges::for_each(seed_it, end, [&](auto seed) {
+		if (as_json) {
+			if (std::exchange(comma, true)) {
+				os << ",\n";
+			}
+			os << '"' << seed << "\": ";
+		} else {
+			os << "random " << seed << ": {\n";
+		}
+		auto t = l.random_test(seed);
+		if (t) {
+			if (as_json) {
+				write_json_object(*t, os);
+			} else {
+				dump_test(*t, os, false);
+			}
+		} else {
+			if (as_json) {
+				os << "{}";
+			} else {
+				os << "skipped";
+			}
+		}
+		if (not as_json) {
+			os << "}\n";
+		}
+	});
+	if (as_json) {
+		os << '}';
+	} else {
+		os << '\n';
+	}
+}
+
 enum exit_code : int { SUCCESS = 0, FAILURE = 1, EXCEPTION = 2 };
 
 int main(int argc, char** argv) try {
@@ -230,7 +346,7 @@ int main(int argc, char** argv) try {
 	}
 
 	TCLAP::UnlabeledMultiArg<std::string> solutions(
-	    "Solution", "Paths to solution files. ('-' for stdin)", true, "path",
+	    "Solution", "Paths to solution files. ('-' for stdin)", false, "path",
 	    cmd);
 
 	TCLAP::ValuesConstraint<std::string> ids_c(ids_v);
@@ -277,6 +393,18 @@ int main(int argc, char** argv) try {
 	                                        false, "[range-expr...]", cmd);
 	TCLAP::AnyOf implicit_random(cmd);
 	implicit_random.add(random_arg).add(seed_arg);
+	std::vector<std::string> dump_types_allowed{"text", "json"};
+	TCLAP::ValuesConstraint dump_types(dump_types_allowed);
+	TCLAP::ValueArg<std::string> dump_fmt( //
+	    "", "dump-type", "format for test dumps (default \"text\")", false,
+	    "text", &dump_types);
+
+	TCLAP::SwitchArg dump_fixed("", "dump-fixed",
+	                            "write fixed test cases to stdout", cmd);
+	TCLAP::SwitchArg dump_random(
+	    "", "dump-random", "write selected random test cases to stdout", cmd);
+	cmd.add(dump_fmt);
+
 	range_constraint percentage(0.0, 1.0);
 	TCLAP::ValueArg<double> cheat_rate(
 	    "", "cheat-rate",
@@ -449,6 +577,45 @@ int main(int argc, char** argv) try {
 	}
 #endif
 
+	if (dump_fixed or dump_random) {
+		auto l = global_level.get();
+		if (not l) {
+			throw std::invalid_argument(
+			    "test case dumping requires globally specified level");
+		}
+
+		if (dump_fmt.getValue() == "text") {
+			if (dump_fixed) {
+				auto tests = l->static_suite();
+				for (auto i : range(tests.size())) {
+					std::cout << "fixed " << i << ": {\n";
+					dump_test(tests[i], std::cout, color);
+					std::cout << "}\n";
+				}
+			}
+			if (dump_random) {
+				dump_seed_ranges(std::cout, *l, seed_ranges, false);
+			}
+
+		} else if (dump_fmt.getValue() == "json") {
+			std::cout << '{';
+			bool comma = false;
+			if (dump_fixed) {
+				std::cout << "\"fixed\": ";
+				write_json_object(l->static_suite(), std::cout);
+				comma = true;
+			}
+			if (dump_random) {
+				if (comma) {
+					std::cout << ",\n";
+				}
+				std::cout << "\"random\": ";
+				dump_seed_ranges(std::cout, *l, seed_ranges, true);
+			}
+			std::cout << "}\n";
+		}
+	}
+
 	if (dry_run.getValue()) {
 		return exit_code::SUCCESS;
 	}
@@ -530,8 +697,8 @@ int main(int argc, char** argv) try {
 					break;
 				}
 				++succeeded;
-				// optimization: skip running the 2nd and 3rd rounds for invariant
-				// levels (specifically, the image test patterns)
+				// optimization: skip running the 2nd and 3rd rounds for
+				// invariant levels (specifically, the image test patterns)
 				if (f.inputs().empty()) {
 					log_info("Secondary tests skipped for invariant level");
 					break;
