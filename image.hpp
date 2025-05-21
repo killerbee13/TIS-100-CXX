@@ -18,6 +18,7 @@
 #ifndef IMAGE_HPP
 #define IMAGE_HPP
 
+#include "logger.hpp"
 #include "utils.hpp"
 
 #include <kblib/convert.h>
@@ -69,7 +70,8 @@ class image {
 	    : width_(width)
 	    , data(std::move(contents)) {
 		assert(width >= 0 and height >= 0);
-		assert(std::cmp_equal(contents.size(), width * height));
+		log_debug("image built from ", data.size(), " values");
+		assert(std::cmp_equal(data.size(), width * height));
 	}
 
 	// Not called resize to emphasize that image geometry is not preserved
