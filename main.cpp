@@ -189,7 +189,7 @@ static_assert(human_readable_integer<int>("10k").val == 10'000);
 static_assert(human_readable_integer<int>("10M").val == 10'000'000);
 
 void validation_summary(const score& sc, int fixed, int quiet,
-                        uint cycles_limit) {
+                        size_t cycles_limit) {
 	// we use stdout here, so flush logs to avoid mangled messages in the shell
 	log_flush();
 	if (sc.validated) {
@@ -245,7 +245,7 @@ int main(int argc, char** argv) try {
 	cmd.add(id_arg);
 #endif
 
-	TCLAP::ValueArg<human_readable_integer<uint>> cycles_limit_arg(
+	TCLAP::ValueArg<human_readable_integer<size_t>> cycles_limit_arg(
 	    "", "limit",
 	    "Number of cycles to run test for before timeout. (Default 100500)",
 	    false, 100'500, "integer", cmd);
@@ -540,8 +540,8 @@ int main(int argc, char** argv) try {
 			sc.achievement = l->has_achievement(f, sc);
 			validation_summary(sc, succeeded, quiet.getValue(), cycles_limit);
 			random_limit = std::min(
-			    cycles_limit, static_cast<uint>(static_cast<double>(sc.cycles)
-			                                    * limit_multiplier.getValue()));
+			    cycles_limit, static_cast<size_t>(static_cast<double>(sc.cycles)
+			                                      * limit_multiplier.getValue()));
 			log_info("Setting random test timeout to ", random_limit);
 		}
 

@@ -61,7 +61,7 @@ void print_validation_failure(const field& f, T&& os, bool color) {
 	}
 }
 
-inline score run(field& f, uint cycles_limit, bool print_err) {
+inline score run(field& f, size_t cycles_limit, bool print_err) {
 	score sc{};
 	sc.instructions = f.instructions();
 	sc.nodes = f.nodes_used();
@@ -162,7 +162,7 @@ struct run_params {
 	uint& count;
 	uint& valid_count;
 	std::size_t total_cycles_limit;
-	uint cycles_limit;
+	std::size_t cycles_limit;
 	uint cheating_success_threshold;
 	std::uint8_t quiet;
 	bool stats;
