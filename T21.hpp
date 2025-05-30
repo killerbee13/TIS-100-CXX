@@ -165,7 +165,7 @@ struct T21 final : regular_node {
 			case port::D6:
 			case port::any:
 				s = activity::write;
-				wrt = r;
+				write_word = r;
 				debug << "stalling[W]";
 				// writes don't happen until next cycle
 				break;
@@ -239,8 +239,18 @@ struct T21 final : regular_node {
 	[[gnu::always_inline]] inline void finalize(logger& debug) override {
 		if (s == activity::write) {
 			debug << "finalize(" << x << ',' << y << ',' << pc << "): mov ";
-			// if write just started
-			if (write_port == port::nil) {
+			// if write completed
+			if (write_word == word_empty) {
+				debug << "completed";
+				// the write port is set only if we were accepting any
+				if (write_port != port::nil) {
+					last = write_port;
+					write_port = port::nil;
+				}
+				s = activity::run;
+				next();
+				// if write just started
+			} else if (write_port == port::nil) {
 				debug << "started";
 				port p = code[to_unsigned(pc)].dst;
 				if (p == port::last) {
@@ -248,12 +258,6 @@ struct T21 final : regular_node {
 				} else {
 					write_port = p;
 				}
-				// if write completed
-			} else if (write_port == port::immediate) {
-				debug << "completed";
-				write_port = port::nil;
-				s = activity::run;
-				next();
 			} else {
 				debug << "in progress";
 			}
@@ -269,38 +273,23 @@ struct T21 final : regular_node {
 		return ret;
 	}
 
-	optional_word emit(port p) override {
-		assert(p >= port::dir_first and p <= port::dir_last);
-		if (write_port == port::any or write_port == p) {
-			auto r = std::exchange(wrt, word_empty);
-			if (write_port == port::any) {
-				last = p;
-			}
-			// set write port to flag that the write has completed
-			write_port = port::immediate;
-			return r;
-		} else {
-			return word_empty;
-		}
-	}
-
 	std::string state() const override {
 		return concat('(', x, ',', y, ") T21 { ", pad_right(acc, 4), " (",
 		              pad_right(bak, 4), ") ", pad_right(port_name(last), 5), ' ',
 		              pad_right(state_name(s), 4), ' ', pad_left(pc, 2), " [",
 		              code.empty() ? "" : to_string(code[to_unsigned(pc)]), "]",
-		              wrt == word_empty
+		              write_word == word_empty
 		                  ? ""
-		                  : concat(" ", wrt, "->", port_name(write_port)),
+		                  : concat(" ", write_word, "->", port_name(write_port)),
 		              " }");
 	}
 
 	void reset() noexcept {
+		write_word = word_empty;
+		write_port = port::nil;
 		acc = 0;
 		bak = 0;
-		wrt = word_empty;
 		pc = 0;
-		write_port = port::nil;
 		last = port::nil;
 		s = activity::idle;
 	}
@@ -326,9 +315,8 @@ struct T21 final : regular_node {
 	std::unique_ptr<instr[]> large_;
 	std::array<instr, def_T21_size> small_;
 	word_t acc{}, bak{};
-	optional_word wrt = word_empty;
 	word_t pc{};
-	port write_port{port::nil}, last{port::nil};
+	port last{port::nil};
 	activity s{activity::idle};
 
 	/// Increment the program counter, wrapping to beginning.
