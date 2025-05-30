@@ -145,7 +145,7 @@ class logger {
 
 	bool good() const { return bool(formatter_); }
 
-	~logger() {
+	[[gnu::always_inline]] inline ~logger() {
 		if (formatter_) [[unlikely]] {
 			detail::log(formatter_->view());
 		}
