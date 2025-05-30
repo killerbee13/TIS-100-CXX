@@ -27,7 +27,8 @@
 #include <string>
 
 struct input_node final : node {
-	using node::node;
+	input_node(int x, int y)
+	    : node(x, y, type_t::in) {}
 
 	void reset(word_vec inputs_) noexcept {
 		write_word = word_empty;
@@ -37,7 +38,6 @@ struct input_node final : node {
 		s = activity::idle;
 	}
 
-	type_t type() const noexcept override { return in; }
 	[[gnu::always_inline]] inline void execute(logger& debug) {
 		debug << "I" << x << ": ";
 		if (write_port == port::nil) {
@@ -62,7 +62,7 @@ struct input_node final : node {
 		ret->reset(inputs);
 		return ret;
 	}
-	std::string state() const override {
+	std::string state() const {
 		return concat("I", x, " NUMERIC { ", state_name(s), " emitted:(", idx,
 		              "/", inputs.size(), ") }");
 	}
@@ -81,7 +81,8 @@ struct output_node : node {
 };
 
 struct num_output final : output_node {
-	using output_node::output_node;
+	num_output(int x, int y)
+	    : output_node(x, y, type_t::out) {}
 
 	void reset(word_vec outputs_expected_) {
 		outputs_expected = std::move(outputs_expected_);
@@ -90,7 +91,6 @@ struct num_output final : output_node {
 		complete = outputs_expected.empty();
 	}
 
-	type_t type() const noexcept override { return out; }
 	/// Attempt to read from neighbor every step
 	/// @returns is_active
 	[[gnu::always_inline]] inline bool execute(logger& debug) {
@@ -102,7 +102,7 @@ struct num_output final : output_node {
 			auto i = outputs_received.size();
 			outputs_received.push_back(r);
 			complete = (outputs_expected.size() == outputs_received.size());
-			if (outputs_received[i] != outputs_expected[i]) {
+			if (r != outputs_expected[i]) {
 				wrong = true;
 				debug << "incorrect value written\n";
 // speed up simulator by failing early when an incorrect output is written
@@ -113,7 +113,9 @@ struct num_output final : output_node {
 		}
 		return not complete;
 	}
-	[[gnu::always_inline]] inline bool valid() const { return complete and not wrong; }
+	[[gnu::always_inline]] inline bool valid() const {
+		return complete and not wrong;
+	}
 	/// Return a new node initialized in the same way as *this.
 	/// (Not a copy constructor; new node is as if reset() and has no neighbors)
 	std::unique_ptr<num_output> clone() const {
@@ -121,7 +123,7 @@ struct num_output final : output_node {
 		ret->reset(outputs_expected);
 		return ret;
 	}
-	std::string state() const override {
+	std::string state() const {
 		std::ostringstream ret;
 		ret << concat("O", x, " NUMERIC {\nreceived:");
 		write_list(ret, outputs_received, &outputs_expected);
@@ -138,7 +140,8 @@ struct num_output final : output_node {
 };
 
 struct image_output final : output_node {
-	using output_node::output_node;
+	image_output(int x, int y)
+	    : output_node(x, y, type_t::image) {}
 
 	void reset(image_t image_expected_) {
 		image_expected = std::move(image_expected_);
@@ -152,7 +155,6 @@ struct image_output final : output_node {
 		c_y = word_empty;
 	}
 
-	type_t type() const noexcept override { return image; }
 	/// @returns is_active
 	[[gnu::always_inline]] inline bool execute(logger&) {
 		if (auto r = linked->emit(port::down); r != word_empty) {
@@ -178,7 +180,7 @@ struct image_output final : output_node {
 		ret->reset(image_expected);
 		return ret;
 	}
-	std::string state() const override {
+	std::string state() const {
 		return concat("O", x, " IMAGE { wrong: ", wrong_pixels, "\n",
 		              image_received.write_text(), "}");
 	}

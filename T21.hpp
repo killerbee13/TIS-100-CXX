@@ -93,9 +93,8 @@ constexpr std::string to_string(instr::op o) {
 std::string to_string(instr i);
 
 struct T21 final : regular_node {
-	using regular_node::regular_node;
-
-	type_t type() const noexcept override { return type_t::T21; }
+	T21(int x, int y)
+	    : regular_node(x, y, type_t::T21) {}
 
 	[[gnu::always_inline]] inline void step(logger& debug) override {
 		assert(not code.empty());

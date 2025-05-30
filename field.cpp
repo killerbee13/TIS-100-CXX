@@ -35,7 +35,8 @@ constexpr dir_mask port_mask(port p) {
 }
 
 constexpr dir_mask in_links(const regular_node* n) {
-	if (auto p = dynamic_cast<const T21*>(n)) {
+	if (n->type == node::T21) {
+		auto p = static_cast<const T21*>(n);
 		auto mask = dir_mask{};
 		bool reads_from_last{};
 		bool writes_to_any{};
@@ -62,14 +63,15 @@ constexpr dir_mask in_links(const regular_node* n) {
 			mask.set();
 		}
 		return mask;
-	} else if (dynamic_cast<const T30*>(n)) {
+	} else if (n->type == node::T30) {
 		return dir_mask{}.set();
 	} else {
 		return {};
 	}
 }
 constexpr dir_mask out_links(const regular_node* n) {
-	if (auto p = dynamic_cast<const T21*>(n)) {
+	if (n->type == node::T21) {
+		auto p = static_cast<const T21*>(n);
 		auto mask = dir_mask{};
 		bool reads_from_any{};
 		bool writes_to_last{};
@@ -96,7 +98,7 @@ constexpr dir_mask out_links(const regular_node* n) {
 			mask.set();
 		}
 		return mask;
-	} else if (dynamic_cast<const T30*>(n)) {
+	} else if (n->type == node::T30) {
 		return dir_mask{}.set();
 	} else {
 		return {};
@@ -129,7 +131,7 @@ bool field::search_for_output(const regular_node* p) {
 	while (not queue.empty()) {
 		auto n = pop().n;
 		log_debug("Searching node (", n->x, ", ", n->y, ")");
-		if (n->type() == node::T30) {
+		if (n->type == node::T30) {
 			if (std::ranges::none_of(n->neighbors, std::identity{})) {
 				continue;
 			}
@@ -141,7 +143,7 @@ bool field::search_for_output(const regular_node* p) {
 			if (neighbor) {
 				if ((n->neighbors[d] or neighbor->neighbors[invert(d)])
 				    and searched.insert(neighbor).second) {
-					if (neighbor->type() == node::T21
+					if (neighbor->type == node::T21
 					    and static_cast<const T21*>(neighbor)->has_instr(
 					        instr::hcf)) {
 						log_debug("Neighbor has hcf");
@@ -207,7 +209,7 @@ void field::finalize_nodes() {
 			for (auto neighbor : p->neighbors) {
 				if (neighbor) {
 					append(ret, " (", neighbor->x, ',', neighbor->y,
-					       "): ", etoi(neighbor->type()), ", ");
+					       "): ", etoi(neighbor->type), ", ");
 				}
 			}
 			return ret;
@@ -218,7 +220,7 @@ void field::finalize_nodes() {
 		if (n) {
 			n->neighbors[up] = i.get();
 			log_debug("input node at (", i->x, ',', i->y, ") has neighbor: (",
-			          n->x, ',', n->y, "): ", etoi(n->type()));
+			          n->x, ',', n->y, "): ", etoi(n->type));
 		}
 	}
 	for_each_output([this](auto* o) {
@@ -226,7 +228,7 @@ void field::finalize_nodes() {
 		o->linked = n;
 		if (n) {
 			log_debug("output node at (", o->x, ", ", o->y, ") has neighbor: (",
-			          n->x, ", ", n->y, "): ", etoi(n->type()));
+			          n->x, ", ", n->y, "): ", etoi(n->type));
 		}
 	});
 
@@ -236,7 +238,7 @@ void field::finalize_nodes() {
 			if (search_for_output(p.get())) {
 				log_debug("node at (", p->x, ", ", p->y, ") marked useful");
 				regulars_to_sim.push_back(p.get());
-				allT21 &= p->type() == node::T21;
+				allT21 &= p->type == node::T21;
 			} else {
 				log_debug("node at (", p->x, ", ", p->y,
 				          ") dropped as not connected");
@@ -280,7 +282,7 @@ std::size_t field::instructions() const {
 	std::size_t ret{};
 	for (auto& i : nodes_regular) {
 		auto p = i.get();
-		if (p->type() == node::T21) {
+		if (p->type == node::T21) {
 			ret += static_cast<T21*>(p)->code.size();
 		}
 	}
@@ -291,7 +293,7 @@ std::size_t field::nodes_used() const {
 	std::size_t ret{};
 	for (auto& i : nodes_regular) {
 		auto p = i.get();
-		if (p->type() == node::T21) {
+		if (p->type == node::T21) {
 			ret += not static_cast<T21*>(p)->code.empty();
 		}
 	}
@@ -316,11 +318,11 @@ std::string field::layout() const {
 		if (i % width == 0) {
 			ret += '\n';
 		}
-		if (p->type() == node::Damaged) {
+		if (p->type == node::Damaged) {
 			ret += 'D';
-		} else if (p->type() == node::T21) {
+		} else if (p->type == node::T21) {
 			ret += 'C';
-		} else if (p->type() == node::T30) {
+		} else if (p->type == node::T30) {
 			ret += 'S';
 		}
 	}

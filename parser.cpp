@@ -68,7 +68,7 @@ void set_expected(field& f, single_test&& expected) {
 		auto p = i.get();
 		log_debug("reset node (", p->x, ',', p->y, ')');
 
-		switch (p->type()) {
+		switch (p->type) {
 		case node::T21: {
 			static_cast<T21*>(p)->reset();
 		} break;

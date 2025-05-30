@@ -122,11 +122,6 @@ struct node {
 		null = -2
 	};
 
-	/// Returns the type of the node
-	virtual type_t type() const noexcept = 0;
-	/// Generate a string representation of the current state of the node
-	virtual std::string state() const = 0;
-
 	int x{};
 	int y{};
 
@@ -138,12 +133,8 @@ struct node {
 	/// The special `any` handling is needed because T21 needs the acual
 	/// read direction to set `last`.
 	port write_port = port::nil;
-
-	node() = default;
-	node(int x, int y) noexcept
-	    : x(x)
-	    , y(y) {}
-	virtual ~node() = default;
+	/// the type of this node, never actually null
+	type_t type = type_t::null;
 
 	/// Attempt to answer a read from this node, coming from direction p
 	[[gnu::always_inline]] inline optional_word emit(port p) {
@@ -164,7 +155,15 @@ struct node {
 		}
 	}
 
- protected: // prevents most slicing
+ protected:
+	// effectively abstract
+	node() = delete;
+	~node() = default;
+	node(int x, int y, type_t type) noexcept
+	    : x(x)
+	    , y(y)
+	    , type(type) {}
+	// prevents most slicing
 	node(const node&) = default;
 	node(node&&) = default;
 	node& operator=(const node&) = default;
@@ -173,10 +172,14 @@ struct node {
 
 struct regular_node : node {
 	using node::node;
+	virtual ~regular_node() = default;
+
 	/// Begin processing a cycle. Do not perform writes.
 	virtual void step(logger& debug) = 0;
 	/// Finish processing a cycle. Writes are completed here.
 	virtual void finalize(logger& debug) = 0;
+	/// Generate a string representation of the current state of the node
+	virtual std::string state() const = 0;
 	/// Return a new node initialized in the same way as *this.
 	/// (Not a copy constructor; new node is as if reset() and has no neighbors)
 	virtual std::unique_ptr<regular_node> clone() const = 0;
@@ -198,8 +201,8 @@ struct regular_node : node {
 };
 
 struct damaged final : regular_node {
-	using regular_node::regular_node;
-	type_t type() const noexcept override { return Damaged; }
+	damaged(int x, int y) noexcept
+	    : regular_node(x, y, type_t::Damaged) {}
 	void step(logger&) override {}
 	void finalize(logger&) override {}
 	std::unique_ptr<regular_node> clone() const override {

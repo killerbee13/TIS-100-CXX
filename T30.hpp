@@ -23,7 +23,7 @@
 
 struct T30 final : regular_node {
 	T30(int x, int y, std::size_t max_size)
-	    : regular_node(x, y)
+	    : regular_node(x, y, type_t::T30)
 	    , max_size(max_size) {
 		data.reserve(max_size);
 	}
@@ -34,7 +34,6 @@ struct T30 final : regular_node {
 		prev_end = data.end();
 	}
 
-	type_t type() const noexcept override { return type_t::T30; }
 	void step(logger&) override {
 		if (data.size() == max_size) {
 			return;
