@@ -31,8 +31,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 		-Wold-style-cast -Wshadow=compatible-local -Wzero-as-null-pointer-constant
 		-Wno-mismatched-tags -Wimplicit-fallthrough -Wno-pragmas
 		-Wsign-compare -Werror=implicit-fallthrough -Wsuggest-override
-		-fconcepts-diagnostics-depth=10
-		-fdevirtualize-at-ltrans)
+		-fconcepts-diagnostics-depth=10)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
 	message("ICC detected")
 

@@ -30,7 +30,7 @@ inline bool useful(const node* n) {
 	if (not n) {
 		return false;
 	}
-	switch (n->type()) {
+	switch (n->type) {
 	case node::T21:
 		return not static_cast<const T21*>(n)->code.empty();
 	case node::T30:
@@ -133,7 +133,7 @@ class field {
 	}
 
 	/// Advance the field one full cycle (step and finalize)
-	bool step() {
+	[[gnu::always_inline]] inline bool step() {
 		if (allT21) {
 			return do_step<true>();
 		} else {
@@ -142,7 +142,7 @@ class field {
 	}
 
 	template <bool allT21>
-	bool do_step() {
+	[[gnu::always_inline]] inline bool do_step() {
 		auto debug = log_debug();
 		debug << "Field step\n";
 		// evaluate code
@@ -230,7 +230,7 @@ class field {
 	T21* node_by_index(std::size_t i) {
 		for (auto& n : nodes_regular) {
 			auto p = n.get();
-			if (p->type() == node::T21 and i-- == 0) {
+			if (p->type == node::T21 and i-- == 0) {
 				return static_cast<T21*>(p);
 			}
 		}

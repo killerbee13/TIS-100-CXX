@@ -120,7 +120,7 @@ struct builtin_level final : level {
 			// UNCONDITIONAL
 			log << "UNCONDITIONAL:\n";
 			for (auto& n : solve.regulars()) {
-				if (n->type() == node::T21) {
+				if (n->type == node::T21) {
 					auto p = static_cast<const T21*>(n.get());
 					log << "T20 (" << p->x << ',' << p->y << "): ";
 					if (p->code.empty()) {
@@ -140,7 +140,7 @@ struct builtin_level final : level {
 			// NO_MEMORY
 			log << "NO_MEMORY: ";
 			for (auto& n : solve.regulars()) {
-				if (n->type() == node::T30) {
+				if (n->type == node::T30) {
 					auto p = static_cast<const T30*>(n.get());
 					log << "T30 (" << p->x << ',' << p->y << "): " << p->used
 					    << '\n';
