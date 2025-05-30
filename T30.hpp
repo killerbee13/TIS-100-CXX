@@ -28,9 +28,10 @@ struct T30 final : regular_node {
 		data.reserve(max_size);
 	}
 	void reset() noexcept {
+		write_word = word_empty;
+		write_port = port::any;
 		data.clear();
 		division = 0;
-		wrote = false;
 	}
 
 	type_t type() const noexcept override { return type_t::T30; }
@@ -49,21 +50,15 @@ struct T30 final : regular_node {
 		}
 	}
 	void finalize(logger&) override {
+		if (write_port != port::any) {
+			data.erase(data.begin() + to_signed(division - 1));
+			write_port = port::any;
+		}
 		division = data.size();
-		wrote = false;
+		write_word = data.empty() ? word_empty : data.back();
 	}
 	std::unique_ptr<regular_node> clone() const override {
 		return std::make_unique<T30>(x, y, max_size);
-	}
-	optional_word emit(port) override {
-		if (not wrote and division != 0) {
-			auto v = data[--division];
-			data.erase(data.begin() + to_signed(division));
-			wrote = true;
-			return v;
-		} else {
-			return word_empty;
-		}
 	}
 	std::string state() const override {
 		std::string ret = concat('(', x, ',', y, ") T30 {");
@@ -80,7 +75,6 @@ struct T30 final : regular_node {
 	word_vec data;
 	std::size_t division{};
 	std::size_t max_size{def_T30_size};
-	bool wrote{};
 };
 
 #endif // T30_HPP

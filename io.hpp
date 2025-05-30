@@ -30,26 +30,27 @@ struct input_node final : node {
 	using node::node;
 
 	void reset(word_vec inputs_) noexcept {
+		write_word = word_empty;
+		write_port = port::down;
 		inputs = std::move(inputs_);
 		idx = 0;
-		wrt = word_empty;
 		s = activity::idle;
 	}
 
 	type_t type() const noexcept override { return in; }
 	[[gnu::always_inline]] inline void execute(logger& debug) {
 		debug << "I" << x << ": ";
-		if (writing) {
+		if (write_port == port::nil) {
 			// writing this turn
 			s = activity::write;
-			writing = false;
+			write_port = port::down;
 			debug << "writing";
 		} else {
 			s = activity::idle;
 			// ready a value if we don't have one
-			if (wrt == word_empty and idx != inputs.size()) {
+			if (write_word == word_empty and idx != inputs.size()) {
 				debug << "reloading";
-				wrt = inputs[idx++];
+				write_word = inputs[idx++];
 			} else {
 				debug << "waiting";
 			}
@@ -61,10 +62,6 @@ struct input_node final : node {
 		ret->reset(inputs);
 		return ret;
 	}
-	optional_word emit(port) override {
-		writing = wrt != word_empty;
-		return std::exchange(wrt, word_empty);
-	}
 	std::string state() const override {
 		return concat("I", x, " NUMERIC { ", state_name(s), " emitted:(", idx,
 		              "/", inputs.size(), ") }");
@@ -74,15 +71,11 @@ struct input_node final : node {
 
  private:
 	std::size_t idx{};
-	optional_word wrt = word_empty;
 	activity s{activity::idle};
-	bool writing{};
 };
 
 struct output_node : node {
 	using node::node;
-	/// output nodes only read
-	optional_word emit(port) final { return word_empty; }
 	/// Always not null if the node is simulated
 	node* linked;
 };

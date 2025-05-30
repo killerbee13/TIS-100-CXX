@@ -124,19 +124,40 @@ struct node {
 
 	/// Returns the type of the node
 	virtual type_t type() const noexcept = 0;
-	/// Attempt to answer a read from this node, coming from direction p
-	virtual optional_word emit(port p) = 0;
 	/// Generate a string representation of the current state of the node
 	virtual std::string state() const = 0;
 
 	int x{};
 	int y{};
 
+	/// word the node wants to write
+	word_t write_word = word_empty;
+	/// the direction we are writing into, the reader sets it after a read to
+	/// the actual read port if the write_port was any and to nil in all other
+	/// cases
+	port write_port = port::nil;
+
 	node() = default;
 	node(int x, int y) noexcept
 	    : x(x)
 	    , y(y) {}
 	virtual ~node() = default;
+
+	/// Attempt to answer a read from this node, coming from direction p
+	[[gnu::always_inline]] inline word_t emit(port p) {
+		if (write_word != word_empty
+		    && (write_port == p or write_port == port::any)) {
+			if (write_port == port::any) {
+				// we pass the actual read port back for the T21 to use it
+				write_port = p;
+			} else {
+				write_port = port::nil;
+			}
+			return std::exchange(write_word, word_empty);
+		} else {
+			return word_empty;
+		}
+	}
 
  protected: // prevents most slicing
 	node(const node&) = default;
@@ -179,7 +200,6 @@ struct damaged final : regular_node {
 	std::unique_ptr<regular_node> clone() const override {
 		return std::make_unique<damaged>(x, y);
 	}
-	optional_word emit(port) override { return word_empty; }
 	std::string state() const override {
 		return concat("(", x, ',', y, ") {Damaged}");
 	}
