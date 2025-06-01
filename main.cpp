@@ -537,7 +537,7 @@ int main(int argc, char** argv) try {
 					break;
 				}
 			}
-			sc.achievement = l->has_achievement(f, sc);
+			sc.achievement = sc.validated and l->has_achievement(f, sc);
 			validation_summary(sc, succeeded, quiet.getValue(), cycles_limit);
 			random_limit = std::min(
 			    cycles_limit, static_cast<size_t>(static_cast<double>(sc.cycles)
