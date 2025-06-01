@@ -18,6 +18,7 @@
 #ifndef T21_HPP
 #define T21_HPP
 
+#include "logger.hpp"
 #include "node.hpp"
 #include "utils.hpp"
 
@@ -96,7 +97,7 @@ struct T21 final : regular_node {
 	T21(int x, int y)
 	    : regular_node(x, y, type_t::T21) {}
 
-	[[gnu::always_inline]] inline void step(logger& debug) override {
+	[[gnu::always_inline]] inline void step(logger& debug) {
 		assert(not code.empty());
 		debug << "step(" << x << ',' << y << ',' << pc << "): instruction type: ";
 		if (s == activity::write) {
@@ -235,7 +236,7 @@ struct T21 final : regular_node {
 		debug << '\n';
 	}
 
-	[[gnu::always_inline]] inline void finalize(logger& debug) override {
+	[[gnu::always_inline]] inline void finalize(logger& debug) {
 		if (s == activity::write) {
 			debug << "finalize(" << x << ',' << y << ',' << pc << "): mov ";
 			// if write completed

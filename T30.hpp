@@ -18,6 +18,7 @@
 #ifndef T30_HPP
 #define T30_HPP
 
+#include "logger.hpp"
 #include "node.hpp"
 #include "utils.hpp"
 
@@ -34,7 +35,7 @@ struct T30 final : regular_node {
 		prev_end = data.end();
 	}
 
-	void step(logger&) override {
+	inline void step(logger&) {
 		if (data.size() == max_size) {
 			return;
 		}
@@ -48,7 +49,7 @@ struct T30 final : regular_node {
 			}
 		}
 	}
-	void finalize(logger&) override {
+	inline void finalize(logger&) {
 		if (write_port != port::any) {
 			data.erase(prev_end);
 			write_port = port::any;

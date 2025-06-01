@@ -21,6 +21,7 @@
 #include "T21.hpp"
 #include "T30.hpp"
 #include "io.hpp"
+#include "logger.hpp"
 #include "node.hpp"
 
 #include <memory>
@@ -150,7 +151,12 @@ class field {
 			if constexpr (allT21) {
 				static_cast<T21*>(p)->step(debug);
 			} else {
-				p->step(debug);
+				// yes, this is faster than virtual calls
+				if (p->type == node::T21) [[likely]] {
+					static_cast<T21*>(p)->step(debug);
+				} else {
+					static_cast<T30*>(p)->step(debug);
+				}
 			}
 		}
 		debug << '\n';
@@ -175,7 +181,11 @@ class field {
 			if constexpr (allT21) {
 				static_cast<T21*>(p)->finalize(debug);
 			} else {
-				p->finalize(debug);
+				if (p->type == node::T21) [[likely]] {
+					static_cast<T21*>(p)->finalize(debug);
+				} else {
+					static_cast<T30*>(p)->finalize(debug);
+				}
 			}
 		}
 		return active;

@@ -18,7 +18,6 @@
 #ifndef NODE_HPP
 #define NODE_HPP
 
-#include "logger.hpp"
 #include "utils.hpp"
 
 #include <array>
@@ -171,13 +170,8 @@ struct node {
 };
 
 struct regular_node : node {
-	using node::node;
 	virtual ~regular_node() = default;
 
-	/// Begin processing a cycle. Do not perform writes.
-	virtual void step(logger& debug) = 0;
-	/// Finish processing a cycle. Writes are completed here.
-	virtual void finalize(logger& debug) = 0;
 	/// Generate a string representation of the current state of the node
 	virtual std::string state() const = 0;
 	/// Return a new node initialized in the same way as *this.
@@ -188,6 +182,7 @@ struct regular_node : node {
 	std::array<node*, 2 * DIMENSIONS> neighbors{};
 
  protected:
+	using node::node;
 	/// Attempt to read a value from p, coming from this node
 	[[gnu::always_inline]] inline optional_word do_read(port p) {
 		assert(p >= port::dir_first and p <= port::dir_last);
@@ -203,8 +198,6 @@ struct regular_node : node {
 struct damaged final : regular_node {
 	damaged(int x, int y) noexcept
 	    : regular_node(x, y, type_t::Damaged) {}
-	void step(logger&) override {}
-	void finalize(logger&) override {}
 	std::unique_ptr<regular_node> clone() const override {
 		return std::make_unique<damaged>(x, y);
 	}
