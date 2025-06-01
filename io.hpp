@@ -38,7 +38,8 @@ struct input_node final : node {
 		s = activity::idle;
 	}
 
-	[[gnu::always_inline]] inline void execute(logger& debug) {
+	/// Complete write or reload
+	[[gnu::always_inline]] inline void finalize(logger& debug) {
 		debug << "I" << x << ": ";
 		if (write_port == port::nil) {
 			// writing this turn
@@ -93,7 +94,7 @@ struct num_output final : output_node {
 
 	/// Attempt to read from neighbor every step
 	/// @returns is_active
-	[[gnu::always_inline]] inline bool execute(logger& debug) {
+	[[gnu::always_inline]] inline bool step(logger& debug) {
 		if (complete) {
 			return false;
 		}
@@ -155,8 +156,9 @@ struct image_output final : output_node {
 		c_y = word_empty;
 	}
 
+	/// Attempt to read from neighbor every step
 	/// @returns is_active
-	[[gnu::always_inline]] inline bool execute(logger&) {
+	[[gnu::always_inline]] inline bool step(logger&) {
 		if (auto r = linked->emit(port::down); r != word_empty) {
 			if (r < 0) {
 				c_x = word_empty;

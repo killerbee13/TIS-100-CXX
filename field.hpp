@@ -155,17 +155,17 @@ class field {
 		}
 		debug << '\n';
 
-		// run io nodes, this may read from regular nodes, so it must be
-		// between the 2 regular methods
+		// run input nodes, they are only read from, so effectively do a finalize
 		for (auto& p : inputs_to_sim) {
-			p->execute(debug);
+			p->finalize(debug);
 		}
+		// output nodes may read from regular nodes, so it's done before finalize
 		bool active = false;
 		for (auto& p : numerics_to_sim) {
-			active |= p->execute(debug);
+			active |= p->step(debug);
 		}
 		for (auto& p : images_to_sim) {
-			active |= p->execute(debug);
+			active |= p->step(debug);
 		}
 		debug << '\n';
 
