@@ -18,6 +18,7 @@
 
 #include "field.hpp"
 
+#include <algorithm>
 #include <bitset>
 #include <queue>
 #include <unordered_set>
@@ -146,21 +147,21 @@ bool field::search_for_output(const regular_node* p) {
 					if (neighbor->type == node::T21
 					    and static_cast<const T21*>(neighbor)->has_instr(
 					        instr::hcf)) {
-						log_debug("Neighbor has hcf");
+						log_debug(" Neighbor has hcf");
 						return true;
 					}
 					queue.push({neighbor});
 				}
 			} else if (neighbor_y == static_cast<int>(height())) {
 				for (auto& o : nodes_numeric) {
-					if (o->x == neighbor_x) {
-						log_debug("Neighbor is numeric output");
+					if (o->linked == n) {
+						log_debug(" Neighbor is numeric output");
 						return true;
 					}
 				}
 				for (auto& o : nodes_image) {
-					if (o->x == neighbor_x) {
-						log_debug("Neighbor is image output");
+					if (o->linked == n) {
+						log_debug(" Neighbor is image output");
 						return true;
 					}
 				}
@@ -217,7 +218,7 @@ void field::finalize_nodes() {
 	}
 	for (auto& i : nodes_input) {
 		auto n = useful_node_at(i->x, 0);
-		if (n) {
+		if (n and in_links(n)[up]) {
 			n->neighbors[up] = i.get();
 			log_debug("input node at (", i->x, ',', i->y, ") has neighbor: (",
 			          n->x, ',', n->y, "): ", etoi(n->type));
@@ -225,8 +226,8 @@ void field::finalize_nodes() {
 	}
 	for_each_output([this](auto* o) {
 		auto n = useful_node_at(o->x, height() - 1);
-		o->linked = n;
-		if (n) {
+		if (n and out_links(n)[down]) {
+			o->linked = n;
 			log_debug("output node at (", o->x, ", ", o->y, ") has neighbor: (",
 			          n->x, ", ", n->y, "): ", etoi(n->type));
 		}
@@ -252,7 +253,8 @@ void field::finalize_nodes() {
 	}
 	for (auto& i : nodes_input) {
 		auto n = useful_node_at(i->x, 0);
-		if (n and search_for_output(n)) {
+		if (n and n->neighbors[up]
+		    and std::ranges::contains(regulars_to_sim, n)) {
 			inputs_to_sim.push_back(i.get());
 		} else {
 			log_debug("Input node at (", i->x, ", ", i->y, ") dropped");
@@ -264,7 +266,7 @@ void field::finalize_nodes() {
 		} else {
 			// Output nodes not being connected will make the level unsolvable
 			// (unless the output is always empty/blank)
-			log_info("Output node at (", o->x, ", ", o->y, ") dropped");
+			log_info("Numeric out node at (", o->x, ", ", o->y, ") dropped");
 		}
 	}
 	for (auto& o : nodes_image) {
@@ -273,7 +275,7 @@ void field::finalize_nodes() {
 		} else {
 			// Output nodes not being connected will make the level unsolvable
 			// (unless the output is always empty/blank)
-			log_info("Output node at (", o->x, ", ", o->y, ") dropped");
+			log_info("Image out node at (", o->x, ", ", o->y, ") dropped");
 		}
 	}
 }

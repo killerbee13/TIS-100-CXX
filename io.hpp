@@ -77,7 +77,7 @@ struct input_node final : node {
 struct output_node : node {
 	using node::node;
 	/// Always not null if the node is simulated
-	node* linked;
+	node* linked{};
 };
 
 struct num_output final : output_node {
