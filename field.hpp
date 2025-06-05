@@ -105,7 +105,8 @@ class field {
 				break;
 			default:
 				throw std::invalid_argument{
-				    "invalid layout spec: illegal input node"};
+				    concat("invalid layout spec: illegal input node (index=", x,
+				           ",type=", etoi(in), ")")};
 			}
 		}
 		nodes_input.shrink_to_fit();
@@ -126,7 +127,8 @@ class field {
 				break;
 			default:
 				throw std::invalid_argument{
-				    "invalid layout spec: illegal output node"};
+				    concat("invalid layout spec: illegal output node (index=", x,
+				           ",type=", etoi(out), ")")};
 			}
 		}
 		nodes_numeric.shrink_to_fit();

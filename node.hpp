@@ -41,8 +41,7 @@ constexpr static std::string_view state_name(activity s) {
 	case activity::write:
 		return "WRTE";
 	default:
-		throw std::invalid_argument{
-		    concat("activity ", etoi(s), " out of range")};
+		throw std::invalid_argument{concat("Invalid activity (", etoi(s), ")")};
 	}
 }
 
@@ -187,8 +186,7 @@ constexpr inline std::string to_string(node::type_t type) {
 	case node::null:
 		return "type_t::null";
 	default:
-		return concat("type_t(", etoi(type), ")");
-		break;
+		throw std::invalid_argument(concat("Invalid type_t(", etoi(type), ")"));
 	}
 }
 

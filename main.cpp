@@ -90,7 +90,8 @@ class range_constraint : public TCLAP::Constraint<T> {
 	    : low(low)
 	    , high(high) {
 		if (low > high) {
-			throw std::invalid_argument{""};
+			throw std::invalid_argument{
+			    concat("range_constraint error, low: ", low, " > high: ", high)};
 		}
 	}
 	bool check(const T& value) const override {

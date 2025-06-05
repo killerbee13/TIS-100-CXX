@@ -189,9 +189,9 @@ void field::finalize_nodes() {
 			if (neighbor) {
 				auto omask = out_links(neighbor);
 				log_debug_r([&] {
-					return concat("\tneighbor[", etoi(d), "] (", neighbor->x, ", ",
-					              neighbor->y, ") omask:", omask.to_string(), "; ",
-					              bool(imask[d]), bool(omask[invert(d)]), ' ',
+					return concat("\tneighbor[", port_name(d), "] (", neighbor->x,
+					              ", ", neighbor->y, ") omask:", omask.to_string(),
+					              "; ", bool(imask[d]), bool(omask[invert(d)]), ' ',
 					              imask[d] and omask[invert(d)] ? "linked"
 					                                            : "unlinked");
 				});
@@ -210,7 +210,7 @@ void field::finalize_nodes() {
 			for (auto neighbor : p->neighbors) {
 				if (neighbor) {
 					append(ret, " (", neighbor->x, ',', neighbor->y,
-					       "): ", etoi(neighbor->type), ", ");
+					       "): ", to_string(neighbor->type), ", ");
 				}
 			}
 			return ret;
@@ -221,7 +221,7 @@ void field::finalize_nodes() {
 		if (n and in_links(n)[up]) {
 			n->neighbors[up] = i.get();
 			log_debug("input node at (", i->x, ',', i->y, ") has neighbor: (",
-			          n->x, ',', n->y, "): ", etoi(n->type));
+			          n->x, ',', n->y, "): ", to_string(n->type));
 		}
 	}
 	for_each_output([this](auto* o) {
@@ -229,7 +229,7 @@ void field::finalize_nodes() {
 		if (n and out_links(n)[down]) {
 			o->linked = n;
 			log_debug("output node at (", o->x, ", ", o->y, ") has neighbor: (",
-			          n->x, ", ", n->y, "): ", etoi(n->type));
+			          n->x, ", ", n->y, "): ", to_string(n->type));
 		}
 	});
 
