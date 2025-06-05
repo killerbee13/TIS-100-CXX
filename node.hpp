@@ -41,7 +41,8 @@ constexpr static std::string_view state_name(activity s) {
 	case activity::write:
 		return "WRTE";
 	default:
-		throw std::invalid_argument{""};
+		throw std::invalid_argument{
+		    concat("activity ", etoi(s), " out of range")};
 	}
 }
 
@@ -168,6 +169,28 @@ struct node {
 	node& operator=(const node&) = default;
 	node& operator=(node&&) = default;
 };
+
+constexpr inline std::string to_string(node::type_t type) {
+	switch (type) {
+	case node::T21:
+		return "T21";
+	case node::T30:
+		return "T30";
+	case node::in:
+		return "input";
+	case node::out:
+		return "num_out";
+	case node::image:
+		return "image";
+	case node::Damaged:
+		return "damaged";
+	case node::null:
+		return "type_t::null";
+	default:
+		return concat("type_t(", etoi(type), ")");
+		break;
+	}
+}
 
 struct regular_node : node {
 	virtual ~regular_node() = default;

@@ -173,7 +173,7 @@ inline std::vector<T> table_to_vector(const sol::table& table) {
 }
 
 struct custom_level final : level {
-	standard_layout_spec spec;
+	dynamic_layout_spec spec;
 	sol::state lua;
 	/// sol::state is not thread-safe
 	std::mutex lua_mutex;
@@ -205,25 +205,66 @@ struct custom_level final : level {
 		lua["STREAM_IMAGE"] = node::image;
 		lua.script_file(spec_path);
 
-		// unstructured vector, we can only support the default game 4x3 layout
-		sol::table layout = lua["get_layout"]();
-		if (layout.size() != 12) {
-			throw std::invalid_argument{
-			    concat("Given ", layout.size(), " nodes instead of 12")};
+		std::size_t width = 4;
+		if (auto l = lua.get<sol::optional<sol::function>>("get_layout_ext")) {
+			log_info("Extended layout spec detected");
+			sol::table layout = (*l)();
+			auto height = layout.size();
+			log_info("Extended layout height: ", height);
+			if (height == 0) {
+				throw std::invalid_argument(
+				    "get_layout_ext(): layout has zero height");
+			}
+			spec.nodes.resize(height);
+			width = layout.get<sol::table>(1).size();
+			log_info("Extended layout width: ", width);
+			if (width == 0) {
+				throw std::invalid_argument(
+				    "get_layout_ext(): layout has zero width");
+			}
+			spec.inputs.resize(width, node::null);
+			spec.outputs.resize(width, node::null);
+			for (auto c : range(height)) {
+				spec.nodes[c].resize(width);
+				if (layout.get<sol::table>(c + 1).size() != width) {
+					throw std::invalid_argument(
+					    concat("get_layout_ext(): non-rectangular layout specified, "
+					           "line 1 has width ",
+					           width, " while line ", c + 1, " has width ",
+					           layout.get<sol::table>(c).size()));
+				}
+				for (auto r : range(width)) {
+					spec.nodes[c][r] = layout[c + 1][r + 1];
+				}
+			}
+		} else {
+			// unstructured vector, we can only support the default game 4x3 layout
+			sol::table layout = lua["get_layout"]();
+			if (layout.size() != 12) {
+				throw std::invalid_argument{concat(
+				    "get_layout(): Given ", layout.size(), " nodes instead of 12")};
+			}
+			spec.nodes.resize(3, std::vector<node::type_t>(4));
+			spec.inputs.resize(4, node::null);
+			spec.outputs.resize(4, node::null);
+			for (size_t i = 0; i < 12; i++) {
+				spec.nodes[i / 4][i % 4] = layout[i + 1];
+			}
 		}
-		for (size_t i = 0; i < 12; i++) {
-			spec.nodes[i / 4][i % 4] = layout[i + 1];
-		}
-
-		spec.inputs.fill(node::null);
-		spec.outputs.fill(node::null);
 		// {{STREAM_$TYPE, "$NAME1", <number in [0-3]>, $list1},
 		//  {STREAM_$TYPE, "$NAME2", <number in [0-3]>, $list2}, ...}
+
+		// name and values unused for layout purposes
 		sol::table streams = lua["get_streams"]();
 		for (const auto& [_, stream] : streams) {
 			sol::table io = stream.as<sol::table>();
 			node::type_t type = io[1];
 			uint id = io[3];
+			if (id >= width) {
+				throw std::runtime_error(
+				    concat("get_streams(): io node (type=", to_string(type),
+				           ") position ", id, " out of range (width=", width, ")"));
+			}
 			if (type == node::in) {
 				spec.inputs[id] = node::in;
 			} else {
@@ -255,6 +296,12 @@ struct custom_level final : level {
 				sol::table io = stream.as<sol::table>();
 				node::type_t type = io[1];
 				uint id = io[3];
+				if (id >= spec.nodes[0].size()) {
+					throw std::invalid_argument(
+					    concat("get_streams(): io node (type=", to_string(type),
+					           ") position ", id,
+					           " out of range (width=", spec.nodes[0].size(), ")"));
+				}
 				sol::table values = io[4];
 				switch (type) {
 				case node::in: {
@@ -268,7 +315,8 @@ struct custom_level final : level {
 					                            table_to_vector<tis_pixel>(values));
 				} break;
 				default:
-					throw std::invalid_argument{std::to_string(etoi(type))};
+					throw std::invalid_argument{concat("Illegal IO node type ",
+					                                   to_string(type), " in test")};
 				}
 			}
 		}

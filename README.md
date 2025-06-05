@@ -19,7 +19,8 @@ Ensure you have a C++23 compliant compiler (clang 19+, gcc 14+), `cmake`, and
 4. customize the `TIS_ENABLE_*` flags if desired
 5. run `cmake --build "path/to/some/build/dir"`
 
-If `TIS_ENABLE_LUA` is selected, one needs the lua dev library installed in the system,
+If `TIS_ENABLE_LUA` is selected, one needs the lua dev library installed in the
+system,
 for Debian derivatives use:
 ```sh
 apt install libluajit-5.1-dev
@@ -31,7 +32,8 @@ so no further management is needed beyond the above steps.
 ## Building on Windows (thanks gtw123):
 
 ### Install MSYS2
-* Install MSYS2 by following the steps on https://www.msys2.org/ to download and run the installer.
+* Install MSYS2 by following the steps on https://www.msys2.org/ to download and
+  run the installer.
 * Once installed it will automatically launch the MSYS2 UCRT64 environment.
 * Install packages:
   * `pacman -S mingw-w64-ucrt-x86_64-toolchain`
@@ -39,29 +41,30 @@ so no further management is needed beyond the above steps.
     * (This might be automatically installed by the next one? I haven't tried)
   * `pacman -S mingw-w64-ucrt-x86_64-ccmake`
   * `pacman -S git`
-    * (This is required to avoid "WARNING Cannot determine rolling release version from git log"
-      when building LuaJIT. If you already have Git for Windows installed you may be able to
-      configure MSYS2 to use that instead.)
+    * (This is required to avoid "WARNING Cannot determine rolling release
+	  version from git log" when building LuaJIT. If you already have Git for
+	  Windows installed you may be able to configure MSYS2 to use that instead.)
 
 ### Build LuaJIT
 * `git clone https://luajit.org/git/luajit.git`
 * `cd luajit`
 * `mingw32-make`
-* This will create `lua51.dll` and `libluajit-5.1.dll.a` in the `src` directory of this repo.
+* This will create `lua51.dll` and `libluajit-5.1.dll.a` in the `src` directory
+  of this repo.
 
 ### Build TIS-100-CXX
 * `git clone https://github.com/killerbee13/TIS-100-CXX.git`
 * Edit CMakeLists.txt and tell it where to find LuaJIT:
-  * Replace `/usr/include/luajit-2.1` with the path to the `src` directory of the LuaJIT repo.
-    e.g. `C:/Users/username/source/repos/luajit/src`
-  * Find the `target_link_libraries` line and replace `luajit-5.1` with the path of
-    `libluajit-5.1.dll.a` built in the previous section.
+  * Replace `/usr/include/luajit-2.1` with the path to the `src` directory of
+    the LuaJIT repo. e.g. `C:/Users/username/source/repos/luajit/src`
+  * Find the `target_link_libraries` line and replace `luajit-5.1` with the path
+    of `libluajit-5.1.dll.a` built in the previous section.
     e.g. `C:/Users/username/source/repos/luajit/src/libluajit-5.1.dll.a`
   * (There's probably a better way to do this but I don't really know CMake.)
 * Follow the build instructions at
   https://github.com/killerbee13/TIS-100-CXX?tab=readme-ov-file#build-instructions
-* Before running `TIS-100-CXX.exe`, copy `lua51.dll` into the directory containing the built
-  `TIS-100-CXX.exe`
+* Before running `TIS-100-CXX.exe`, copy `lua51.dll` into the directory
+  containing the built `TIS-100-CXX.exe`
 
 ## Run instructions:
 
@@ -117,8 +120,8 @@ The most useful options are:
   corresponds to only important information. "info" includes information that
   may be useful but is not always important, and notably the amount of
   information logged at level "info" is bounded. "trace" includes a printout
-  of the board state at each cycle. "debug" includes a full trace of the execution
-  in the log and will often produce multiple MB of data.
+  of the board state at each cycle. "debug" includes a full trace of the
+  execution in the log and will often produce multiple MB of data.
 - `-j N`: run random tests with N worker threads. With `-j 0`, the number of
   hardware threads is detected and used.
 - `-q`, `--quiet`: reduce the amount of human-readable text printed around the
@@ -130,11 +133,11 @@ Other options:
   respectively.
 - `--cheat-rate C`: change the threshold between /c and /h to any proportion in
   the range 0-1. The default value is .05, or 5%.
-- `-k N`, `--limit-multiplier N`: change the scale factor for dynamic timeouts for
-  random tests (will not exceed --limit). Higher values are more lenient toward
-  slow random tests. The default value is 5, meaning that if a solution takes 100
-  cycles to pass the slowest fixed test, it will time out after 500 cycles on
-  random tests (even when that is less than --limit).
+- `-k N`, `--limit-multiplier N`: change the scale factor for dynamic timeouts
+  for random tests (will not exceed --limit). Higher values are more lenient
+  toward slow random tests. The default value is 5, meaning that if a solution
+  takes 100 cycles to pass the slowest fixed test, it will time out after 500
+  cycles on random tests (even when that is less than --limit).  
 - `-c`, `--color`: force color for important info even when redirecting output
 - `-C`, `--log-color`: force color for logs even when redirecting stderr
 - `-S`, `--stats`: run all requested random tests and report the pass rate at
@@ -147,7 +150,30 @@ Other options:
   score.
 - `--dry-run`: Mainly useful for debugging the command-line parser and initial
   setup. Checks the command line as normal and quits before running any tests.
-  
+
+## Additional features:
+
+Contrary to its documentation, TIS-100 clamps input values in test cases to the
+range [-99, 999]. The simulator allows the full documented range [-999, 999].
+
+TIS-100-CXX supports custom levels with any rectangular size, using the new Lua
+function `get_layout_ext()`, which is expected to return an array of arrays of
+`TILE_*` values of any rectangular size (i.e. every row must have the same
+number of columns).
+
+The parser accepts some things the game does not, namely:
+- When the --T21_size argument is specified, nodes may have more than 15
+  instructions
+- multiple labels on one line
+- Directional port names (LEFT, RIGHT, UP, DOWN) may be abbreviated to their
+  first letters
+- Lines have no length limit
+
+Otherwise, the simulator is intended to exactly simulate the game, including any
+restrictions it has.
+
+## Support scripts:
+
 There are two shell scripts distributed with the sim, mainly intended for
 testing the sim itself, `test_saves_single.sh` and `test_saves_lb.sh`, both of
 which require [fish](https://fishshell.com/) to run. `test_saves_single.sh`
@@ -162,7 +188,8 @@ accept options:
   (score and flags correct), wrong scores, and failed validations (including
   wrong scores if `-w` is not separately specified), respectively;
 - `-a`, which identifies a file to receive a report of each score
-  (like -s and -f pointing to the same file, but fully independent of those flags);
+  (like -s and -f pointing to the same file, but fully independent of those
+  flags);
 - `-n`, which is an abbreviation of `--fixed 0`;
 - `-i`, which prompts for input after each test.
 
