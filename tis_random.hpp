@@ -118,6 +118,7 @@ class lua_random {
 		}
 	}
 
+	// primitive generator, also exposed directly to Lua
 	double next_double() {
 		if (++inext >= 56) {
 			inext = 1;
@@ -139,19 +140,29 @@ class lua_random {
 		return ret * (1.0 / kblib::max.of<i32>());
 	}
 
+	// translate double into int
 	i32 next_int(i32 min, i32 max) {
-		assert(min < max); // all our calls are static, no need to throw
+		assert(min < max);
 		if (max == min + 1) {
 			return min;
 		}
 		return static_cast<i32>(next_double() * (max - min)) + min;
 	}
 
+	// Nexus level generation wrapper function
 	/// @return random word_t in [min,max]
-	word_t next(word_t min, word_t max) {
+	word_t next_word(word_t min, word_t max) {
 		return static_cast<word_t>(
 		    next_int(static_cast<i32>(min), static_cast<i32>(max) + 1));
 	}
+
+	// Lua (custom level) compatibility functions, based on moonsharp, wide
+	// contract (incorrect argument order swapped)
+	i32 lua_next(i32 a, i32 b) {
+		return next_int(std::min(a, b), std::max(a, b) + 1);
+	}
+
+	i32 lua_next(i32 max) { return lua_next(1, max); }
 };
 
 #endif // TIS_RANDOM_HPP

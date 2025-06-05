@@ -494,15 +494,15 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 				maxout = maxmax;
 			} else {
 				do {
-					maxout = engine.next(0, static_cast<word_t>(maxmax));
+					maxout = engine.next_word(0, static_cast<word_t>(maxmax));
 				} while (not canzero and maxout == 0);
 			}
 
 			std::size_t count1;
 			if (prevempty and maxout >= 2) {
-				count1 = engine.next(1, static_cast<word_t>(maxout - 1));
+				count1 = engine.next_word(1, static_cast<word_t>(maxout - 1));
 			} else {
-				count1 = engine.next(0, static_cast<word_t>(maxout));
+				count1 = engine.next_word(0, static_cast<word_t>(maxout));
 			}
 			if (maxout == 0) {
 				canzero = false;
@@ -516,7 +516,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 				for (std::size_t i = 0; i < maxout; i++) {
 					word_t val;
 					do {
-						val = engine.next(10, 99);
+						val = engine.next_word(10, 99);
 					} while (std::ranges::contains(outseq, val));
 					outseq[i] = val;
 					if (i < count1) {
@@ -542,7 +542,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		ret.inputs.resize(1, empty_vec());
 		ret.n_outputs.resize(1, empty_vec());
 		for (std::size_t i = 0; i < max_test_length; i++) {
-			word_t n = engine.next(1, 44);
+			word_t n = engine.next_word(1, 44);
 			ret.inputs[0][i] = n;
 			ret.n_outputs[0][i] = static_cast<word_t>(n * (n + 1) / 2);
 		}
@@ -557,18 +557,18 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		word_vec& output = ret.n_outputs[0];
 		// make minimums small but not too small
 		for (std::size_t i = 0; i < 6; i++) {
-			mininput.push_back(engine.next(3, 9) * 5);
+			mininput.push_back(engine.next_word(3, 9) * 5);
 		}
 		// make maximums big
 		for (std::size_t i = 0; i < 6; i++) {
-			maxinput.push_back(engine.next(10, 17) * 5);
+			maxinput.push_back(engine.next_word(10, 17) * 5);
 		}
 		// For now, just make five sequences that are five long (with a
 		// sixth value being a 0 terminator)
 		// Manually calculate correct output values
 		for (std::size_t i = 0; i < 6; i++) {
 			for (std::size_t j = 0; j < 5; j++) {
-				word_t val = engine.next(10, 99);
+				word_t val = engine.next_word(10, 99);
 				input.push_back(val);
 				output.push_back(std::clamp(val, mininput[i], maxinput[i]));
 			}
@@ -585,9 +585,9 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		word_vec& out_a = ret.n_outputs[0];
 		word_vec& out_b = ret.n_outputs[1];
 		for (int i = 0; i < max_test_length; i++) {
-			word_t r = engine.next(1, 4);
-			word_t a = engine.next(10, 99);
-			word_t b = engine.next(10, 99);
+			word_t r = engine.next_word(1, 4);
+			word_t a = engine.next_word(10, 99);
+			word_t b = engine.next_word(10, 99);
 			switch (r) {
 			case 1: {
 				in_a[i] = -1;
@@ -624,19 +624,19 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		std::array<word_t, 8> seq_lengths = {2, 3, 3, 4, 4, 4, 5, 6};
 		// Shuffle the subsequence lengths:
 		for (std::size_t i = seq_lengths.size() - 1; i >= 1; i--) {
-			std::size_t j = engine.next(0, static_cast<word_t>(i));
+			std::size_t j = engine.next_word(0, static_cast<word_t>(i));
 			std::swap(seq_lengths[i], seq_lengths[j]);
 		}
 
 		for (word_t len : seq_lengths) {
 			// Generate input sequences:
 			for (word_t j = 0; j < len; j++) {
-				in_seq.push_back(engine.next(10, 99));
+				in_seq.push_back(engine.next_word(10, 99));
 			}
 			in_seq.push_back(0);
 			// Generate subsequence indexes:
-			word_t sublen = engine.next(2, len);
-			word_t first = engine.next(0, len - sublen);
+			word_t sublen = engine.next_word(2, len);
+			word_t first = engine.next_word(0, len - sublen);
 			word_t last = static_cast<word_t>(first + sublen - 1);
 			in_indexes.push_back(first);
 			in_indexes.push_back(last);
@@ -651,7 +651,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		ret.inputs.resize(1, empty_vec());
 		ret.n_outputs.resize(3, empty_vec());
 		for (int i = 0; i < max_test_length; i++) {
-			word_t val = engine.next(1, 120);
+			word_t val = engine.next_word(1, 120);
 			ret.n_outputs[2][i] = val;
 			ret.n_outputs[1][i] = val * 2;
 			ret.n_outputs[0][i] = val * 4;
@@ -663,8 +663,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		ret.inputs.resize(2, empty_vec());
 		ret.n_outputs.resize(1, empty_vec());
 		for (int i = 0; i < max_test_length; i++) {
-			word_t valA = engine.next(100, 999);
-			word_t valB = engine.next(100, 999);
+			word_t valA = engine.next_word(100, 999);
+			word_t valB = engine.next_word(100, 999);
 			ret.inputs[0][i] = valA;
 			ret.inputs[1][i] = valB;
 			ret.n_outputs[0][i] = static_cast<word_t>((valA + valB) / 2);
@@ -677,7 +677,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		for (int i = 0; i < max_test_length; i++) {
 			std::array<word_t, 4> group;
 			for (std::size_t j = 0; j < 4; j++) {
-				word_t v = engine.next(0, 99);
+				word_t v = engine.next_word(0, 99);
 				group[j] = v;
 				ret.inputs[j][i] = v;
 			}
@@ -691,14 +691,14 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		ret.inputs.resize(1, empty_vec());
 		ret.n_outputs.resize(3, empty_vec());
 		for (int i = 0; i < max_test_length; i++) {
-			word_t digits = engine.next(0, 2);
+			word_t digits = engine.next_word(0, 2);
 			word_t val;
 			if (digits == 0) {
-				val = engine.next(0, 9);
+				val = engine.next_word(0, 9);
 			} else if (digits == 1) {
-				val = engine.next(10, 99);
+				val = engine.next_word(10, 99);
 			} else {
-				val = engine.next(100, 999);
+				val = engine.next_word(100, 999);
 			}
 			ret.inputs[0][i] = val;
 			ret.n_outputs[0][i] = val / 100;
@@ -714,7 +714,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		// generate input stream
 		int last_zero = -1;
 		for (int i = 0; i < max_test_length - 1; i++) {
-			ret.inputs[0][i] = engine.next(1, 5);
+			ret.inputs[0][i] = engine.next_word(1, 5);
 			// tuned to give nice balance of sequence lengths
 			if (i - last_zero > 3 and engine.next_double() < 0.5
 			    and i < max_test_length - 2) {
@@ -754,7 +754,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 
 		int curr_start = 0;
 		for (int i = 0; i < max_test_length - 1; i++) {
-			word_t val = engine.next(1, 99);
+			word_t val = engine.next_word(1, 99);
 			ret.inputs[0][i] = val;
 			ret.n_outputs[0][i] = val;
 
@@ -764,7 +764,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			// and no longer than 8.
 			// Also ensure final sequence is ended properly - may cause shorter
 			// sequence length.
-			if ((engine.next(1, 3) == 3 and cur_seq.size() > 2)
+			if ((engine.next_word(1, 3) == 3 and cur_seq.size() > 2)
 			    or (cur_seq.size() > 7) or (i == max_test_length - 3)) {
 				// Generate 'output'
 				word_t min_in_seq = std::ranges::min(cur_seq);
@@ -842,7 +842,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			// shuffle, aside from the 1st that has to remain 0
 			for (std::size_t i = max; i > 1; i--) {
 				// i is now the last pertinent index
-				std::size_t k = engine.next(1, static_cast<word_t>(i));
+				std::size_t k = engine.next_word(1, static_cast<word_t>(i));
 				// Quick swap
 				std::swap(coors[i], coors[k]);
 			}
@@ -942,7 +942,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 
 		auto& input = ret.inputs[0];
 		for (std::size_t i = 0; i < max_test_length; i++) {
-			input.push_back(engine.next(1, 4));
+			input.push_back(engine.next_word(1, 4));
 		}
 		input.push_back(0);
 
@@ -950,8 +950,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		// pick whether a 0 at after the 10th character should be an empty line.
 		// The prerolled sample will not have that, so I avoid testing the user on
 		// that case because it seemed unfair.  I think both ways could be valid.
-		input[engine.next(12, 16)] = 0;
-		input[engine.next(28, 31)] = 0;
+		input[engine.next_word(12, 16)] = 0;
+		input[engine.next_word(28, 31)] = 0;
 
 		// render image
 		word_t x = -1;
@@ -975,13 +975,13 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		auto& input_values = ret.inputs[1];
 		for (int i = 0; i < max_test_length; i++) {
 			word_t ref = 0;
-			if (engine.next(0, 1) == 0) {
-				ref = engine.next(-4, -1);
+			if (engine.next_word(0, 1) == 0) {
+				ref = engine.next_word(-4, -1);
 				if (i + ref < 0) {
 					ref = 0;
 				}
 			}
-			input_values[i] = engine.next(10, 99);
+			input_values[i] = engine.next_word(10, 99);
 			input_refs[i] = ref;
 			ret.n_outputs[0][i] = input_values[i + ref];
 		}
@@ -1001,34 +1001,34 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		}
 
 		for (int i = 0; i < 3; i++) {
-			pattern[i] = engine.next(1, 42); // PATTERN gen
+			pattern[i] = engine.next_word(1, 42); // PATTERN gen
 		}
 		pattern.back() = 0;
 		for (int i = 0; i < max_test_length; i++) {
-			input[i] = engine.next(1, 42); // SEQUENCE gen
+			input[i] = engine.next_word(1, 42); // SEQUENCE gen
 		}
 
 		for (int k = 0; k < 2; k++) {
-			word_t j = engine.next(1, 37); // pattern 123 potential extra matches
+			word_t j = engine.next_word(1, 37); // pattern 123 potential extra matches
 			for (int i = 0; i < 3; i++) {
 				input[i + j - 1] = pattern[i];
 			}
 		}
 		for (int k = 0; k < 3; k++) {
-			word_t j = engine.next(1, 37); // pattern 23 these may be overwriten
+			word_t j = engine.next_word(1, 37); // pattern 23 these may be overwriten
 			for (int i = 1; i < 3; i++) {
 				input[i + j - 1] = pattern[i];
 			}
 		}
 
 		// The following are guararnteed to be complete ( do I need a 123123? )
-		word_t j = engine.next(1, 7); // pattern 123
+		word_t j = engine.next_word(1, 7); // pattern 123
 		for (int i = 0; i < 3; i++) {
 			input[i + j - 1] = pattern[i];
 		}
 
 		// pattern 1223 Don't know if guaranteed X23 is also needed.
-		j = engine.next(10, 13);
+		j = engine.next_word(10, 13);
 		for (int i = 0; i < 2; i++) {
 			input[i + j - 1] = pattern[i];
 		}
@@ -1036,13 +1036,13 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			input[i + j] = pattern[i];
 		}
 
-		j = engine.next(17, 23); // pattern 1123
+		j = engine.next_word(17, 23); // pattern 1123
 		input[j - 1] = pattern[0];
 		for (int i = 0; i < 3; i++) {
 			input[j + i] = pattern[i];
 		}
 
-		j = engine.next(27, 35); // pattern 12123
+		j = engine.next_word(27, 35); // pattern 12123
 		input[j - 1] = pattern[0];
 		input[j] = pattern[1];
 		for (int i = 0; i < 3; i++) {
@@ -1070,9 +1070,9 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		std::array lengths{5, 4, 4, 4, 5, 4, 5, 4, 4};
 		for (auto length : lengths) {
 			// Figure out the min, max, and missing values:
-			word_t min = engine.next(10, 90);
+			word_t min = engine.next_word(10, 90);
 			word_t max = static_cast<word_t>(min + length - 1);
-			auto missing_value = engine.next(min + 1, max - 1);
+			auto missing_value = engine.next_word(min + 1, max - 1);
 			// Insert the values into the stream
 			auto start = std::ssize(in);
 			for (auto i : range<word_t>(min, max + 1)) {
@@ -1082,7 +1082,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			}
 			// Shuffle list in place
 			for (auto i : range(std::ssize(in) - 1, start, -1)) {
-				auto j = engine.next(static_cast<word_t>(start),
+				auto j = engine.next_word(static_cast<word_t>(start),
 				                     static_cast<word_t>(i));
 				std::swap(in[i], in[j]);
 			}
@@ -1097,7 +1097,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		auto to_octal = [](word_t i) { return (i / 8) * 10 + (i % 8); };
 
 		for (auto i : range(max_test_length)) {
-			auto v = ret.inputs[0][i] = engine.next(1, 63);
+			auto v = ret.inputs[0][i] = engine.next_word(1, 63);
 			ret.n_outputs[0][i] = static_cast<word_t>(to_octal(v));
 		}
 	} break;
@@ -1111,7 +1111,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		int zeros = 10;
 		for (std::size_t i = 0; i < max_test_length - 1; ++i) {
 			do {
-				ret.inputs[0][i] = engine.next(0, 9);
+				ret.inputs[0][i] = engine.next_word(0, 9);
 			} while (zeros == 1 and not seen[ret.inputs[0][i]]);
 
 			if (not seen[ret.inputs[0][i]]) {
@@ -1157,7 +1157,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		do {
 			sum = 0;
 			for (auto i : range(10)) {
-				auto inp = ret.inputs[0][i] = engine.next(10, 99);
+				auto inp = ret.inputs[0][i] = engine.next_word(10, 99);
 				sum += static_cast<int>(cache[inp].size()) + 1;
 			}
 		} while (sum != max_test_length - 1);
@@ -1176,8 +1176,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		std::array<word_t, 11> max_exp{0, 10, 9, 6, 4, 4, 3, 3, 3, 3, 2};
 
 		for (auto i : range(max_test_length)) {
-			auto a = ret.inputs[0][i] = engine.next(1, 10);
-			auto b = ret.inputs[1][i] = engine.next(1, max_exp[a]);
+			auto a = ret.inputs[0][i] = engine.next_word(1, 10);
+			auto b = ret.inputs[1][i] = engine.next_word(1, max_exp[a]);
 			ret.n_outputs[0][i] = static_cast<word_t>(std::pow(a, b));
 		}
 	} break;
@@ -1196,15 +1196,15 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		word_t q = 0;
 
 		for (auto i : range(2, max_test_length)) {
-			auto instr = engine.next(0, 4);
+			auto instr = engine.next_word(0, 4);
 			instructions[i] = instr;
 			switch (instr) {
 			case 0: {
-				p = engine.next(10, 99);
+				p = engine.next_word(10, 99);
 				values.push_back(p);
 			} break;
 			case 1: {
-				q = engine.next(10, 99);
+				q = engine.next_word(10, 99);
 				values.push_back(q);
 			} break;
 			case 2: {
@@ -1228,9 +1228,9 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		std::array<word_t, 8> memory{};
 
 		do {
-			auto index = engine.next(0, 7);
-			auto value = engine.next(10, 99);
-			if (engine.next(0, 1)) {
+			auto index = engine.next_word(0, 7);
+			auto value = engine.next_word(10, 99);
+			if (engine.next_word(0, 1)) {
 				if (memory[index]) { // 0 can be used as sentinel
 					ret.inputs[0].push_back(1);
 					ret.inputs[0].push_back(index);
@@ -1252,9 +1252,9 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 
 		for (const auto i : range(max_test_length)) {
 			for (const auto j : range(4)) {
-				auto n = engine.next(0, 1);
+				auto n = engine.next_word(0, 1);
 				if (i > 0 and ret.n_outputs[0][i - 1] == j + 1) {
-					n = engine.next(-1, 0);
+					n = engine.next_word(-1, 0);
 				}
 				ret.inputs[j][i] = n;
 				sums[j] += n;

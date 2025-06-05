@@ -51,6 +51,7 @@ struct level {
 	virtual std::optional<single_test> random_test(std::uint32_t seed) = 0;
 
 	std::array<single_test, 3> static_suite() {
+		// static tests never fail to generate
 		return {
 		    *random_test(base_seed * 100),
 		    *random_test(base_seed * 100 + 1),
@@ -244,8 +245,10 @@ struct custom_level final : level {
 			lua_random engine(to_signed(seed));
 			std::unique_lock<std::mutex> lock(lua_mutex);
 
-			lua["math"]["random"].set_function(&lua_random::next,
-			                                   std::move(engine));
+			lua["math"]["random"].set_function(sol::overload(
+			    [&engine] { return engine.next_double(); },
+			    [&engine](i32 max) { return engine.lua_next(max); },
+			    [&engine](i32 a, i32 b) { return engine.lua_next(a, b); }));
 			sol::table streams = lua["get_streams"]();
 
 			for (const auto& [_, stream] : streams) {
