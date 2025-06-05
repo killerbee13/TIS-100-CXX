@@ -80,12 +80,15 @@ target_include_directories(TIS-100-CXX
 	INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
 	PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 
+set(LUAJIT_INCLUDE_DIR "/usr/include/luajit-2.1" CACHE PATH "Path to the luajit include directory")
+set(LUAJIT_LIB "luajit-5.1" CACHE FILEPATH "Path to the luajit library to link with")
+
 if(TIS_ENABLE_LUA)
 	target_compile_definitions(TIS-100-CXX PUBLIC TIS_ENABLE_LUA)
 	target_include_directories(TIS-100-CXX SYSTEM PUBLIC
-		"/usr/include/luajit-2.1"
+		"${LUAJIT_INCLUDE_DIR}"
 		"${CMAKE_CURRENT_SOURCE_DIR}/sol2/include")
-	target_link_libraries(TIS-100-CXX luajit-5.1)
+	target_link_libraries(TIS-100-CXX "${LUAJIT_LIB}")
 endif()
 if(TIS_ENABLE_DEBUG)
 	target_compile_definitions(TIS-100-CXX PUBLIC TIS_ENABLE_DEBUG)
