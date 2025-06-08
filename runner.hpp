@@ -179,7 +179,6 @@ inline score run_seed_ranges(level& l, field& f,
 	seed_range_iterator seed_it(seed_ranges);
 	std::mutex it_m;
 	std::mutex sc_m;
-	std::vector<std::thread> threads;
 	std::vector<int> counters(num_threads);
 
 	auto task = [](std::mutex& it_m, std::mutex& sc_m,
@@ -246,6 +245,7 @@ inline score run_seed_ranges(level& l, field& f,
 		seed_range_iterator it2(std::span(&r, 1));
 		task(it_m, sc_m, it2, l, std::move(f), params, worst, counters[0]);
 	} else if (num_threads > 1) {
+		std::vector<std::thread> threads;
 		for (auto i : range(num_threads)) {
 			threads.emplace_back(task, std::ref(it_m), std::ref(sc_m),
 			                     std::ref(seed_it), std::ref(l), f.clone(), params,
