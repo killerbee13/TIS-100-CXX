@@ -271,6 +271,12 @@ struct custom_level final : level {
 				spec.outputs[id] = type;
 			}
 		}
+
+		// stop custom level authors from messing with the game
+		lua["math"]["randomseed"].set_function([](uint32_t) {
+			throw std::runtime_error(
+			    "randomseed() is not allowed in custom levels");
+		});
 	}
 
 	field new_field(uint T30_size) const override {
