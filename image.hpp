@@ -261,6 +261,7 @@ struct image_t : pnm::image<tis_pixel> {
 	                      std::u16string_view key_ = key) {
 		if (image.size() == 0) {
 			reshape(0, 0);
+			return;
 		}
 		std::size_t w{image.begin()[0].size()};
 #if not RELEASE
