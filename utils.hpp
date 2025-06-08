@@ -23,6 +23,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 #include <vector>
 
 #if NDEBUG
@@ -52,6 +53,7 @@ static_assert(word_empty < word_min);
 static_assert(word_empty < word_min + word_min);
 
 using word_vec = std::vector<word_t>;
+constexpr word_t to_word(auto x) { return static_cast<word_t>(x); }
 
 template <typename T, typename U>
 constexpr U sat_add(T a, T b, U l, U h) {

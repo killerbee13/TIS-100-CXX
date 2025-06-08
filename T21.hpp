@@ -227,7 +227,7 @@ struct T21 final : regular_node {
 		} break;
 		case instr::jro: {
 			debug << " (" << pc << '+' << r << " -> ";
-			pc = sat_add(pc, r, word_t{}, static_cast<word_t>(code.size() - 1));
+			pc = sat_add(pc, r, word_t{}, to_word(code.size() - 1));
 			debug << pc << ")";
 		} break;
 		default:
@@ -320,7 +320,7 @@ struct T21 final : regular_node {
 	activity s{activity::idle};
 
 	/// Increment the program counter, wrapping to beginning.
-	inline void next() { pc = static_cast<word_t>((pc + 1) % code.size()); }
+	inline void next() { pc = to_word((pc + 1) % code.size()); }
 	/// Attempt to read a value from this node's port p, which may be
 	/// any, last, or immediate, unlike the general do_read and emit
 	/// functions

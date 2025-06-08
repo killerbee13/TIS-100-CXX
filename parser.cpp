@@ -244,7 +244,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 						           " defined multiple times")};
 					}
 					log_debug("L: ", tmp, " (", l, ")");
-					labels[std::exchange(tmp, "")] = static_cast<word_t>(l);
+					labels[std::exchange(tmp, "")] = to_word(l);
 				} else {
 					tmp.push_back(c);
 				}
@@ -308,7 +308,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 					           " out of range -999:999")};
 				}
 				i.src = port::immediate;
-				i.val = static_cast<word_t>(immediate);
+				i.val = to_word(immediate);
 			} else {
 				i.src = parse_port(token);
 			}

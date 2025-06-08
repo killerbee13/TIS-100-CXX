@@ -210,8 +210,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			auto rand = engine.next(0, 6);
 			if (rand < 4) {
 				vals[rand] = not vals[rand];
-				ret.n_outputs[0][m]
-				    = vals[rand] ? static_cast<word_t>(rand + 1) : 0;
+				ret.n_outputs[0][m] = vals[rand] ? to_word(rand + 1) : 0;
 			} else {
 				ret.n_outputs[0][m] = 0;
 			}
@@ -383,8 +382,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		ret.inputs.push_back(make_random_array(seed + 1, max_test_length, 1, 10));
 		ret.n_outputs.resize(2, empty_vec());
 		for (std::size_t i = 0; i < max_test_length; ++i) {
-			ret.n_outputs[0][i] = ret.inputs[0][i] / ret.inputs[1][i];
-			ret.n_outputs[1][i] = ret.inputs[0][i] % ret.inputs[1][i];
+			ret.n_outputs[0][i] = to_word(ret.inputs[0][i] / ret.inputs[1][i]);
+			ret.n_outputs[1][i] = to_word(ret.inputs[0][i] % ret.inputs[1][i]);
 		}
 	} break;
 	case "SEQUENCE INDEXER"_lvl: {
@@ -447,13 +446,13 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		ret.n_outputs.resize(2);
 		while (ret.n_outputs[0].size() < max_test_length) {
 			word_t item = engine.next_word(0, 4);
-			word_t size = engine.next_word(2, 5);
+			uint size = engine.next(2, 5);
 			ret.n_outputs[0].insert(ret.n_outputs[0].end(), size, item);
 		}
 		ret.n_outputs[0].resize(max_test_length);
 		for (std::size_t j = 0; j < max_test_length; ++j) {
-			ret.inputs[0][j] = static_cast<word_t>(ret.n_outputs[0][j] * 25 + 12
-			                                       + engine.next_word(-6, 7));
+			ret.inputs[0][j]
+			    = to_word(ret.n_outputs[0][j] * 25 + 12 + engine.next_word(-6, 7));
 		}
 		ret.n_outputs[0].back() = -1;
 		ret.inputs[0].back() = -1;
@@ -494,15 +493,15 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 				maxout = maxmax;
 			} else {
 				do {
-					maxout = engine.next_word(0, static_cast<word_t>(maxmax));
+					maxout = engine.next_word(0, to_word(maxmax));
 				} while (not canzero and maxout == 0);
 			}
 
 			std::size_t count1;
 			if (prevempty and maxout >= 2) {
-				count1 = engine.next_word(1, static_cast<word_t>(maxout - 1));
+				count1 = engine.next_word(1, to_word(maxout - 1));
 			} else {
-				count1 = engine.next_word(0, static_cast<word_t>(maxout));
+				count1 = engine.next_word(0, to_word(maxout));
 			}
 			if (maxout == 0) {
 				canzero = false;
@@ -544,7 +543,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		for (std::size_t i = 0; i < max_test_length; i++) {
 			word_t n = engine.next_word(1, 44);
 			ret.inputs[0][i] = n;
-			ret.n_outputs[0][i] = static_cast<word_t>(n * (n + 1) / 2);
+			ret.n_outputs[0][i] = to_word(n * (n + 1) / 2);
 		}
 	} break;
 	case "SEQUENCE RANGE LIMITER"_lvl: {
@@ -624,7 +623,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		std::array<word_t, 8> seq_lengths = {2, 3, 3, 4, 4, 4, 5, 6};
 		// Shuffle the subsequence lengths:
 		for (std::size_t i = seq_lengths.size() - 1; i >= 1; i--) {
-			std::size_t j = engine.next_word(0, static_cast<word_t>(i));
+			std::size_t j = engine.next_word(0, to_word(i));
 			std::swap(seq_lengths[i], seq_lengths[j]);
 		}
 
@@ -637,7 +636,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			// Generate subsequence indexes:
 			word_t sublen = engine.next_word(2, len);
 			word_t first = engine.next_word(0, len - sublen);
-			word_t last = static_cast<word_t>(first + sublen - 1);
+			word_t last = to_word(first + sublen - 1);
 			in_indexes.push_back(first);
 			in_indexes.push_back(last);
 			// Generate correct output:
@@ -667,7 +666,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			word_t valB = engine.next_word(100, 999);
 			ret.inputs[0][i] = valA;
 			ret.inputs[1][i] = valB;
-			ret.n_outputs[0][i] = static_cast<word_t>((valA + valB) / 2);
+			ret.n_outputs[0][i] = to_word((valA + valB) / 2);
 		}
 	} break;
 	case "SUBMAXIMUM SELECTOR"_lvl: {
@@ -739,7 +738,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 						most_frequent = 0; // "error" if not unique
 					}
 				}
-				ret.n_outputs[0].push_back(static_cast<word_t>(most_frequent));
+				ret.n_outputs[0].push_back(to_word(most_frequent));
 				frequency.fill(0u);
 			} else {
 				// update frequency map
@@ -842,7 +841,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			// shuffle, aside from the 1st that has to remain 0
 			for (std::size_t i = max; i > 1; i--) {
 				// i is now the last pertinent index
-				std::size_t k = engine.next_word(1, static_cast<word_t>(i));
+				std::size_t k = engine.next_word(1, to_word(i));
 				// Quick swap
 				std::swap(coors[i], coors[k]);
 			}
@@ -892,8 +891,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			for (word_t x = xOne; x != xTwo + dx; x += dx) {
 				ret.i_outputs[0][x, yOne] = tis_pixel::C_white;
 			}
-			ret.inputs[0].push_back(
-			    static_cast<word_t>(std::abs(xOne - xTwo) + 1));
+			ret.inputs[0].push_back(to_word(std::abs(xOne - xTwo) + 1));
 
 			// Exit early if the path is already long enough.
 			if (ret.inputs[0].size() == max_test_length - 1) {
@@ -911,8 +909,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			for (word_t y = yOne; y != yTwo + dy; y += dy) {
 				ret.i_outputs[0][xTwo, y] = tis_pixel::C_white;
 			}
-			ret.inputs[0].push_back(
-			    static_cast<word_t>(std::abs(yOne - yTwo) + 1));
+			ret.inputs[0].push_back(to_word(std::abs(yOne - yTwo) + 1));
 		}
 	} break;
 	case "CHARACTER TERMINAL"_lvl: {
@@ -1073,7 +1070,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		for (auto length : lengths) {
 			// Figure out the min, max, and missing values:
 			word_t min = engine.next_word(10, 90);
-			word_t max = static_cast<word_t>(min + length - 1);
+			word_t max = to_word(min + length - 1);
 			auto missing_value = engine.next_word(min + 1, max - 1);
 			// Insert the values into the stream
 			auto start = std::ssize(in);
@@ -1084,8 +1081,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			}
 			// Shuffle list in place
 			for (auto i : range(std::ssize(in) - 1, start, -1)) {
-				auto j = engine.next_word(static_cast<word_t>(start),
-				                     static_cast<word_t>(i));
+				auto j = engine.next_word(to_word(start), to_word(i));
 				std::swap(in[i], in[j]);
 			}
 			in.push_back(0);
@@ -1100,7 +1096,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 
 		for (auto i : range(max_test_length)) {
 			auto v = ret.inputs[0][i] = engine.next_word(1, 63);
-			ret.n_outputs[0][i] = static_cast<word_t>(to_octal(v));
+			ret.n_outputs[0][i] = to_word(to_octal(v));
 		}
 	} break;
 	case "PROLONGED SEQUENCE SORTER"_lvl: {
@@ -1142,7 +1138,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 				while (inp >= fac * fac) {
 					if (inp % fac == 0) {
 						factors.push_back(fac);
-						inp /= fac;
+						inp = to_word(inp / fac);
 					} else {
 						++fac;
 					}
@@ -1180,7 +1176,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		for (auto i : range(max_test_length)) {
 			auto a = ret.inputs[0][i] = engine.next_word(1, 10);
 			auto b = ret.inputs[1][i] = engine.next_word(1, max_exp[a]);
-			ret.n_outputs[0][i] = static_cast<word_t>(std::pow(a, b));
+			ret.n_outputs[0][i] = to_word(std::pow(a, b));
 		}
 	} break;
 	case "T20 NODE EMULATOR"_lvl: {
@@ -1262,7 +1258,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 				sums[j] += n;
 			}
 			auto max = std::ranges::max_element(sums);
-			ret.n_outputs[0][i] = static_cast<word_t>(max - sums.begin() + 1);
+			ret.n_outputs[0][i] = to_word(max - sums.begin() + 1);
 		}
 	} break;
 	default:

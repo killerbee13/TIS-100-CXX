@@ -70,9 +70,9 @@ class xorshift128_engine {
 		std::int64_t r = next();
 
 		if (max < min) {
-			return static_cast<word_t>(minLong - r % (maxLong - minLong));
+			return to_word(minLong - r % (maxLong - minLong));
 		} else {
-			return static_cast<word_t>(minLong + r % (maxLong - minLong));
+			return to_word(minLong + r % (maxLong - minLong));
 		}
 	}
 };
@@ -152,7 +152,7 @@ class lua_random {
 	// Nexus level generation wrapper function
 	/// @return random word_t in [min,max]
 	word_t next_word(word_t min, word_t max) {
-		return static_cast<word_t>(
+		return to_word(
 		    next_int(static_cast<i32>(min), static_cast<i32>(max) + 1));
 	}
 
