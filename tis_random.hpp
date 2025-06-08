@@ -60,7 +60,7 @@ class xorshift128_engine {
 			return min + next() % (max - min);
 		}
 	}
-	constexpr word_t next_int(word_t min, word_t max) noexcept {
+	constexpr word_t next_word(word_t min, word_t max) noexcept {
 		if (max == min) {
 			return min;
 		}

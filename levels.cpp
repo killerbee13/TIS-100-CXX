@@ -30,7 +30,7 @@ static word_vec make_random_array(xorshift128_engine& engine,
                                   std::uint32_t size, word_t min, word_t max) {
 	word_vec array(size);
 	for (std::uint32_t num = 0; num < size; ++num) {
-		array[num] = engine.next_int(min, max);
+		array[num] = engine.next_word(min, max);
 	}
 	return array;
 }
@@ -45,9 +45,9 @@ static word_vec make_composite_array(xorshift128_engine& engine, word_t size,
                                      word_t valuemin, word_t valuemax) {
 	word_vec list;
 	while (std::cmp_less(list.size(), size)) {
-		int sublistsize = engine.next_int(sublistmin, sublistmax);
+		int sublistsize = engine.next_word(sublistmin, sublistmax);
 		for (int i = 0; i < sublistsize; ++i) {
-			list.push_back(engine.next_int(valuemin, valuemax));
+			list.push_back(engine.next_word(valuemin, valuemax));
 		}
 		list.push_back(0);
 	}
@@ -150,7 +150,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		xorshift128_engine engine(seed + 1);
 		ret.inputs.push_back(make_random_array(engine, 13, 10, 100));
 		uint idx = engine.next(0, 13);
-		ret.inputs[0][idx] = ret.inputs[1][idx] = engine.next_int(10, 100);
+		ret.inputs[0][idx] = ret.inputs[1][idx] = engine.next_word(10, 100);
 		ret.n_outputs.resize(1);
 		for (const auto i : range(13u)) {
 			auto [min, max] = std::minmax(ret.inputs[0][i], ret.inputs[1][i]);
@@ -179,18 +179,18 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	case "SIGNAL EDGE DETECTOR"_lvl: {
 		xorshift128_engine engine(seed);
 		ret.inputs.push_back(empty_vec());
-		ret.inputs[0][1] = engine.next_int(25, 75);
+		ret.inputs[0][1] = engine.next_word(25, 75);
 
 		for (std::size_t i = 2; i < max_test_length; i++) {
 			switch (engine.next(0, 6)) {
 			case 1:
-				ret.inputs[0][i] = ret.inputs[0][i - 1] + engine.next_int(-11, -8);
+				ret.inputs[0][i] = ret.inputs[0][i - 1] + engine.next_word(-11, -8);
 				break;
 			case 2:
-				ret.inputs[0][i] = ret.inputs[0][i - 1] + engine.next_int(9, 12);
+				ret.inputs[0][i] = ret.inputs[0][i - 1] + engine.next_word(9, 12);
 				break;
 			default:
-				ret.inputs[0][i] = ret.inputs[0][i - 1] + engine.next_int(-4, 5);
+				ret.inputs[0][i] = ret.inputs[0][i - 1] + engine.next_word(-4, 5);
 			}
 		}
 
@@ -233,10 +233,10 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			ret.inputs[0][num + 1] = 0;
 			ret.inputs[0][num + 2] = 0;
 			num = engine.next(0, 35);
-			ret.inputs[0][num] = engine.next_int(1, 6);
+			ret.inputs[0][num] = engine.next_word(1, 6);
 			ret.inputs[0][num + 1] = 0;
 			ret.inputs[0][num + 2] = 0;
-			ret.inputs[0][num + 3] = engine.next_int(1, 6);
+			ret.inputs[0][num + 3] = engine.next_word(1, 6);
 		}
 		ret.n_outputs.push_back(empty_vec());
 		for (std::size_t j = 0; j < max_test_length; ++j) {
@@ -249,7 +249,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		xorshift128_engine engine(seed);
 		ret.inputs.push_back(
 		    make_composite_array(engine, max_test_length, 3, 6, 10, 100));
-		ret.inputs[0][37] = engine.next_int(10, 100);
+		ret.inputs[0][37] = engine.next_word(10, 100);
 		ret.inputs[0].back() = 0;
 		ret.n_outputs.resize(2);
 
@@ -309,10 +309,10 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 					log_trace("skipped while placing rectangle ", i);
 					return std::nullopt;
 				}
-				w = engine.next_int(3, 6);
-				h = engine.next_int(3, 6);
-				x_c = engine.next_int(1, image_width - 1 - w);
-				y_c = engine.next_int(1, image_height - 1 - h);
+				w = engine.next_word(3, 6);
+				h = engine.next_word(3, 6);
+				x_c = engine.next_word(1, image_width - 1 - w);
+				y_c = engine.next_word(1, image_height - 1 - h);
 				// Check if the rectangle would overlap or touch any already placed
 				// rectangle
 				for (int k = -1; k < h + 1; ++k) {
@@ -341,14 +341,14 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		xorshift128_engine engine(seed);
 		ret.inputs.push_back(empty_vec(image_width));
 		ret.i_outputs.emplace_back(image_width, image_height);
-		ret.inputs[0][0] = engine.next_int(3, 14);
+		ret.inputs[0][0] = engine.next_word(3, 14);
 		for (std::size_t x = 1; x < image_width; ++x) {
 			if (engine.next(0, 4) != 0) {
 				ret.inputs[0][x] = std::clamp<word_t>(ret.inputs[0][x - 1]
-				                                          + engine.next_int(-2, 3),
+				                                          + engine.next_word(-2, 3),
 				                                      1, image_height - 1);
 			} else {
-				ret.inputs[0][x] = engine.next_int(3, 14);
+				ret.inputs[0][x] = engine.next_word(3, 14);
 			}
 		}
 		for (int x = 0; x < image_width; ++x) {
@@ -428,8 +428,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 
 		auto im_it = image.begin();
 		while (to_unsigned(im_it - image.begin()) < image_size) {
-			word_t count = engine.next_int(20, 45);
-			word_t pix = engine.next_int(0, 4);
+			word_t count = engine.next_word(20, 45);
+			word_t pix = engine.next_word(0, 4);
 			ret.inputs[0].push_back(count);
 			ret.inputs[0].push_back(pix);
 			im_it = std::fill_n(im_it, to_unsigned(count), tis_pixel(pix));
@@ -446,14 +446,14 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		ret.inputs.push_back(empty_vec());
 		ret.n_outputs.resize(2);
 		while (ret.n_outputs[0].size() < max_test_length) {
-			word_t item = engine.next_int(0, 4);
-			word_t size = engine.next_int(2, 5);
+			word_t item = engine.next_word(0, 4);
+			word_t size = engine.next_word(2, 5);
 			ret.n_outputs[0].insert(ret.n_outputs[0].end(), size, item);
 		}
 		ret.n_outputs[0].resize(max_test_length);
 		for (std::size_t j = 0; j < max_test_length; ++j) {
 			ret.inputs[0][j] = static_cast<word_t>(ret.n_outputs[0][j] * 25 + 12
-			                                       + engine.next_int(-6, 7));
+			                                       + engine.next_word(-6, 7));
 		}
 		ret.n_outputs[0].back() = -1;
 		ret.inputs[0].back() = -1;
@@ -1009,19 +1009,21 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		}
 
 		for (int k = 0; k < 2; k++) {
-			word_t j = engine.next_word(1, 37); // pattern 123 potential extra matches
+			// pattern 123 potential extra matches
+			word_t j = engine.next_word(1, 37);
 			for (int i = 0; i < 3; i++) {
 				input[i + j - 1] = pattern[i];
 			}
 		}
 		for (int k = 0; k < 3; k++) {
-			word_t j = engine.next_word(1, 37); // pattern 23 these may be overwriten
+			// pattern 23 these may be overwritten
+			word_t j = engine.next_word(1, 37);
 			for (int i = 1; i < 3; i++) {
 				input[i + j - 1] = pattern[i];
 			}
 		}
 
-		// The following are guararnteed to be complete ( do I need a 123123? )
+		// The following are guaranteed to be complete ( do I need a 123123? )
 		word_t j = engine.next_word(1, 7); // pattern 123
 		for (int i = 0; i < 3; i++) {
 			input[i + j - 1] = pattern[i];
