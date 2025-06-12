@@ -46,6 +46,7 @@ inline void clamp_test_values(single_test& t) {
 		});
 		debug << " to ";
 		write_list(debug, vec);
+		debug << '\n';
 	};
 	for (auto& v : t.inputs) {
 		debug << "Clamping in: ";
