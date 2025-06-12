@@ -22,7 +22,7 @@
 
 static log_level current = log_level::notice;
 static std::ostream* output = &std::clog;
-std::recursive_mutex log_m;
+static std::recursive_mutex log_m;
 
 auto set_log_level(log_level new_level) -> void { current = new_level; }
 
@@ -48,8 +48,3 @@ auto log_flush() -> void {
 }
 
 auto set_log_flush(bool do_flush) -> void { detail::flush = do_flush; }
-
-logger::logger(std::string_view prefix)
-    : formatter_{std::make_unique<std::ostringstream>()} {
-	(*formatter_) << prefix;
-}
