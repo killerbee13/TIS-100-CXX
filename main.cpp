@@ -540,10 +540,12 @@ int main(int argc, char** argv) try {
 			}
 			sc.achievement = sc.validated and l->has_achievement(f, sc);
 			validation_summary(sc, succeeded, quiet.getValue(), cycles_limit);
-			random_limit = std::min(
-			    cycles_limit, static_cast<size_t>(static_cast<double>(sc.cycles)
-			                                      * limit_multiplier.getValue()));
-			log_info("Setting random test timeout to ", random_limit);
+			if (sc.validated) {
+				size_t effective_limit = static_cast<size_t>(
+				    static_cast<double>(sc.cycles) * limit_multiplier.getValue());
+				random_limit = std::min(cycles_limit, effective_limit);
+				log_info("Setting random test timeout to ", random_limit);
+			}
 		}
 
 		uint count = 0;
