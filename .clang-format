@@ -1,36 +1,36 @@
 ---
 AlignEscapedNewlines: Left
-AlignTrailingComments: 'true'
-AllowAllParametersOfDeclarationOnNextLine: 'false'
+AlignTrailingComments: true
+AllowAllParametersOfDeclarationOnNextLine: false
 AllowShortBlocksOnASingleLine: 'false'
 AllowShortFunctionsOnASingleLine: All
 AllowShortIfStatementsOnASingleLine: Never
-AllowShortLoopsOnASingleLine: 'false'
+AllowShortLoopsOnASingleLine: false
 AlwaysBreakAfterReturnType: None
 AlwaysBreakTemplateDeclarations: 'Yes'
 BreakBeforeBinaryOperators: All
 BreakBeforeBraces: Attach
-BreakBeforeTernaryOperators: 'true'
+BreakBeforeTernaryOperators: true
 BreakConstructorInitializers: BeforeComma
 BreakInheritanceList: BeforeComma
-ColumnLimit: '80'
+ColumnLimit: 80
 CommentPragmas: ^ \$
-Cpp11BracedListStyle: 'true'
-FixNamespaceComments: 'true'
+Cpp11BracedListStyle: true
+FixNamespaceComments: true
 IndentPPDirectives: AfterHash
-IndentWidth: '3'
+IndentWidth: 3
 InsertBraces: true
 Language: Cpp
 NamespaceIndentation: Inner
-PenaltyExcessCharacter: '1000'
-PenaltyReturnTypeOnItsOwnLine: '1000'
+PenaltyExcessCharacter: 1000
+PenaltyReturnTypeOnItsOwnLine: 1000
 PointerAlignment: Left
 SortIncludes: 'true'
 SortUsingDeclarations: 'true'
-SpaceAfterLogicalNot: 'true'
+SpaceAfterLogicalNot: true
 SpaceBeforeParens: ControlStatements
-Standard: Cpp11
-TabWidth: '3'
+Standard: Latest
+TabWidth: 3
 UseTab: ForIndentation
 
 ...
