@@ -115,7 +115,7 @@ std::string to_string(instr i) {
 			return concat(to_string(i.op_), ' ', port_name(i.src), ',',
 			              port_name(i.dst));
 		}
-	} else if (i.op_ <= sub) {
+	} else if (i.op_ <= sub || i.op_ == jro) {
 		if (i.src == immediate) {
 			return concat(to_string(i.op_), ' ', i.val);
 		} else {
@@ -123,12 +123,6 @@ std::string to_string(instr i) {
 		}
 	} else if (i.op_ <= jlz) {
 		return concat(to_string(i.op_), ' ', 'L', i.target());
-	} else if (i.op_ == jro) {
-		if (i.src == immediate) {
-			return concat(to_string(i.op_), ' ', i.val);
-		} else {
-			return concat(to_string(i.op_), ' ', port_name(i.src));
-		}
 	} else {
 		throw std::invalid_argument{"Unknown instruction "
 		                            + std::to_string(i.op_)};

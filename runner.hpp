@@ -172,7 +172,7 @@ struct run_params {
 #pragma GCC diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wshadow=compatible-local"
 inline score run_seed_ranges(level& l, field& f,
-                             const std::vector<range_t> seed_ranges,
+                             const std::vector<range_t>& seed_ranges,
                              run_params params, unsigned num_threads) {
 	assert(not seed_ranges.empty());
 	score worst{};

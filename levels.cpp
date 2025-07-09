@@ -272,7 +272,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		ret.inputs.push_back(make_random_array(seed + 1, max_test_length, 0, 10));
 		ret.n_outputs.push_back(empty_vec());
 		std::ranges::transform(ret.inputs[0], ret.inputs[1],
-		                       ret.n_outputs[0].begin(), std::multiplies<>{});
+		                       ret.n_outputs[0].begin(), std::multiplies{});
 	} break;
 	case "STACK MEMORY SANDBOX"_lvl: {
 		ret.inputs.resize(1);
@@ -1163,7 +1163,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		auto it = ret.n_outputs[0].begin();
 		for (word_t inp : ret.inputs[0]) {
 			it = std::ranges::copy(cache[inp], it).out;
-			it++; // 0
+			++it; // 0
 		}
 	} break;
 	case "SIGNAL EXPONENTIATOR"_lvl: {

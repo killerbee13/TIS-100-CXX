@@ -71,7 +71,7 @@ struct level {
 	level& operator=(level&&) = default;
 };
 
-inline constexpr uint find_level_id(std::string_view s) {
+constexpr uint find_level_id(std::string_view s) {
 	for (auto i : range(builtin_layouts.size())) {
 		if (s == builtin_layouts[i].segment or s == builtin_layouts[i].name) {
 			return static_cast<uint>(i);
@@ -80,11 +80,11 @@ inline constexpr uint find_level_id(std::string_view s) {
 	throw std::invalid_argument{concat("invalid level ID ", kblib::quoted(s))};
 }
 
-inline consteval uint operator""_lvl(const char* s, std::size_t size) {
+consteval uint operator""_lvl(const char* s, std::size_t size) {
 	return find_level_id(std::string_view(s, size));
 }
 
-inline constexpr std::optional<uint> guess_level_id(std::string_view filename) {
+constexpr std::optional<uint> guess_level_id(std::string_view filename) {
 	for (auto i : range(builtin_layouts.size())) {
 		if (filename.starts_with(builtin_layouts[i].segment)) {
 			return i;
@@ -290,7 +290,7 @@ struct custom_level final : level {
 		ret.i_outputs.resize(spec.outputs.size());
 		{
 			lua_random engine(to_signed(seed));
-			std::unique_lock<std::mutex> lock(lua_mutex);
+			std::unique_lock lock(lua_mutex);
 
 			lua["math"]["random"].set_function(sol::overload(
 			    [&engine] { return engine.next_double(); },

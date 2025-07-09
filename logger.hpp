@@ -119,13 +119,12 @@ concept streamable_out = requires(std::ostream& os, const T& v) { os << v; };
 
 class logger {
  public:
-	logger(std::string_view prefix)
+	explicit logger(std::string_view prefix)
 	    : formatter_{std::make_unique<std::ostringstream>()} {
 		(*formatter_) << prefix;
 	}
-	logger(std::nullptr_t)
-	    : formatter_{} {}
-	logger(logger&& o)
+	logger(std::nullptr_t) {}
+	logger(logger&& o) noexcept
 	    : formatter_{std::move(o.formatter_)} {}
 
 	auto log_r(std::invocable<> auto supplier) -> void {

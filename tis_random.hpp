@@ -86,7 +86,7 @@ class lua_random {
  private:
 	u32 inext{};
 	u32 inextp{31};
-	std::array<i32, 56> seed_array{};
+	std::array<i32, 56> seed_array;
 
 	static i32 map_negative(i32 x) {
 		if (x < 0) {

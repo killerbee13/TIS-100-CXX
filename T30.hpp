@@ -32,14 +32,14 @@ struct T30 final : regular_node {
 		write_word = word_empty;
 		write_port = port::any;
 		data.clear();
-		prev_end = data.end();
+		prev_end = data.cend();
 	}
 
 	inline void step(logger&) {
 		if (data.size() == max_size) {
 			return;
 		}
-		for (auto p = port::dir_first; p <= port::dir_last; p++) {
+		for (auto p = port::dir_first; p <= port::dir_last; ++p) {
 			if (auto r = do_read(p); r != word_empty) {
 				data.push_back(r);
 				used = true;
@@ -55,7 +55,7 @@ struct T30 final : regular_node {
 			write_port = port::any;
 		}
 		if (not data.empty()) {
-			prev_end = data.end() - 1;
+			prev_end = data.cend() - 1;
 			write_word = data.back();
 		}
 	}
@@ -75,7 +75,7 @@ struct T30 final : regular_node {
 
  private:
 	word_vec data;
-	word_vec::iterator prev_end;
+	word_vec::const_iterator prev_end;
 	std::size_t max_size{def_T30_size};
 };
 

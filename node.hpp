@@ -163,13 +163,13 @@ struct node {
 	    , y(y)
 	    , type(type) {}
 	// prevents most slicing
-	node(const node&) = default;
-	node(node&&) = default;
-	node& operator=(const node&) = default;
-	node& operator=(node&&) = default;
+	node(const node&) = delete;
+	node(node&&) = delete;
+	node& operator=(const node&) = delete;
+	node& operator=(node&&) = delete;
 };
 
-constexpr inline std::string to_string(node::type_t type) {
+constexpr std::string to_string(node::type_t type) {
 	switch (type) {
 	case node::T21:
 		return "T21";
@@ -205,7 +205,7 @@ struct regular_node : node {
  protected:
 	using node::node;
 	/// Attempt to read a value from p, coming from this node
-	[[gnu::always_inline]] inline optional_word do_read(port p) {
+	[[gnu::always_inline]] inline optional_word do_read(port p) const {
 		assert(p >= port::dir_first and p <= port::dir_last);
 		node* n = neighbors[to_unsigned(etoi(p))];
 		if (not n) {
