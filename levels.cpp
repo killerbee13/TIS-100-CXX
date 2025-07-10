@@ -40,25 +40,26 @@ static word_vec make_random_array(std::uint32_t seed, std::uint32_t size,
 	return make_random_array(engine, size, min, max);
 }
 
-static word_vec make_composite_array(xorshift128_engine& engine, word_t size,
-                                     word_t sublistmin, word_t sublistmax,
+static word_vec make_composite_array(xorshift128_engine& engine, uint size,
+                                     uint sublistmin, uint sublistmax,
                                      word_t valuemin, word_t valuemax) {
 	word_vec list;
-	while (std::cmp_less(list.size(), size)) {
-		int sublistsize = engine.next_word(sublistmin, sublistmax);
-		for (int i = 0; i < sublistsize; ++i) {
+	list.reserve(size + sublistmax);
+	while (list.size() < size) {
+		uint sublistsize = engine.next(sublistmin, sublistmax);
+		for (uint i = 0; i < sublistsize; ++i) {
 			list.push_back(engine.next_word(valuemin, valuemax));
 		}
 		list.push_back(0);
 	}
-	if (std::cmp_greater(list.size(), size)) {
+	if (list.size() > size) {
 		list.erase(list.begin() + size, list.end());
+		list.back() = 0;
 	}
-	list.back() = 0;
 	return list;
 }
-static word_vec make_composite_array(uint seed, word_t size, word_t sublistmin,
-                                     word_t sublistmax, word_t valuemin,
+static word_vec make_composite_array(uint seed, uint size, uint sublistmin,
+                                     uint sublistmax, word_t valuemin,
                                      word_t valuemax) {
 	xorshift128_engine engine(seed);
 	return make_composite_array(engine, size, sublistmin, sublistmax, valuemin,
@@ -104,21 +105,20 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "SIGNAL AMPLIFIER"_lvl: {
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 10, 100));
-		ret.n_outputs.resize(1);
-		std::ranges::transform(ret.inputs[0],
-		                       std::back_inserter(ret.n_outputs[0]),
+		ret.n_outputs.resize(1, empty_vec());
+		std::ranges::transform(ret.inputs[0], ret.n_outputs[0].begin(),
 		                       [](word_t x) { return 2 * x; });
 	} break;
 	case "DIFFERENTIAL CONVERTER"_lvl: {
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 10, 100));
 		ret.inputs.push_back(
 		    make_random_array(seed + 1, max_test_length, 10, 100));
-		ret.n_outputs.resize(2);
+		ret.n_outputs.resize(2, empty_vec());
 		std::ranges::transform(ret.inputs[0], ret.inputs[1],
-		                       std::back_inserter(ret.n_outputs[0]),
+		                       ret.n_outputs[0].begin(),
 		                       [](word_t x, word_t y) { return x - y; });
 		std::ranges::transform(ret.inputs[0], ret.inputs[1],
-		                       std::back_inserter(ret.n_outputs[1]),
+		                       ret.n_outputs[1].begin(),
 		                       [](word_t x, word_t y) { return y - x; });
 	} break;
 	case "SIGNAL COMPARATOR"_lvl: {
@@ -194,10 +194,10 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			}
 		}
 
-		ret.n_outputs.resize(1);
+		ret.n_outputs.resize(1, empty_vec());
 		word_t prev = 0;
-		for (auto w : ret.inputs[0]) {
-			ret.n_outputs[0].push_back(std::abs(w - std::exchange(prev, w)) >= 10);
+		for (auto [w, i] : kblib::enumerate(ret.inputs[0])) {
+			ret.n_outputs[0][i] = std::abs(w - std::exchange(prev, w)) >= 10;
 		}
 	} break;
 	case "INTERRUPT HANDLER"_lvl: {
@@ -548,19 +548,19 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "SEQUENCE RANGE LIMITER"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(3);
-		ret.n_outputs.resize(1);
-		word_vec& input = ret.inputs[1];
+		ret.inputs = {empty_vec(6), empty_vec(0), empty_vec(6)};
 		word_vec& mininput = ret.inputs[0];
+		word_vec& input = ret.inputs[1];
 		word_vec& maxinput = ret.inputs[2];
+		ret.n_outputs.resize(1);
 		word_vec& output = ret.n_outputs[0];
 		// make minimums small but not too small
 		for (std::size_t i = 0; i < 6; i++) {
-			mininput.push_back(engine.next_word(3, 9) * 5);
+			mininput[i] = engine.next_word(3, 9) * 5;
 		}
 		// make maximums big
 		for (std::size_t i = 0; i < 6; i++) {
-			maxinput.push_back(engine.next_word(10, 17) * 5);
+			maxinput[i] = engine.next_word(10, 17) * 5;
 		}
 		// For now, just make five sequences that are five long (with a
 		// sixth value being a 0 terminator)
