@@ -23,7 +23,7 @@
 #include "utils.hpp"
 
 struct T30 final : regular_node {
-	T30(int x, int y, std::size_t max_size)
+	T30(int x, int y, std::size_t max_size = defaults::T30_size)
 	    : regular_node(x, y, type_t::T30)
 	    , max_size(max_size) {
 		data.reserve(max_size);
@@ -76,7 +76,7 @@ struct T30 final : regular_node {
  private:
 	word_vec data;
 	word_vec::const_iterator prev_end;
-	std::size_t max_size{def_T30_size};
+	std::size_t max_size;
 };
 
 #endif // T30_HPP

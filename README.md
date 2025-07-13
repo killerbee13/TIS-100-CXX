@@ -87,7 +87,7 @@ on a validation, including a cheated solution, `1` on a validation failure,
 and `2` on an exception.
 
 For options `--limit`, `--total-limit`, `--random`, `--seed`, `--seeds`,
-and `--T30_size`, integer arguments can be specified with a scale suffix,
+and `--T30-size`, integer arguments can be specified with a scale suffix,
 either K, M, or B (case-insensitive) for thousand, million, or billion
 respectively.
 
@@ -124,7 +124,7 @@ The most useful options are:
   information. May be specified twice to remove almost all supplemental text.
   
 Other options:
-- `--T21_size N` and `--T30_size M`: override the default size limits on
+- `--T21-size N` and `--T30-size M`: override the default size limits on
   instructions in any particular T21 node and values in any particular T30 node
   respectively.
 - `--cheat-rate C`: change the threshold between /c and /h to any proportion in
@@ -158,7 +158,7 @@ function `get_layout_ext()`, which is expected to return an array of arrays of
 number of columns).
 
 The parser accepts some things the game does not, namely:
-- When the --T21_size argument is specified, nodes may have more than 15
+- When the `--T21-size` argument is specified, nodes may have more than 15
   instructions
 - multiple labels on one line
 - Directional port names (LEFT, RIGHT, UP, DOWN) may be abbreviated to their

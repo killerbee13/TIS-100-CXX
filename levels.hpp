@@ -30,8 +30,7 @@
 #include "utils.hpp"
 
 #include <algorithm>
-#include <array>
-#include <cstdint>
+#include <cassert>
 #include <filesystem>
 #include <mutex>
 #include <stdexcept>
@@ -50,13 +49,10 @@ struct level {
 
 	virtual std::optional<single_test> random_test(std::uint32_t seed) = 0;
 
-	std::array<single_test, 3> static_suite() {
+	single_test static_test(uint id) {
+		assert(id < 3);
 		// static tests never fail to generate
-		return {
-		    *random_test(base_seed * 100),
-		    *random_test(base_seed * 100 + 1),
-		    *random_test(base_seed * 100 + 2),
-		};
+		return *random_test(base_seed * 100 + id);
 	}
 
 	virtual bool has_achievement(const field& f, const score& sc) const = 0;

@@ -47,13 +47,19 @@ inline bool useful(const node* n) {
 class field {
  public:
 	field() = default;
+	// allow only moving, to copy use clone()
+	field(const field&) = delete;
+	field& operator=(const field&) = delete;
+	field(field&&) = default;
+	field& operator=(field&&) = default;
+
 	template <typename Spec>
 	   requires requires(Spec s) {
 		   { s.nodes[0] };
 		   { s.inputs[0] };
 		   { s.outputs[0] };
 	   }
-	field(const Spec& spec, std::size_t T30_size = def_T30_size) {
+	field(const Spec& spec, std::size_t T30_size = defaults::T30_size) {
 		if (spec.nodes.empty()) {
 			return;
 		}

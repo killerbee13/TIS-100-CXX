@@ -23,10 +23,12 @@
 #include <array>
 
 /// Support a 3D expansion in node connections
-constexpr inline int DIMENSIONS = 2;
+constexpr inline uint DIMENSIONS = 2;
 
-constexpr inline int def_T21_size = 15;
-constexpr inline int def_T30_size = 15;
+namespace defaults {
+constexpr inline uint T21_size = 15;
+constexpr inline uint T30_size = 15;
+} // namespace defaults
 
 enum class activity : std::int8_t { idle, run, read, write };
 

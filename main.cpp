@@ -16,20 +16,21 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * ****************************************************************************/
 
-#include "levels.hpp"
 #include "logger.hpp"
 #include "node.hpp"
 #include "parser.hpp"
-#include "runner.hpp"
+#include "sim.hpp"
 #include "utils.hpp"
+
+#include <kblib/hash.h>
+#include <kblib/stringops.h>
 
 #include <csignal>
 #include <iostream>
-#include <kblib/hash.h>
-#include <kblib/io.h>
-#include <kblib/stringops.h>
-#include <memory>
+#include <optional>
 #include <random>
+#include <stdexcept>
+#include <string_view>
 
 #define TCLAP_SETBASE_ZERO 1
 #include <tclap/CmdLine.h>
@@ -189,34 +190,10 @@ static_assert(human_readable_integer<int>("10").val == 10);
 static_assert(human_readable_integer<int>("10k").val == 10'000);
 static_assert(human_readable_integer<int>("10M").val == 10'000'000);
 
-void validation_summary(const score& sc, int fixed, int quiet,
-                        size_t cycles_limit) {
-	// we use stdout here, so flush logs to avoid mangled messages in the shell
-	log_flush();
-	if (sc.validated) {
-		if (not quiet) {
-			std::cout << print_escape(bright_blue, bold) << "validation successful"
-			          << print_escape(none) << "\n";
-		}
-	} else if (quiet < 2) {
-		std::cout << print_escape(red) << "validation failed"
-		          << print_escape(none);
-		if (fixed != -1) {
-			std::cout << " for fixed test " << fixed;
-		}
-		std::cout << " after " << sc.cycles << " cycles";
-		if (sc.cycles == cycles_limit) {
-			std::cout << " [timeout]";
-		}
-		std::cout << '\n';
-	}
-}
-
 enum exit_code : int { SUCCESS = 0, FAILURE = 1, EXCEPTION = 2 };
 
 int main(int argc, char** argv) try {
 	std::ios_base::sync_with_stdio(false);
-	set_log_flush(not RELEASE);
 
 	TCLAP::CmdLine cmd(
 	    "TIS-100 simulator and validator. For options --limit, --total-limit, "
@@ -225,7 +202,7 @@ int main(int argc, char** argv) try {
 	    "for thousand, million, or billion respectively.");
 
 	std::vector<std::string> ids_v;
-	for (auto l : builtin_layouts) {
+	for (auto& l : builtin_layouts) {
 		ids_v.emplace_back(l.segment);
 		ids_v.emplace_back(l.name);
 	}
@@ -249,63 +226,66 @@ int main(int argc, char** argv) try {
 	TCLAP::ValueArg<human_readable_integer<size_t>> cycles_limit_arg(
 	    "", "limit",
 	    "Number of cycles to run test for before timeout. (Default 100500)",
-	    false, 100'500, "integer", cmd);
+	    false, defaults::cycles_limit, "integer", cmd);
 	TCLAP::ValueArg<human_readable_integer<std::size_t>> total_cycles_limit_arg(
 	    "", "total-limit",
 	    "Max number of cycles to run between all tests before determining "
 	    "cheating status. (Default no limit)",
-	    false, kblib::max.of<std::size_t>(), "integer", cmd);
-	TCLAP::ValueArg<unsigned> threads("j", "threads",
-	                                  "Number of threads to use, or 0 for "
-	                                  "automatic. Log level must be info or "
-	                                  "lower.",
-	                                  false, 1, "integer", cmd);
-
+	    false, defaults::total_cycles_limit, "integer", cmd);
+	TCLAP::ValueArg<uint> threads("j", "threads",
+	                              "Number of threads to use, or 0 for "
+	                              "automatic. Log level must be info or "
+	                              "lower.",
+	                              false, defaults::num_threads, "integer", cmd);
 	TCLAP::ValueArg<bool> fixed("", "fixed", "Run fixed tests. (Default 1)",
-	                            false, true, "[0,1]", cmd);
-	// unused because the test case parser is not implemented
-	TCLAP::ValueArg<std::string> set_test("t", "test", "Manually set test cases",
-	                                      false, "", "test case");
-	TCLAP::ValueArg<human_readable_integer<std::uint32_t>> random_arg(
-	    "r", "random", "Random tests to run (upper bound)", false, 0, "integer");
-	TCLAP::ValueArg<human_readable_integer<std::uint32_t>> seed_arg(
-	    "", "seed", "Seed to use for random tests", false, 0, "uint32_t");
+	                            false, defaults::run_fixed, "[0,1]", cmd);
 	TCLAP::SwitchArg stats(
 	    "S", "stats", "Run all random tests requested and calculate pass rate",
 	    cmd);
+	TCLAP::ValueArg<human_readable_integer<std::uint32_t>> random_arg(
+	    "r", "random", "Random tests to run (upper bound)", false, 0, "integer",
+	    cmd);
+	TCLAP::ValueArg<human_readable_integer<std::uint32_t>> seed_arg(
+	    "", "seed", "Seed to use for random tests", false, 0, "uint32_t", cmd);
 	TCLAP::MultiArg<std::string> seed_exprs("", "seeds",
 	                                        "A range of seed values to use",
 	                                        false, "[range-expr...]", cmd);
-	TCLAP::AnyOf implicit_random(cmd);
-	implicit_random.add(random_arg).add(seed_arg);
 	range_constraint percentage(0.0, 1.0);
 	TCLAP::ValueArg<double> cheat_rate(
 	    "", "cheat-rate",
-	    "Threshold between /c and /h solutions, "
-	    "as a fraction of total random tests. (Default 0.05)",
-	    false, 0.05, &percentage, cmd);
+	    concat("Threshold between /c and /h solutions, "
+	           "as a fraction of total random tests. (Default ",
+	           defaults::cheat_rate, ")"),
+	    false, defaults::cheat_rate, &percentage, cmd);
 	TCLAP::ValueArg<double> limit_multiplier(
 	    "k", "limit-multiplier",
-	    "Value to multiply cycle score by to determine random test timeout "
-	    "limit. (Default 5)",
-	    false, 5, "number", cmd);
+	    concat(
+	        "Value to multiply cycle score by to determine random test timeout "
+	        "limit. (Default ",
+	        defaults::limit_multiplier, ")"),
+	    false, defaults::limit_multiplier, "number", cmd);
 
 	// Size constraint of word_max guarantees that JRO can reach every
 	// instruction
-	range_constraint<unsigned> size_constraint(0, word_max);
-	TCLAP::ValueArg<unsigned> T21_size(
-	    "", "T21_size",
+	range_constraint<uint> size_constraint(0, word_max);
+	TCLAP::ValueArg<uint> T21_size(
+	    "", "T21-size",
 	    concat("Number of instructions allowed per T21 node. (Default ",
-	           def_T21_size, ")"),
-	    false, def_T21_size, &size_constraint, cmd);
+	           defaults::T21_size, ")"),
+	    false, defaults::T21_size, &size_constraint, cmd);
 	// No technical reason to limit T30 capacity, as they are not addressable
-	TCLAP::ValueArg<human_readable_integer<unsigned>> T30_size(
-	    "", "T30_size",
-	    concat("Memory capacity of T30 nodes. (Default ", def_T30_size, ")"),
-	    false, def_T30_size, "integer", cmd);
+	TCLAP::ValueArg<human_readable_integer<uint>> T30_size(
+	    "", "T30-size",
+	    concat("Memory capacity of T30 nodes. (Default ", defaults::T30_size,
+	           ")"),
+	    false, defaults::T30_size, "integer", cmd);
 
 	std::vector<std::string> loglevels_allowed{
-	    "none", "err", "error", "warn", "notice", "info", "trace", "debug"};
+	    "none",  "err", "error", "warn", "notice", "info", "trace",
+#if TIS_ENABLE_DEBUG
+	    "debug",
+#endif
+	};
 	TCLAP::ValuesConstraint<std::string> loglevels(loglevels_allowed);
 	TCLAP::ValueArg<std::string> loglevel(
 	    "", "loglevel", "Set the logging level. (Default 'notice')", false,
@@ -344,113 +324,107 @@ int main(int argc, char** argv) try {
 
 	cmd.parse(argc, argv);
 
-	// Color output on interactive shells or when explicitely requested
-	color_stdout = color.isSet() or isatty(STDOUT_FILENO);
-	//  Color logs on interactive shells or when explicitely requested
-	color_logs = log_color.isSet() or isatty(STDERR_FILENO);
-	signal(SIGTERM, sigterm_handler);
-	signal(SIGINT, sigterm_handler);
+	// initialize globals
+	{
+		// Flush logs automatically for humans
+		set_log_flush(isatty(STDERR_FILENO));
+		// Color output on interactive shells or when explicitely requested
+		color_stdout = color.isSet() or isatty(STDOUT_FILENO);
+		// Color logs on interactive shells or when explicitely requested
+		color_logs = log_color.isSet() or isatty(STDERR_FILENO);
+
+		signal(SIGTERM, sigterm_handler);
+		signal(SIGINT, sigterm_handler);
 #ifndef _WIN32
-	signal(SIGUSR1, sigterm_handler);
-	signal(SIGUSR2, sigterm_handler);
+		signal(SIGUSR1, sigterm_handler);
+		signal(SIGUSR2, sigterm_handler);
 #endif
 
-	auto cycles_limit = cycles_limit_arg.getValue().val;
-	auto total_cycles_limit = total_cycles_limit_arg.getValue().val;
-
-	set_log_level([&] {
+		set_log_level([&] {
 #if TIS_ENABLE_DEBUG
-		if (debug_loglevel.isSet()) {
-			return log_level::debug;
-		} else
+			if (debug_loglevel.isSet()) {
+				return log_level::debug;
+			} else
 #endif
-		    if (trace_loglevel.isSet()) {
-			return log_level::trace;
-		} else if (info_loglevel.isSet()) {
-			return log_level::info;
-		}
-		switch (kblib::FNV32a(loglevel.getValue())) {
-		case "none"_fnv32:
-			return log_level::silent;
-		case "err"_fnv32:
-		case "error"_fnv32:
-			return log_level::err;
-		case "warn"_fnv32:
-			return log_level::warn;
-		case "notice"_fnv32:
-			return log_level::notice;
-		case "info"_fnv32:
-			return log_level::info;
-		case "trace"_fnv32:
-			return log_level::trace;
+			    if (trace_loglevel.isSet()) {
+				return log_level::trace;
+			} else if (info_loglevel.isSet()) {
+				return log_level::info;
+			}
+			switch (kblib::FNV32a(loglevel.getValue())) {
+			case "none"_fnv32:
+				return log_level::silent;
+			case "err"_fnv32:
+			case "error"_fnv32:
+				return log_level::err;
+			case "warn"_fnv32:
+				return log_level::warn;
+			case "notice"_fnv32:
+				return log_level::notice;
+			case "info"_fnv32:
+				return log_level::info;
+			case "trace"_fnv32:
+				return log_level::trace;
 #if TIS_ENABLE_DEBUG
-		case "debug"_fnv32:
-			return log_level::debug;
+			case "debug"_fnv32:
+				return log_level::debug;
 #endif
-		default:
-			log_warn("Unknown log level ", kblib::quoted(loglevel.getValue()),
-			         " ignored. Validation bug?");
-			return get_log_level();
-		}
-	}());
+			default:
+				log_warn("Unknown log level ", kblib::quoted(loglevel.getValue()),
+				         " ignored. Validation bug?");
+				return get_log_level();
+			}
+		}());
+	}
 
-	unsigned num_threads = threads.getValue();
-	if (threads.getValue() != 1) {
-		if (get_log_level() > log_level::info) {
+	// initialize the sim
+	tis_sim sim;
+	{
+		std::vector<range_t> seed_ranges;
+		if (seed_exprs.isSet()) {
+			if (random_arg.isSet() or seed_arg.isSet()) {
+				throw std::invalid_argument{
+				    "Cannot set --seeds in combination with -r or --seed"};
+			}
+			seed_ranges = parse_ranges(seed_exprs.getValue());
+		} else if (random_arg.isSet()) {
+			std::uint32_t seed;
+			if (seed_arg.isSet()) {
+				seed = seed_arg.getValue().val;
+			} else {
+				seed = std::random_device{}();
+				log_info("random seed: ", seed);
+			}
+			auto random_count = random_arg.getValue().val;
+			seed_ranges.push_back({seed, seed + random_count});
+		}
+		sim.set_seed_ranges(std::move(seed_ranges));
+
+		if (id_arg.isSet()) {
+			sim.set_builtin_level_name(id_arg.getValue());
+		}
+#if TIS_ENABLE_LUA
+		if (custom_spec_arg.isSet()) {
+			sim.set_custom_spec_path(custom_spec_arg.getValue());
+		}
+#endif
+		sim.set_cycles_limit(cycles_limit_arg.getValue());
+		sim.set_total_cycles_limit(total_cycles_limit_arg.getValue());
+		if (threads.getValue() != 1 and get_log_level() > log_level::info) {
 			throw std::invalid_argument(
 			    "log_level cannot be higher than info with -j");
-		}
-		if (threads.getValue() == 0) {
-			num_threads = std::thread::hardware_concurrency();
-		}
-	}
-	log_info("Using ", num_threads, " threads");
-
-	std::vector<range_t> seed_ranges;
-
-	if (seed_exprs.isSet()) {
-		if (random_arg.isSet() or seed_arg.isSet()) {
-			throw std::invalid_argument{
-			    "Cannot set --seeds in combination with -r or --seed"};
-		}
-		seed_ranges = parse_ranges(seed_exprs.getValue());
-	} else if (random_arg.isSet()) {
-		std::uint32_t seed;
-		if (seed_arg.isSet()) {
-			seed = seed_arg.getValue().val;
 		} else {
-			seed = std::random_device{}();
-			log_info("random seed: ", seed);
+			sim.set_num_threads(threads.getValue());
 		}
-		auto random_count = random_arg.getValue().val;
-		seed_ranges.push_back({seed, seed + random_count});
+		sim.set_cheat_rate(cheat_rate.getValue());
+		sim.set_limit_multiplier(limit_multiplier.getValue());
+		sim.set_T21_size(T21_size.getValue());
+		sim.set_T30_size(T30_size.getValue());
+		sim.set_run_fixed(fixed.getValue());
+		sim.set_compute_stats(stats.getValue());
 	}
 
-	std::uint32_t total_random_tests{};
-	{
-		auto log = log_debug();
-		log << "Seed ranges parsed: {\n";
-		for (auto r : seed_ranges) {
-			log << r.begin << ".." << r.end - 1 << " [" << r.end - r.begin
-			    << "]; ";
-			total_random_tests += r.end - r.begin;
-		}
-		log << "\n} sum: " << total_random_tests << " tests";
-	}
-
-	// try to fill as much as possible before the loop
-	std::unique_ptr<level> global_level;
-	if (id_arg.isSet()) {
-		global_level
-		    = std::make_unique<builtin_level>(find_level_id(id_arg.getValue()));
-	}
-#if TIS_ENABLE_LUA
-	else if (custom_spec_arg.isSet()) {
-		global_level = std::make_unique<custom_level>(custom_spec_arg.getValue());
-	}
-#endif
-
-	if (dry_run.getValue()) {
+	if (dry_run.isSet()) {
 		return exit_code::SUCCESS;
 	}
 
@@ -464,142 +438,57 @@ int main(int argc, char** argv) try {
 			std::cout << kblib::escapify(solution) << ":" << std::endl;
 		}
 
-		level* l;
-		std::unique_ptr<level> level_from_name;
-		if (global_level) {
-			l = global_level.get();
-		} else if (auto filename
-		           = std::filesystem::path(solution).filename().string();
-		           auto maybe_id = guess_level_id(filename)) {
-			level_from_name = std::make_unique<builtin_level>(*maybe_id);
-			l = level_from_name.get();
-			log_debug("Deduced level ", builtin_layouts[*maybe_id].segment,
-			          " from filename ", kblib::quoted(filename));
-		} else {
-			log_err("Impossible to determine the level ID for ",
-			        kblib::quoted(filename));
-			return_code = exit_code::EXCEPTION;
-			continue;
-		}
-		field f = l->new_field(T30_size.getValue());
-
-		std::string code;
-		if (solution == "-") {
-			std::ostringstream in;
-			in << std::cin.rdbuf();
-			code = std::move(in).str();
-		} else if (std::filesystem::is_regular_file(solution)) {
-			code = kblib::try_get_file_contents(solution, std::ios::in);
-		} else {
-			log_err("invalid file: ", kblib::quoted(solution));
-			return_code = exit_code::EXCEPTION;
-			continue;
-		}
-
 		try {
-			parse_code(f, code, T21_size.getValue());
-		} catch (const std::invalid_argument& e) {
+			score sc = sim.simulate(solution);
+			if (not sc.validated) {
+				return_code = std::max(return_code, exit_code::FAILURE);
+			}
+
+			log_flush();
+			if (sc.validated) {
+				if (not quiet.getValue()) {
+					std::cout << print_escape(bright_blue, bold)
+					          << "validation successful" << print_escape(none)
+					          << "\n";
+				}
+			} else if (quiet.getValue() < 2) {
+				std::cout << print_escape(red, bold) << "validation failed"
+				          << print_escape(none);
+				if (sim.failed_test != 0) {
+					std::cout << " for fixed test " << fixed //
+					          << " after " << sc.cycles << " cycles";
+					if (sc.cycles == cycles_limit_arg.getValue()) {
+						std::cout << " [timeout]";
+					}
+				}
+				std::cout << '\n';
+			}
+
+			if (not quiet.getValue()) {
+				std::cout << "score: ";
+			}
+			std::cout << to_string(sc);
+			if (sim.random_test_ran > 0 and stats.getValue()) {
+				std::cout << " PR: ";
+				if (not sc.cheat) {
+					std::cout << print_escape(bright_blue, bold);
+				} else if (not sc.hardcoded) {
+					std::cout << print_escape(yellow);
+				} else {
+					std::cout << print_escape(red);
+				}
+				const auto rate
+				    = 100. * sim.random_test_valid / sim.random_test_ran;
+				std::cout << rate << '%' << print_escape(none) << " ("
+				          << sim.random_test_valid << '/' << sim.random_test_ran
+				          << ")";
+			}
+			std::cout << std::endl;
+		} catch (const std::exception& e) {
 			log_err(e.what());
 			return_code = exit_code::EXCEPTION;
-			continue;
 		}
 
-		log_debug_r([&] { return "Layout:\n" + f.layout(); });
-
-		score sc{};
-		std::size_t total_cycles{};
-		sc.validated = true;
-		auto random_limit = cycles_limit;
-		if (fixed.getValue()) {
-			int succeeded{1};
-			for (auto test : l->static_suite()) {
-				set_expected(f, std::move(test));
-				score last = run(f, cycles_limit, true);
-				sc.cycles = std::max(sc.cycles, last.cycles);
-				sc.instructions = last.instructions;
-				sc.nodes = last.nodes;
-				sc.validated = sc.validated and last.validated;
-				if (stop_requested) {
-					log_notice("Stop requested");
-					break;
-				}
-				total_cycles += last.cycles;
-				log_info("fixed test ", succeeded, ' ',
-				         last.validated ? "validated"sv : "failed"sv, " in ",
-				         last.cycles, " cycles");
-				if (not last.validated) {
-					break;
-				}
-				++succeeded;
-				// optimization: skip running the 2nd and 3rd rounds for invariant
-				// levels (specifically, the image test patterns)
-				if (f.inputs().empty()) {
-					log_info("Secondary tests skipped for invariant level");
-					break;
-				}
-			}
-			sc.achievement = sc.validated and l->has_achievement(f, sc);
-			validation_summary(sc, succeeded, quiet.getValue(), cycles_limit);
-			if (sc.validated) {
-				auto effective_limit = static_cast<size_t>(
-				    static_cast<double>(sc.cycles) * limit_multiplier.getValue());
-				random_limit = std::min(cycles_limit, effective_limit);
-				log_info("Setting random test timeout to ", random_limit);
-			}
-		}
-
-		uint count = 0;
-		uint valid_count = 0;
-		if ((fixed.getValue() == 0 or sc.validated or stats.getValue())
-		    and not stop_requested and not seed_ranges.empty()) {
-			bool failure_printed{};
-			run_params params{total_cycles,
-			                  failure_printed,
-			                  count,
-			                  valid_count,
-			                  total_cycles_limit,
-			                  random_limit,
-			                  static_cast<uint>(cheat_rate * total_random_tests),
-			                  static_cast<uint8_t>(quiet.getValue()),
-			                  stats.getValue()};
-			auto worst = run_seed_ranges(*l, f, seed_ranges, params, num_threads);
-
-			log_info("Random test results: ", valid_count, " passed out of ",
-			         count, " total");
-
-			if (not fixed.getValue()) {
-				sc = worst;
-				if (not sc.validated) {
-					sc.cycles = total_cycles;
-				}
-				validation_summary(sc, -1, quiet.getValue(), random_limit);
-			}
-			sc.cheat = (count == 0 or count != valid_count);
-			sc.hardcoded = (valid_count <= static_cast<uint>(count * cheat_rate));
-		}
-
-		log_flush();
-		if (not quiet.getValue()) {
-			std::cout << "score: ";
-		}
-		std::cout << to_string(sc);
-		if (count > 0 and stats.isSet()) {
-			const auto rate = 100. * valid_count / count;
-			std::cout << " PR: ";
-			if (valid_count == count) {
-				std::cout << print_escape(bright_blue, bold);
-			} else if (rate >= 100 * cheat_rate) {
-				std::cout << print_escape(yellow);
-			} else {
-				std::cout << print_escape(bright_red);
-			}
-			std::cout << rate << '%' << print_escape(none) << " (" << valid_count
-			          << '/' << count << ")";
-		}
-		std::cout << std::endl;
-		if (not sc.validated) {
-			return_code = std::max(return_code, exit_code::FAILURE);
-		}
 		if (stop_requested) {
 			break;
 		}
@@ -608,10 +497,8 @@ int main(int argc, char** argv) try {
 	return return_code;
 } catch (const std::exception& e) {
 	auto type_name = demangle(typeid(e).name());
-	if (not type_name) {
-		return exit_code::EXCEPTION;
+	if (type_name) {
+		log_err("Failed with exception of type ", *type_name, ": ", e.what());
 	}
-
-	log_err("Failed with exception of type ", *type_name, ": ", e.what());
 	return exit_code::EXCEPTION;
 }

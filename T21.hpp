@@ -313,7 +313,7 @@ struct T21 final : regular_node {
 
  private:
 	std::unique_ptr<instr[]> large_;
-	std::array<instr, def_T21_size> small_;
+	std::array<instr, defaults::T21_size> small_;
 	word_t acc{}, bak{};
 	word_t pc{};
 	port last{port::nil};
