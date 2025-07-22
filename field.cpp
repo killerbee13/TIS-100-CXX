@@ -17,10 +17,14 @@
  * ****************************************************************************/
 
 #include "field.hpp"
+#include "parser.hpp"
+#include "tests.hpp"
 
 #include <algorithm>
 #include <bitset>
 #include <queue>
+#include <ranges>
+#include <set>
 #include <unordered_set>
 
 using dir_mask = std::bitset<DIMENSIONS * 2>;
@@ -373,4 +377,70 @@ field field::clone() const {
 	ret.finalize_nodes();
 
 	return ret;
+}
+
+static std::string_view pop(std::string_view& str, std::size_t n) {
+	n = std::min(n, str.size());
+	auto r = str.substr(0, n);
+	str.remove_prefix(n);
+	return r;
+}
+
+void parse_code(field& f, std::string_view source, std::size_t T21_size) {
+	source.remove_prefix(std::min(source.find_first_of('@'), source.size()));
+	std::set<int> nodes_seen;
+	while (not source.empty()) {
+		auto header = pop(source, source.find_first_of('\n'));
+		pop(source, source.find_first_not_of(" \t\r\n"));
+		header.remove_prefix(1);
+		auto i = kblib::parse_integer<int>(header);
+		auto section = pop(source, source.find_first_of('@'));
+		if (not nodes_seen.insert(i).second) {
+			throw std::invalid_argument{concat("duplicate node label ", i)};
+		}
+		if (section.empty()) {
+			continue;
+		}
+		section.remove_suffix(
+		    section.size()
+		    - std::min(section.find_last_not_of(" \t\r\n"), section.size()) - 1);
+		log_debug("assembling @", i);
+		auto p = f.node_by_index(static_cast<std::size_t>(i));
+		if (not p) {
+			throw std::invalid_argument{concat("node label ", i, " out of range")};
+		}
+		p->set_code(assemble(section, i, T21_size));
+	}
+	f.finalize_nodes();
+}
+
+void set_expected(field& f, single_test&& expected) {
+	for (auto& i : f.regulars()) {
+		auto p = i.get();
+		p->reset();
+		log_debug("reset node (", p->x, ',', p->y, ')');
+	}
+	using std::views::zip;
+	for (const auto& [n, i] : zip(f.inputs(), expected.inputs)) {
+		log_debug("reset input I", n->x);
+		n->reset(std::move(i));
+		auto debug = log_debug();
+		debug << "set expected input I" << n->x << ":";
+		write_list(debug, n->inputs);
+	}
+	for (const auto& [n, o] : zip(f.numerics(), expected.n_outputs)) {
+		log_debug("reset output O", n->x);
+		n->reset(std::move(o));
+		auto debug = log_debug();
+		debug << "set expected output O" << n->x << ":";
+		write_list(debug, n->outputs_expected);
+	}
+	for (const auto& [n, i] : zip(f.images(), expected.i_outputs)) {
+		log_debug("reset image O", n->x);
+		n->reset(std::move(i));
+		auto debug = log_debug();
+		debug << "set expected image O" << n->x << ": {\n";
+		debug.log_r([&] { return n->image_expected.write_text(color_logs); });
+		debug << '}';
+	}
 }

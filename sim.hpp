@@ -20,8 +20,8 @@
 
 #include "levels.hpp"
 #include "logger.hpp"
-#include "node.hpp"
-#include "parser.hpp"
+#include "score.hpp"
+#include "tis100.hpp"
 #include "utils.hpp"
 
 #include <atomic>
@@ -37,15 +37,6 @@ struct range_t {
 	std::uint32_t begin{};
 	std::uint32_t end{};
 };
-
-namespace defaults {
-constexpr inline size_t cycles_limit = 100'500;
-constexpr inline size_t total_cycles_limit = kblib::max;
-constexpr inline bool run_fixed = true;
-constexpr inline uint num_threads = 1;
-constexpr inline double cheat_rate = 0.05;
-constexpr inline double limit_multiplier = 5.0;
-} // namespace defaults
 
 /// Main simulator class
 class tis_sim {

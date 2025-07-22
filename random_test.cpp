@@ -16,14 +16,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * ****************************************************************************/
 
-#include "levels.hpp"
+#include "tests.hpp"
+
 #include "image.hpp"
 #include "logger.hpp"
-#include "parser.hpp"
 #include "tis_random.hpp"
 
 #include <algorithm>
 #include <iterator>
+#include <span>
 #include <vector>
 
 static word_vec make_random_array(xorshift128_engine& engine,
@@ -77,7 +78,7 @@ static image_t checkerboard(std::ptrdiff_t w, std::ptrdiff_t h) {
 }
 
 template <typename F>
-void for_each_subsequence_of(word_vec& in, word_t delim, F f) {
+static void for_each_subsequence_of(word_vec& in, word_t delim, F f) {
 	auto start = in.begin();
 	auto cur = start;
 	for (; cur != in.end(); ++cur) {
@@ -88,12 +89,12 @@ void for_each_subsequence_of(word_vec& in, word_t delim, F f) {
 	}
 }
 
-inline word_vec empty_vec(word_t size = max_test_length) {
+static word_vec zero_vec(word_t size = max_test_length) {
 	assert(size >= 0);
 	return word_vec(to_unsigned(size));
 }
 
-std::optional<single_test> builtin_level::random_test(uint32_t seed) {
+std::optional<single_test> gen_random_test(uint level_id, uint32_t seed) {
 	// log_info("random_test(", level_id, ", ", seed, ")");
 	single_test ret{};
 	switch (level_id) {
@@ -105,7 +106,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "SIGNAL AMPLIFIER"_lvl: {
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 10, 100));
-		ret.n_outputs.resize(1, empty_vec());
+		ret.n_outputs.resize(1, zero_vec());
 		std::ranges::transform(ret.inputs[0], ret.n_outputs[0].begin(),
 		                       [](word_t x) { return 2 * x; });
 	} break;
@@ -113,7 +114,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 10, 100));
 		ret.inputs.push_back(
 		    make_random_array(seed + 1, max_test_length, 10, 100));
-		ret.n_outputs.resize(2, empty_vec());
+		ret.n_outputs.resize(2, zero_vec());
 		std::ranges::transform(ret.inputs[0], ret.inputs[1],
 		                       ret.n_outputs[0].begin(),
 		                       [](word_t x, word_t y) { return x - y; });
@@ -123,7 +124,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "SIGNAL COMPARATOR"_lvl: {
 		ret.inputs.push_back(make_random_array(seed, max_test_length, -2, 3));
-		ret.n_outputs.resize(3, empty_vec());
+		ret.n_outputs.resize(3, zero_vec());
 		for (auto [x, i] : kblib::enumerate(ret.inputs[0])) {
 			ret.n_outputs[0][i] = (x > 0);
 			ret.n_outputs[1][i] = (x == 0);
@@ -132,7 +133,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "SIGNAL MULTIPLEXER"_lvl: {
 		ret.inputs.resize(3);
-		ret.n_outputs.resize(1, empty_vec());
+		ret.n_outputs.resize(1, zero_vec());
 		ret.inputs[0] = make_random_array(seed, max_test_length, -30, 1);
 		ret.inputs[1] = make_random_array(seed + 2, max_test_length, -1, 2);
 		ret.inputs[2] = make_random_array(seed + 1, max_test_length, 0, 31);
@@ -178,7 +179,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "SIGNAL EDGE DETECTOR"_lvl: {
 		xorshift128_engine engine(seed);
-		ret.inputs.push_back(empty_vec());
+		ret.inputs.push_back(zero_vec());
 		ret.inputs[0][1] = engine.next_word(25, 75);
 
 		for (std::size_t i = 2; i < max_test_length; i++) {
@@ -194,15 +195,15 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			}
 		}
 
-		ret.n_outputs.resize(1, empty_vec());
+		ret.n_outputs.resize(1, zero_vec());
 		word_t prev = 0;
 		for (auto [w, i] : kblib::enumerate(ret.inputs[0])) {
 			ret.n_outputs[0][i] = std::abs(w - std::exchange(prev, w)) >= 10;
 		}
 	} break;
 	case "INTERRUPT HANDLER"_lvl: {
-		ret.inputs.resize(4, empty_vec());
-		ret.n_outputs.resize(1, empty_vec());
+		ret.inputs.resize(4, zero_vec());
+		ret.n_outputs.resize(1, zero_vec());
 		std::array<bool, 4> vals{};
 
 		xorshift128_engine engine(seed);
@@ -237,7 +238,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 			ret.inputs[0][num + 2] = 0;
 			ret.inputs[0][num + 3] = engine.next_word(1, 6);
 		}
-		ret.n_outputs.push_back(empty_vec());
+		ret.n_outputs.push_back(zero_vec());
 		for (std::size_t j = 0; j < max_test_length; ++j) {
 			ret.n_outputs[0][j]
 			    = (j > 1 and ret.inputs[0][j - 2] == 0
@@ -270,7 +271,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	case "SIGNAL MULTIPLIER"_lvl: {
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 0, 10));
 		ret.inputs.push_back(make_random_array(seed + 1, max_test_length, 0, 10));
-		ret.n_outputs.push_back(empty_vec());
+		ret.n_outputs.push_back(zero_vec());
 		std::ranges::transform(ret.inputs[0], ret.inputs[1],
 		                       ret.n_outputs[0].begin(), std::multiplies{});
 	} break;
@@ -338,7 +339,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "HISTOGRAM VIEWER"_lvl: {
 		xorshift128_engine engine(seed);
-		ret.inputs.push_back(empty_vec(image_width));
+		ret.inputs.push_back(zero_vec(image_width));
 		ret.i_outputs.emplace_back(image_width, image_height);
 		ret.inputs[0][0] = engine.next_word(3, 14);
 		for (std::size_t x = 1; x < image_width; ++x) {
@@ -362,7 +363,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "SIGNAL WINDOW FILTER"_lvl: {
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 10, 100));
-		ret.n_outputs = {empty_vec(), empty_vec()};
+		ret.n_outputs = {zero_vec(), zero_vec()};
 		word_t t3 = 0, t5 = 0;
 		for (std::size_t idx = 0; idx < max_test_length; ++idx) {
 			t3 += ret.inputs[0][idx];
@@ -380,7 +381,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	case "SIGNAL DIVIDER"_lvl: {
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 10, 100));
 		ret.inputs.push_back(make_random_array(seed + 1, max_test_length, 1, 10));
-		ret.n_outputs.resize(2, empty_vec());
+		ret.n_outputs.resize(2, zero_vec());
 		for (std::size_t i = 0; i < max_test_length; ++i) {
 			ret.n_outputs[0][i] = to_word(ret.inputs[0][i] / ret.inputs[1][i]);
 			ret.n_outputs[1][i] = to_word(ret.inputs[0][i] % ret.inputs[1][i]);
@@ -390,7 +391,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		ret.inputs.push_back(make_random_array(seed, 10, 100, 1000));
 		ret.inputs[0].push_back(0);
 		ret.inputs.push_back(make_random_array(seed, max_test_length, 0, 10));
-		ret.n_outputs.resize(1, empty_vec());
+		ret.n_outputs.resize(1, zero_vec());
 		for (std::size_t i = 0; i < max_test_length; ++i) {
 			ret.n_outputs[0][i] = ret.inputs[0][to_unsigned(ret.inputs[1][i])];
 		}
@@ -442,7 +443,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "UNKNOWN"_lvl: {
 		xorshift128_engine engine(seed);
-		ret.inputs.push_back(empty_vec());
+		ret.inputs.push_back(zero_vec());
 		ret.n_outputs.resize(2);
 		while (ret.n_outputs[0].size() < max_test_length) {
 			word_t item = engine.next_word(0, 4);
@@ -538,8 +539,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "INTEGER SERIES CALCULATOR"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(1, empty_vec());
-		ret.n_outputs.resize(1, empty_vec());
+		ret.inputs.resize(1, zero_vec());
+		ret.n_outputs.resize(1, zero_vec());
 		for (std::size_t i = 0; i < max_test_length; i++) {
 			word_t n = engine.next_word(1, 44);
 			ret.inputs[0][i] = n;
@@ -548,7 +549,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "SEQUENCE RANGE LIMITER"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs = {empty_vec(6), empty_vec(0), empty_vec(6)};
+		ret.inputs = {zero_vec(6), zero_vec(0), zero_vec(6)};
 		word_vec& mininput = ret.inputs[0];
 		word_vec& input = ret.inputs[1];
 		word_vec& maxinput = ret.inputs[2];
@@ -577,8 +578,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "SIGNAL ERROR CORRECTOR"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(2, empty_vec());
-		ret.n_outputs.resize(2, empty_vec());
+		ret.inputs.resize(2, zero_vec());
+		ret.n_outputs.resize(2, zero_vec());
 		word_vec& in_a = ret.inputs[0];
 		word_vec& in_b = ret.inputs[1];
 		word_vec& out_a = ret.n_outputs[0];
@@ -647,8 +648,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "SIGNAL PRESCALER"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(1, empty_vec());
-		ret.n_outputs.resize(3, empty_vec());
+		ret.inputs.resize(1, zero_vec());
+		ret.n_outputs.resize(3, zero_vec());
 		for (int i = 0; i < max_test_length; i++) {
 			word_t val = engine.next_word(1, 120);
 			ret.n_outputs[2][i] = val;
@@ -659,8 +660,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "SIGNAL AVERAGER"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(2, empty_vec());
-		ret.n_outputs.resize(1, empty_vec());
+		ret.inputs.resize(2, zero_vec());
+		ret.n_outputs.resize(1, zero_vec());
 		for (int i = 0; i < max_test_length; i++) {
 			word_t valA = engine.next_word(100, 999);
 			word_t valB = engine.next_word(100, 999);
@@ -671,8 +672,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "SUBMAXIMUM SELECTOR"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(4, empty_vec());
-		ret.n_outputs.resize(1, empty_vec());
+		ret.inputs.resize(4, zero_vec());
+		ret.n_outputs.resize(1, zero_vec());
 		for (int i = 0; i < max_test_length; i++) {
 			std::array<word_t, 4> group;
 			for (std::size_t j = 0; j < 4; j++) {
@@ -687,8 +688,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "DECIMAL DECOMPOSER"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(1, empty_vec());
-		ret.n_outputs.resize(3, empty_vec());
+		ret.inputs.resize(1, zero_vec());
+		ret.n_outputs.resize(3, zero_vec());
 		for (int i = 0; i < max_test_length; i++) {
 			word_t digits = engine.next_word(0, 2);
 			word_t val;
@@ -707,7 +708,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "SEQUENCE MODE CALCULATOR"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(1, empty_vec());
+		ret.inputs.resize(1, zero_vec());
 		ret.n_outputs.resize(1);
 
 		// generate input stream
@@ -748,8 +749,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "SEQUENCE NORMALIZER"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(1, empty_vec(max_test_length - 1));
-		ret.n_outputs.resize(1, empty_vec(max_test_length - 1));
+		ret.inputs.resize(1, zero_vec(max_test_length - 1));
+		ret.n_outputs.resize(1, zero_vec(max_test_length - 1));
 
 		int curr_start = 0;
 		for (int i = 0; i < max_test_length - 1; i++) {
@@ -966,8 +967,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "BACK-REFERENCE REIFIER"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(2, empty_vec());
-		ret.n_outputs.resize(1, empty_vec());
+		ret.inputs.resize(2, zero_vec());
+		ret.n_outputs.resize(1, zero_vec());
 		auto& input_refs = ret.inputs[0];
 		auto& input_values = ret.inputs[1];
 		for (int i = 0; i < max_test_length; i++) {
@@ -1090,8 +1091,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "DECIMAL TO OCTAL CONVERTER"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(1, empty_vec());
-		ret.n_outputs.resize(1, empty_vec());
+		ret.inputs.resize(1, zero_vec());
+		ret.n_outputs.resize(1, zero_vec());
 		auto to_octal = [](word_t i) { return (i / 8) * 10 + (i % 8); };
 
 		for (auto i : range(max_test_length)) {
@@ -1101,7 +1102,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "PROLONGED SEQUENCE SORTER"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(1, empty_vec());
+		ret.inputs.resize(1, zero_vec());
 
 		// I want to force at least 1 number to not appear
 		// otherwise there's a few shortcuts you can take
@@ -1149,8 +1150,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 		}();
 
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(1, empty_vec(10));
-		ret.n_outputs.resize(1, empty_vec(max_test_length - 1));
+		ret.inputs.resize(1, zero_vec(10));
+		ret.n_outputs.resize(1, zero_vec(max_test_length - 1));
 		int sum;
 		do {
 			sum = 0;
@@ -1168,8 +1169,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "SIGNAL EXPONENTIATOR"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(2, empty_vec());
-		ret.n_outputs.resize(1, empty_vec());
+		ret.inputs.resize(2, zero_vec());
+		ret.n_outputs.resize(1, zero_vec());
 		// extra 0 at the beginning because Lua arrays start at 1
 		std::array<word_t, 11> max_exp{0, 10, 9, 6, 4, 4, 3, 3, 3, 3, 2};
 
@@ -1181,7 +1182,7 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "T20 NODE EMULATOR"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs = {empty_vec(), word_vec()};
+		ret.inputs = {zero_vec(), word_vec()};
 		ret.n_outputs.resize(1);
 
 		auto& instructions = ret.inputs[0];
@@ -1244,8 +1245,8 @@ std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	} break;
 	case "WAVE COLLAPSE SUPERVISOR"_lvl: {
 		lua_random engine(to_signed(seed));
-		ret.inputs.resize(4, empty_vec());
-		ret.n_outputs.resize(1, empty_vec());
+		ret.inputs.resize(4, zero_vec());
+		ret.n_outputs.resize(1, zero_vec());
 		std::array<word_t, 4> sums{};
 
 		for (const auto i : range(max_test_length)) {

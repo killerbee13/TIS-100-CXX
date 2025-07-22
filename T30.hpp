@@ -28,7 +28,7 @@ struct T30 final : regular_node {
 	    , max_size(max_size) {
 		data.reserve(max_size);
 	}
-	void reset() noexcept {
+	void reset() noexcept override {
 		write_word = word_empty;
 		write_port = port::any;
 		data.clear();

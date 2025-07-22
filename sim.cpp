@@ -21,7 +21,7 @@
 #include "levels.hpp"
 #include "logger.hpp"
 #include "node.hpp"
-#include "parser.hpp"
+#include "score.hpp"
 #include "utils.hpp"
 
 #include <kblib/io.h>
@@ -109,8 +109,8 @@ class seed_range_iterator {
 
 	seed_range_iterator() = default;
 	explicit seed_range_iterator(const seed_range_t& ranges) noexcept
-	    : v_end(ranges.cend())
-	    , it(ranges.cbegin())
+	    : v_end(ranges.end())
+	    , it(ranges.begin())
 	    , cur(it->begin) {}
 
 	std::uint32_t operator*() const noexcept { return cur; }
@@ -136,8 +136,8 @@ class seed_range_iterator {
 	static sentinel end() noexcept { return {}; }
 
  private:
-	seed_range_t::const_iterator v_end{};
-	seed_range_t::const_iterator it{};
+	seed_range_t::iterator v_end{};
+	seed_range_t::iterator it{};
 	std::uint32_t cur{};
 };
 

@@ -17,9 +17,9 @@
  * ****************************************************************************/
 
 #include "logger.hpp"
-#include "node.hpp"
-#include "parser.hpp"
+#include "score.hpp"
 #include "sim.hpp"
+#include "tis100.hpp"
 #include "utils.hpp"
 
 #include <kblib/hash.h>

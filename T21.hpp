@@ -18,80 +18,13 @@
 #ifndef T21_HPP
 #define T21_HPP
 
+#include "instr.hpp"
 #include "logger.hpp"
 #include "node.hpp"
 #include "utils.hpp"
 
 #include <span>
 #include <string>
-
-struct T21;
-
-struct instr {
-	// HCF as opcode 0 makes crashes more likely on OOB code reads
-	enum op : std::int8_t {
-		hcf,
-		nop,
-		swp,
-		sav,
-		neg, // 5
-		mov, // 1
-		add,
-		sub, // 2
-		jmp,
-		jez,
-		jnz,
-		jgz,
-		jlz, // 5
-		jro, // 1
-	};
-	op op_;
-	port src{immediate};
-	// stores either immediate value or jump target
-	word_t val{};
-	port dst{};
-
-	inline word_t target() const {
-		assert(jmp <= op_ && op_ <= jlz);
-		return val;
-	}
-};
-constexpr std::string to_string(instr::op o) {
-	switch (o) {
-	case instr::hcf:
-		return "HCF";
-	case instr::nop:
-		return "NOP";
-	case instr::swp:
-		return "SWP";
-	case instr::sav:
-		return "SAV";
-	case instr::neg:
-		return "NEG";
-	case instr::mov:
-		return "MOV";
-	case instr::add:
-		return "ADD";
-	case instr::sub:
-		return "SUB";
-	case instr::jmp:
-		return "JMP";
-	case instr::jez:
-		return "JEZ";
-	case instr::jnz:
-		return "JNZ";
-	case instr::jgz:
-		return "JGZ";
-	case instr::jlz:
-		return "JLZ";
-	case instr::jro:
-		return "JRO";
-	default:
-		throw std::invalid_argument{concat("Unknown instr::op ", etoi(o))};
-	}
-}
-
-std::string to_string(instr i);
 
 struct T21 final : regular_node {
 	T21(int x, int y)
@@ -284,7 +217,7 @@ struct T21 final : regular_node {
 		              " }");
 	}
 
-	void reset() noexcept {
+	void reset() noexcept override {
 		write_word = word_empty;
 		write_port = port::nil;
 		acc = 0;

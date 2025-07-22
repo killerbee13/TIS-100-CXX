@@ -23,6 +23,7 @@
 #include "io.hpp"
 #include "logger.hpp"
 #include "node.hpp"
+#include "tests.hpp"
 
 #include <memory>
 
@@ -290,5 +291,9 @@ class field {
 
 	bool search_for_output(const regular_node*);
 };
-
+/// Read a TIS-100-compatible save file
+/// @throws std::invalid_argument for any lexing problem
+void parse_code(field& f, std::string_view source, std::size_t T21_size);
+/// Configure the field with a test case, takes ownership of the test content
+void set_expected(field& f, single_test&& expected);
 #endif // FIELD_HPP

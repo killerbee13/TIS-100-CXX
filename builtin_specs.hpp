@@ -18,7 +18,7 @@
 #ifndef BUILTIN_SPECS_HPP
 #define BUILTIN_SPECS_HPP
 
-#include "node.hpp"
+#include "tis100.hpp"
 
 #include <array>
 #include <vector>
@@ -41,14 +41,14 @@ inline constexpr std::array<uint32_t, builtin_levels_num> builtin_seeds{
 };
 
 struct standard_layout_spec {
-	std::array<std::array<node::type_t, 4>, 3> nodes;
-	std::array<node::type_t, 4> inputs;
-	std::array<node::type_t, 4> outputs;
+	std::array<std::array<node_type_t, 4>, 3> nodes;
+	std::array<node_type_t, 4> inputs;
+	std::array<node_type_t, 4> outputs;
 };
 struct dynamic_layout_spec {
-	std::vector<std::vector<node::type_t>> nodes;
-	std::vector<node::type_t> inputs;
-	std::vector<node::type_t> outputs;
+	std::vector<std::vector<node_type_t>> nodes;
+	std::vector<node_type_t> inputs;
+	std::vector<node_type_t> outputs;
 };
 
 struct builtin_level_layout {
@@ -63,7 +63,7 @@ struct builtin_level_layout {
 // this needs to sit on an header file where it doesn't see the node type
 // classes, or there will be a name conflict
 inline constexpr std::array builtin_layouts = []{
-	using enum node::type_t;
+	using enum node_type_t;
 	return std::array<builtin_level_layout, builtin_levels_num>{{
 	{"00150", "SELF-TEST DIAGNOSTIC", {
 		.nodes = {{
