@@ -58,10 +58,10 @@ check_ipo_supported()
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON)
 
-add_executable(TIS-100-CXX T21.hpp T30.hpp builtin_specs.hpp field.cpp field.hpp
-	image.hpp instr.hpp io.hpp level.cpp levels.hpp logger.cpp logger.hpp
-	main.cpp node.hpp parser.cpp parser.hpp random_test.cpp score.hpp sim.cpp
-	sim.hpp tests.hpp tis100.hpp tis_random.hpp utils.hpp
+add_executable(TIS-100-CXX builtin_specs.hpp field.cpp field.hpp game.hpp
+	image.hpp instr.hpp io.hpp levels_builtin_tests.cpp levels.cpp levels.hpp
+	logger.cpp logger.hpp main.cpp node.hpp parser.cpp parser.hpp score.hpp
+	sim.cpp sim.hpp T21.hpp T30.hpp tests.hpp tis_random.hpp utils.hpp
 	test_saves_lb.sh test_saves_single.sh
 	README.md LICENSE)
 

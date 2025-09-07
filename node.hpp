@@ -18,7 +18,7 @@
 #ifndef NODE_HPP
 #define NODE_HPP
 
-#include "tis100.hpp"
+#include "game.hpp"
 #include "utils.hpp"
 
 #include <array>

@@ -21,7 +21,7 @@
 #include "levels.hpp"
 #include "logger.hpp"
 #include "score.hpp"
-#include "tis100.hpp"
+#include "game.hpp"
 #include "utils.hpp"
 
 #include <atomic>

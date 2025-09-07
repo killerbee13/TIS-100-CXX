@@ -22,6 +22,7 @@
 #include "logger.hpp"
 #include "node.hpp"
 #include "score.hpp"
+#include "tests.hpp"
 #include "utils.hpp"
 
 #include <kblib/io.h>

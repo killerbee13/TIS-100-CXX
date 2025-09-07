@@ -18,7 +18,7 @@
 #ifndef BUILTIN_SPECS_HPP
 #define BUILTIN_SPECS_HPP
 
-#include "tis100.hpp"
+#include "game.hpp"
 
 #include <array>
 #include <vector>

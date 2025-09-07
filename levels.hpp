@@ -68,9 +68,7 @@ struct builtin_level final : level {
 
 	field new_field(uint T30_size) const override;
 
-	std::optional<single_test> random_test(std::uint32_t seed) override {
-		return gen_random_test(level_id, seed);
-	}
+	std::optional<single_test> random_test(std::uint32_t seed) override;
 
 	bool has_achievement(const field& solve, const score& sc) const override;
 };

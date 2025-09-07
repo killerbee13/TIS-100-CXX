@@ -15,14 +15,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * ****************************************************************************/
-#ifndef TIS100_HPP
-#define TIS100_HPP
+#ifndef GAME_HPP
+#define GAME_HPP
 
 #include "utils.hpp"
-
-/** @file tis100.hpp
- * Fundamental TIS-100 values and types
- */
 
 /// Support a 3D expansion in node connections
 constexpr inline uint DIMENSIONS = 2;
@@ -112,4 +108,4 @@ enum class node_type_t : int8_t {
 	null = -2
 };
 
-#endif // TIS100_HPP
+#endif // GAME_HPP

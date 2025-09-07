@@ -60,8 +60,6 @@ inline void clamp_test_values(single_test& t) {
 	}
 }
 
-std::optional<single_test> gen_random_test(uint level_id, uint32_t seed);
-
 constexpr uint find_level_id(std::string_view s) {
 	for (auto i : range(builtin_layouts.size())) {
 		if (s == builtin_layouts[i].segment or s == builtin_layouts[i].name) {

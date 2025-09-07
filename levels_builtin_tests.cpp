@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * ****************************************************************************/
 
-#include "tests.hpp"
+#include "levels.hpp"
 
 #include "image.hpp"
 #include "logger.hpp"
@@ -94,7 +94,7 @@ static word_vec zero_vec(word_t size = max_test_length) {
 	return word_vec(to_unsigned(size));
 }
 
-std::optional<single_test> gen_random_test(uint level_id, uint32_t seed) {
+std::optional<single_test> builtin_level::random_test(uint32_t seed) {
 	// log_info("random_test(", level_id, ", ", seed, ")");
 	single_test ret{};
 	switch (level_id) {

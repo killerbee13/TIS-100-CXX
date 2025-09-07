@@ -19,7 +19,7 @@
 #include "logger.hpp"
 #include "score.hpp"
 #include "sim.hpp"
-#include "tis100.hpp"
+#include "game.hpp"
 #include "utils.hpp"
 
 #include <kblib/hash.h>

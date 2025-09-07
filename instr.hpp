@@ -18,7 +18,7 @@
 #ifndef T21_IMPL_HPP
 #define T21_IMPL_HPP
 
-#include "tis100.hpp"
+#include "game.hpp"
 #include "utils.hpp"
 
 #include <string>
