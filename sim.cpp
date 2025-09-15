@@ -28,33 +28,39 @@
 #include <kblib/io.h>
 
 #include <mutex>
+#include <ranges>
 #include <string>
 #include <thread>
 
-template <typename T>
-static void print_failed_test(const field& f, T&& os, bool color) {
-	for (auto& i : f.inputs()) {
-		os << "input " << i->x << ": ";
-		write_list(os, i->inputs, nullptr, color) << '\n';
+/// Configure the field with a test case, takes ownership of the test content
+static void set_expected(field& f, single_test&& expected) {
+	for (auto& i : f.regulars()) {
+		auto p = i.get();
+		p->reset();
+		log_debug("reset node (", p->x, ',', p->y, ')');
 	}
-	for (auto& p : f.numerics()) {
-		if (not p->valid()) {
-			os << "validation failure for output " << p->x;
-			os << "\noutput: ";
-			write_list(os, p->outputs_received, &p->outputs_expected, color);
-			os << "\nexpected: ";
-			write_list(os, p->outputs_expected, nullptr, color);
-			os << "\n";
-		}
+	using std::views::zip;
+	for (const auto& [n, i] : zip(f.inputs(), expected.inputs)) {
+		log_debug("reset input I", n->x);
+		n->reset(std::move(i));
+		auto debug = log_debug();
+		debug << "set expected input I" << n->x << ":";
+		write_list(debug, n->inputs);
 	}
-	for (auto& p : f.images()) {
-		if (not p->valid()) {
-			os << "validation failure for output " << p->x << "\noutput: ("
-			   << p->width << ',' << p->height << ")\n"
-			   << p->image_received.write_text(color) //
-			   << "expected:\n"
-			   << p->image_expected.write_text(color);
-		}
+	for (const auto& [n, o] : zip(f.numerics(), expected.n_outputs)) {
+		log_debug("reset output O", n->x);
+		n->reset(std::move(o));
+		auto debug = log_debug();
+		debug << "set expected output O" << n->x << ":";
+		write_list(debug, n->outputs_expected);
+	}
+	for (const auto& [n, i] : zip(f.images(), expected.i_outputs)) {
+		log_debug("reset image O", n->x);
+		n->reset(std::move(i));
+		auto debug = log_debug();
+		debug << "set expected image O" << n->x << ": {\n";
+		debug.log_r([&] { return n->image_expected.write_text(color_logs); });
+		debug << '}';
 	}
 }
 
@@ -96,7 +102,7 @@ static score run(field& f, size_t cycles_limit, bool print_err) {
 
 	if (print_err and not sc.validated) {
 		log_flush();
-		print_failed_test(f, std::cout, color_stdout);
+		f.print_failed_test(std::cout, color_stdout);
 	}
 	return sc;
 }
@@ -201,7 +207,7 @@ score tis_sim::run_seed_ranges(level& l, field f) {
 				    last.cycles == sim.random_cycles_limit ? " [timeout]" : "");
 				if (std::exchange(failure_printed, true) == false) {
 					log_info(message);
-					print_failed_test(f, log_info(), color_logs);
+					f.print_failed_test(log_info(), color_logs);
 				} else {
 					log_debug(message);
 				}
@@ -293,7 +299,7 @@ score tis_sim::simulate(const std::string& solution) {
 		    concat("invalid file: ", kblib::quoted(solution))};
 	}
 
-	parse_code(f, code, T21_size);
+	f.parse_code(code, T21_size);
 	log_debug_r([&] { return "Layout:\n" + f.layout(); });
 
 	score sc{};

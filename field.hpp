@@ -1,6 +1,6 @@
 /* *****************************************************************************
  * TIS-100-CXX
- * Copyright (c) 2024 killerbee, Andrea Stacchiotti
+ * Copyright (c) 2025 killerbee, Andrea Stacchiotti
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #include "io.hpp"
 #include "logger.hpp"
 #include "node.hpp"
-#include "tests.hpp"
 
 #include <memory>
 
@@ -223,6 +222,34 @@ class field {
 		return ret;
 	}
 
+	/// Print failed test to the given output stream
+	template <typename T>
+	void print_failed_test(T&& os, bool color) const {
+		for (auto& i : nodes_input) {
+			os << "input " << i->x << ": ";
+			write_list(os, i->inputs, nullptr, color) << '\n';
+		}
+		for (auto& p : nodes_numeric) {
+			if (not p->valid()) {
+				os << "validation failure for output " << p->x;
+				os << "\noutput: ";
+				write_list(os, p->outputs_received, &p->outputs_expected, color);
+				os << "\nexpected: ";
+				write_list(os, p->outputs_expected, nullptr, color);
+				os << "\n";
+			}
+		}
+		for (auto& p : nodes_image) {
+			if (not p->valid()) {
+				os << "validation failure for output " << p->x << "\noutput: ("
+				   << p->width << ',' << p->height << ")\n"
+				   << p->image_received.write_text(color) //
+				   << "expected:\n"
+				   << p->image_expected.write_text(color);
+			}
+		}
+	}
+
 	// Scoring functions
 	std::size_t instructions() const;
 	std::size_t nodes_used() const;
@@ -230,8 +257,10 @@ class field {
 	/// Serialize human-readable layout
 	std::string layout() const;
 
-	/// must be called after code loading
-	void finalize_nodes();
+	/// Read a TIS-100-compatible save file
+	/// @throws std::invalid_argument for any lexing problem
+	void parse_code(std::string_view source, std::size_t T21_size);
+
 	/// returns field with all nodes cloned and resetted
 	field clone() const;
 
@@ -290,10 +319,9 @@ class field {
 	bool allT21 = true;
 
 	bool search_for_output(const regular_node*);
+
+	/// must be called after code loading
+	void finalize_nodes();
 };
-/// Read a TIS-100-compatible save file
-/// @throws std::invalid_argument for any lexing problem
-void parse_code(field& f, std::string_view source, std::size_t T21_size);
-/// Configure the field with a test case, takes ownership of the test content
-void set_expected(field& f, single_test&& expected);
+
 #endif // FIELD_HPP
