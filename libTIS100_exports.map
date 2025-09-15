@@ -1,0 +1,4 @@
+{
+	global: tis_sim*;
+	local: *;
+};

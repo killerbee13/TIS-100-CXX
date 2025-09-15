@@ -1,6 +1,6 @@
 /* *****************************************************************************
  * TIX-100-CXX
- * Copyright (c) 2024 killerbee, Andrea Stacchiotti
+ * Copyright (c) 2025 killerbee, Andrea Stacchiotti
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,10 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * ****************************************************************************/
 
-#include "logger.hpp"
-#include "score.hpp"
-#include "sim.hpp"
 #include "game.hpp"
+#include "logger.hpp"
+#include "sim.hpp"
 #include "utils.hpp"
 
 #include <kblib/hash.h>
@@ -53,6 +52,62 @@ std::optional<std::string> demangle(const char* name) {
 	}
 	std::string ret = type_name;
 	std::free(type_name);
+	return ret;
+}
+
+std::string to_string(score sc, bool print_stats = false,
+                      bool colored = color_stdout) {
+	std::string ret;
+	if (sc.validated) {
+		append(ret, sc.cycles);
+	} else {
+		if (colored) {
+			ret += escape_code(red);
+		}
+		ret += "-";
+	}
+	append(ret, '/', sc.nodes, '/', sc.instructions);
+	if (sc.validated) {
+		if (sc.achievement or sc.cheat) {
+			ret += '/';
+		}
+		if (sc.achievement) {
+			if (colored) {
+				ret += escape_code(bright_blue, bold);
+			}
+			ret += 'a';
+			if (colored) {
+				ret += escape_code(none);
+			}
+		}
+		if (sc.hardcoded) {
+			if (colored) {
+				ret += escape_code(red);
+			}
+			ret += 'h';
+		} else if (sc.cheat) {
+			if (colored) {
+				ret += escape_code(yellow);
+			}
+			ret += 'c';
+		}
+	}
+	if (colored) {
+		ret += escape_code(none);
+	}
+	if (sc.random_test_ran > 0 and print_stats) {
+		ret += " PR: ";
+		if (not sc.cheat) {
+			ret += print_escape(bright_blue, bold);
+		} else if (not sc.hardcoded) {
+			ret += print_escape(yellow);
+		} else {
+			ret += print_escape(red);
+		}
+		auto rate = 100. * sc.random_test_valid / sc.random_test_ran;
+		append(ret, rate, '%', print_escape(none), //
+		       " (", sc.random_test_valid, '/', sc.random_test_ran, ")");
+	}
 	return ret;
 }
 
@@ -110,8 +165,7 @@ class range_constraint : public TCLAP::Constraint<T> {
 	T high{};
 };
 
-std::vector<range_t> parse_ranges(const std::vector<std::string>& seed_exprs) {
-	std::vector<range_t> seed_ranges;
+void parse_ranges(tis_sim& sim, const std::vector<std::string>& seed_exprs) {
 	for (auto& ex : seed_exprs) {
 		for (auto& r : kblib::split_dsv(ex, ',')) {
 			std::string begin;
@@ -137,7 +191,7 @@ std::vector<range_t> parse_ranges(const std::vector<std::string>& seed_exprs) {
 			}
 			auto b = parse_int<std::uint32_t>(begin);
 			if (not end) {
-				seed_ranges.push_back({b, b + 1});
+				sim.add_seed_range(b, b + 1);
 				continue;
 			}
 			for (; i != r.size(); ++i) {
@@ -154,10 +208,9 @@ std::vector<range_t> parse_ranges(const std::vector<std::string>& seed_exprs) {
 				throw std::invalid_argument{
 				    concat("Seed ranges must be low..high, got: ", b, "..", e)};
 			}
-			seed_ranges.push_back({b, e + 1});
+			sim.add_seed_range(b, e + 1);
 		}
 	}
-	return seed_ranges;
 }
 
 template <typename Int>
@@ -380,13 +433,12 @@ int main(int argc, char** argv) try {
 	// initialize the sim
 	tis_sim sim;
 	{
-		std::vector<range_t> seed_ranges;
 		if (seed_exprs.isSet()) {
 			if (random_arg.isSet() or seed_arg.isSet()) {
 				throw std::invalid_argument{
 				    "Cannot set --seeds in combination with -r or --seed"};
 			}
-			seed_ranges = parse_ranges(seed_exprs.getValue());
+			parse_ranges(sim, seed_exprs.getValue());
 		} else if (random_arg.isSet()) {
 			std::uint32_t seed;
 			if (seed_arg.isSet()) {
@@ -396,9 +448,9 @@ int main(int argc, char** argv) try {
 				log_info("random seed: ", seed);
 			}
 			auto random_count = random_arg.getValue().val;
-			seed_ranges.push_back({seed, seed + random_count});
+			sim.add_seed_range(seed, seed + random_count);
 		}
-		sim.set_seed_ranges(std::move(seed_ranges));
+		log_debug("total random tests: ", sim.total_random_tests);
 
 		if (id_arg.isSet()) {
 			sim.set_builtin_level_name(id_arg.getValue());
@@ -439,7 +491,7 @@ int main(int argc, char** argv) try {
 		}
 
 		try {
-			score sc = sim.simulate(solution);
+			auto& sc = sim.simulate_file(solution);
 			if (not sc.validated) {
 				return_code = std::max(return_code, exit_code::FAILURE);
 			}
@@ -452,38 +504,15 @@ int main(int argc, char** argv) try {
 					          << "\n";
 				}
 			} else if (quiet.getValue() < 2) {
-				std::cout << print_escape(red, bold) << "validation failed"
-				          << print_escape(none);
-				if (sim.failed_test != 0) {
-					std::cout << " for fixed test " << fixed //
-					          << " after " << sc.cycles << " cycles";
-					if (sc.cycles == cycles_limit_arg.getValue()) {
-						std::cout << " [timeout]";
-					}
-				}
-				std::cout << '\n';
+				std::cout << sim.error_message //
+				          << print_escape(red, bold) << "validation failed"
+				          << print_escape(none) << '\n';
 			}
 
 			if (not quiet.getValue()) {
 				std::cout << "score: ";
 			}
-			std::cout << to_string(sc);
-			if (sim.random_test_ran > 0 and stats.getValue()) {
-				std::cout << " PR: ";
-				if (not sc.cheat) {
-					std::cout << print_escape(bright_blue, bold);
-				} else if (not sc.hardcoded) {
-					std::cout << print_escape(yellow);
-				} else {
-					std::cout << print_escape(red);
-				}
-				const auto rate
-				    = 100. * sim.random_test_valid / sim.random_test_ran;
-				std::cout << rate << '%' << print_escape(none) << " ("
-				          << sim.random_test_valid << '/' << sim.random_test_ran
-				          << ")";
-			}
-			std::cout << std::endl;
+			std::cout << to_string(sc, stats.getValue()) << std::endl;
 		} catch (const std::exception& e) {
 			log_err(e.what());
 			return_code = exit_code::EXCEPTION;

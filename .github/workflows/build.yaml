@@ -29,12 +29,18 @@ jobs:
     - name: Build TIS-100-CXX
       run: cmake --build build --config ${{env.BUILD_TYPE}} -j
 
+    - name: Create dist directory
+      run: |
+        mkdir -p dist
+        cp build/TIS-100-CXX dist/
+        cp build/libTIS100.so dist/
+        cp README.md dist/
+
     - uses: actions/upload-artifact@v4
       with:
         name: TIS-100-CXX-linux
-        path: |
-          build/TIS-100-CXX
-          
+        path: dist/*
+
   build-windows:
     runs-on: windows-latest
 
@@ -69,7 +75,9 @@ jobs:
       run: |
         mkdir -p dist
         cp build/TIS-100-CXX.exe dist/
+        cp build/libTIS100.dll dist/
         cp luajit/src/lua51.dll dist/
+        cp README.md dist/
       shell: msys2 {0}
 
     - uses: actions/upload-artifact@v4

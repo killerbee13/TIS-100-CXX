@@ -58,12 +58,31 @@ check_ipo_supported()
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON)
 
-add_executable(TIS-100-CXX builtin_specs.hpp field.cpp field.hpp game.hpp
+# common stuff
+add_library(common OBJECT
+	builtin_specs.hpp field.cpp field.hpp game.hpp
 	image.hpp instr.hpp io.hpp levels_builtin_tests.cpp levels.cpp levels.hpp
-	logger.cpp logger.hpp main.cpp node.hpp parser.cpp parser.hpp score.hpp
-	sim.cpp sim.hpp T21.hpp T30.hpp tests.hpp tis_random.hpp utils.hpp
-	test_saves_lb.sh test_saves_single.sh
-	README.md LICENSE)
+	logger.cpp logger.hpp node.hpp parser.cpp parser.hpp sim.cpp sim.hpp
+	T21.hpp T30.hpp tests.hpp tis100.h tis_random.hpp utils.hpp
+)
+set_target_properties(common PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# Build shared library libTIS100.so
+add_library(libTIS100 SHARED tis100.cpp $<TARGET_OBJECTS:common>)
+set_target_properties(libTIS100 PROPERTIES
+	LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libTIS100_exports.map"
+	PREFIX ""
+)
+
+# Build executable
+add_executable(TIS-100-CXX main.cpp $<TARGET_OBJECTS:common>)
+
+# used to add non-installed libraries
+include_directories(SYSTEM PRIVATE
+	"${CMAKE_CURRENT_SOURCE_DIR}/kblib"
+	"${CMAKE_CURRENT_SOURCE_DIR}/tclap/include" ${EXTRA_INCLUDES}
+	INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
+	PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 
 option(TIS_ENABLE_LUA "Enable Lua support to run custom puzzles" ON)
 option(TIS_ENABLE_DEBUG "Enable Debug log support for low level testing" ON)
@@ -71,29 +90,23 @@ option(TIS_ENABLE_DEBUG "Enable Debug log support for low level testing" ON)
 if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
 	# Used to generate the standalone build for the GitHub release
 	# Static linking interferes with sanitizers
-	target_link_options(TIS-100-CXX PRIVATE -static-libgcc -static-libstdc++ -static)
+	target_link_options(libTIS100 PRIVATE -static-libgcc -static-libstdc++)
+	target_link_options(TIS-100-CXX PRIVATE -static)
 endif()
-
-# used to add non-installed libraries
-target_include_directories(TIS-100-CXX
-	SYSTEM PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/kblib"
-	"${CMAKE_CURRENT_SOURCE_DIR}/tclap/include" "${EXTRA_INCLUDES}"
-	INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
-	PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 
 set(LUAJIT_INCLUDE_DIR "/usr/include/luajit-2.1" CACHE PATH "Path to the luajit include directory")
 set(LUAJIT_LIB "luajit-5.1" CACHE FILEPATH "Path to the luajit library to link with")
 
 if(TIS_ENABLE_LUA)
-	target_compile_definitions(TIS-100-CXX PUBLIC TIS_ENABLE_LUA)
-	target_include_directories(TIS-100-CXX SYSTEM PUBLIC
+	add_compile_definitions(PUBLIC TIS_ENABLE_LUA)
+	include_directories(SYSTEM PRIVATE
 		"${LUAJIT_INCLUDE_DIR}"
 		"${CMAKE_CURRENT_SOURCE_DIR}/sol2/include")
-	target_link_libraries(TIS-100-CXX "${LUAJIT_LIB}")
+	target_link_libraries(libTIS100 PRIVATE "${LUAJIT_LIB}")
+	target_link_libraries(TIS-100-CXX PRIVATE "${LUAJIT_LIB}")
 endif()
 if(TIS_ENABLE_DEBUG)
-	target_compile_definitions(TIS-100-CXX PUBLIC TIS_ENABLE_DEBUG)
+	add_compile_definitions(PUBLIC TIS_ENABLE_DEBUG)
 endif()
 
-install(TARGETS TIS-100-CXX
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(TARGETS libTIS100 TIS-100-CXX)

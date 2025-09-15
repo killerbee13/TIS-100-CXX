@@ -1,6 +1,6 @@
 /* *****************************************************************************
  * TIS-100-CXX
- * Copyright (c) 2024 killerbee, Andrea Stacchiotti
+ * Copyright (c) 2025 killerbee, Andrea Stacchiotti
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
 #define LEVELS_HPP
 
 #include "builtin_specs.hpp"
-#include "score.hpp"
 #include "tests.hpp"
+#include "tis100.h"
 #include "utils.hpp"
 
 #include <cassert>
@@ -82,6 +82,7 @@ struct custom_level final : level {
 	std::mutex lua_mutex;
 
 	custom_level(const std::string& spec_path);
+	custom_level(const std::string_view spec_code, std::uint32_t base_seed_);
 
 	field new_field(uint T30_size) const override;
 
@@ -90,6 +91,9 @@ struct custom_level final : level {
 	bool has_achievement(const field&, const score&) const override {
 		return false;
 	}
+
+ private:
+	void init();
 };
 
 #endif

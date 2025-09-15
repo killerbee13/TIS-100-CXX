@@ -1,6 +1,6 @@
 /* *****************************************************************************
  * TIS-100-CXX
- * Copyright (c) 2024 killerbee, Andrea Stacchiotti
+ * Copyright (c) 2025 killerbee, Andrea Stacchiotti
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,8 +21,8 @@
 #include "levels.hpp"
 #include "logger.hpp"
 #include "node.hpp"
-#include "score.hpp"
 #include "tests.hpp"
+#include "tis100.h"
 #include "utils.hpp"
 
 #include <kblib/io.h>
@@ -64,7 +64,8 @@ static void set_expected(field& f, single_test&& expected) {
 	}
 }
 
-static score run(field& f, size_t cycles_limit, bool print_err) {
+static score run(field& f, size_t cycles_limit,
+                 std::string* error_message = nullptr) {
 	score sc{};
 	sc.instructions = f.instructions();
 	sc.nodes = f.nodes_used();
@@ -100,9 +101,10 @@ static score run(field& f, size_t cycles_limit, bool print_err) {
 		sc.validated = false;
 	}
 
-	if (print_err and not sc.validated) {
-		log_flush();
-		f.print_failed_test(std::cout, color_stdout);
+	if (error_message and not sc.validated) {
+		auto ss = std::ostringstream{};
+		f.print_failed_test(ss, color_stdout);
+		*error_message = std::move(ss).str();
 	}
 	return sc;
 }
@@ -184,7 +186,7 @@ score tis_sim::run_seed_ranges(level& l, field f) {
 			}
 			++counter;
 			set_expected(f, std::move(*test));
-			score last = run(f, sim.random_cycles_limit, false);
+			score last = run(f, sim.random_cycles_limit);
 			if (stop_requested) {
 				return;
 			}
@@ -192,7 +194,7 @@ score tis_sim::run_seed_ranges(level& l, field f) {
 			// none of this is hot, so it doesn't need to be parallelized
 			// so it's simplest to just hold a lock the whole time
 			std::unique_lock lock(sc_m);
-			++sim.random_test_ran;
+			worst.random_test_ran++;
 			worst.instructions = last.instructions;
 			worst.nodes = last.nodes;
 			sim.total_cycles += last.cycles;
@@ -200,7 +202,7 @@ score tis_sim::run_seed_ranges(level& l, field f) {
 				// for random tests, only one validation is needed
 				worst.validated = true;
 				worst.cycles = std::max(worst.cycles, last.cycles);
-				sim.random_test_valid++;
+				worst.random_test_valid++;
 			} else {
 				std::string message = concat(
 				    "Random test failed for seed: ", seed,
@@ -214,8 +216,9 @@ score tis_sim::run_seed_ranges(level& l, field f) {
 			}
 			if (not sim.compute_stats) {
 				// at least K passes and at least one fail
-				if (sim.random_test_valid >= sim.cheat_rate * sim.total_random_tests
-				    and sim.random_test_valid < sim.random_test_ran) {
+				if (worst.random_test_valid
+				        >= sim.cheat_rate * sim.total_random_tests
+				    and worst.random_test_valid < worst.random_test_ran) {
 					return;
 				}
 			}
@@ -244,7 +247,7 @@ score tis_sim::run_seed_ranges(level& l, field f) {
 		}
 		if (total_cycles >= total_cycles_limit) {
 			log_info("Total cycles timeout reached, stopping tests at ",
-			         random_test_ran);
+			         worst.random_test_ran);
 		}
 		for (auto [x, i] : kblib::enumerate(counters)) {
 			log_info("Thread ", i, " ran ", x, " tests");
@@ -262,22 +265,15 @@ score tis_sim::run_seed_ranges(level& l, field f) {
 }
 #pragma GCC diagnostic pop
 
-score tis_sim::simulate(const std::string& solution) {
-	total_cycles = 0;
-	random_cycles_limit = cycles_limit;
-	random_test_ran = 0;
-	random_test_valid = 0;
-	failed_test = 0;
-
-	level* l;
-	std::unique_ptr<level> level_from_name;
-	if (global_level) {
-		l = global_level.get();
+const score& tis_sim::simulate_file(const std::string& solution) {
+	bool deduced;
+	if (target_level) {
+		deduced = false;
 	} else if (auto filename
 	           = std::filesystem::path(solution).filename().string();
 	           auto maybe_id = guess_level_id(filename)) {
-		level_from_name = std::make_unique<builtin_level>(*maybe_id);
-		l = level_from_name.get();
+		target_level = std::make_unique<builtin_level>(*maybe_id);
+		deduced = true;
 		log_debug("Deduced level ", builtin_layouts[*maybe_id].segment,
 		          " from filename ", kblib::quoted(filename));
 	} else {
@@ -285,7 +281,6 @@ score tis_sim::simulate(const std::string& solution) {
 		    concat("Impossible to determine the level ID for ",
 		           kblib::quoted(filename))};
 	}
-	field f = l->new_field(T30_size);
 
 	std::string code;
 	if (solution == "-") {
@@ -299,15 +294,31 @@ score tis_sim::simulate(const std::string& solution) {
 		    concat("invalid file: ", kblib::quoted(solution))};
 	}
 
+	simulate_code(code);
+	if (deduced) {
+		target_level.reset();
+	}
+	return sc;
+}
+
+const score& tis_sim::simulate_code(std::string_view code) {
+	sc = score{};
+	error_message.clear();
+	total_cycles = 0;
+	random_cycles_limit = cycles_limit;
+	
+	if (not target_level) {
+		throw std::logic_error("No target level set");
+	}
+	field f = target_level->new_field(T30_size);
 	f.parse_code(code, T21_size);
 	log_debug_r([&] { return "Layout:\n" + f.layout(); });
 
-	score sc{};
 	if (run_fixed) {
 		sc.validated = true;
 		for (uint id = 0; id < 3; ++id) {
-			set_expected(f, l->static_test(id));
-			score last = run(f, cycles_limit, true);
+			set_expected(f, target_level->static_test(id));
+			score last = run(f, cycles_limit, &error_message);
 			sc.instructions = last.instructions;
 			sc.nodes = last.nodes;
 			total_cycles += last.cycles;
@@ -318,9 +329,12 @@ score tis_sim::simulate(const std::string& solution) {
 				sc.cycles = std::max(sc.cycles, last.cycles);
 			} else {
 				sc.validated = false;
-				// store the cycles of the failed test to print them later
-				sc.cycles = last.cycles;
-				failed_test = id + 1;
+				append(error_message, "for fixed test ", id + 1, //
+				       " after ", last.cycles, " cycles");
+				if (last.cycles == cycles_limit) {
+					error_message += " [timeout]";
+				}
+				error_message += '\n';
 				break;
 			}
 			// optimization: skip running the 2nd and 3rd rounds for invariant
@@ -334,7 +348,7 @@ score tis_sim::simulate(const std::string& solution) {
 				break;
 			}
 		}
-		sc.achievement = sc.validated and l->has_achievement(f, sc);
+		sc.achievement = sc.validated and target_level->has_achievement(f, sc);
 	}
 
 	if ((sc.validated or not run_fixed or compute_stats) and not stop_requested
@@ -345,17 +359,21 @@ score tis_sim::simulate(const std::string& solution) {
 			random_cycles_limit = std::min(cycles_limit, effective_limit);
 			log_info("Setting random test timeout to ", random_cycles_limit);
 		}
-		auto worst = run_seed_ranges(*l, std::move(f));
-
-		log_info("Random test results: ", random_test_valid, " passed out of ",
-		         random_test_ran, " total");
+		auto worst = run_seed_ranges(*target_level, std::move(f));
 
 		if (not run_fixed) {
 			sc = std::move(worst);
+		} else {
+			sc.random_test_ran = worst.random_test_ran;
+			sc.random_test_valid = worst.random_test_valid;
 		}
-		sc.cheat = (random_test_ran == 0 or random_test_ran != random_test_valid);
-		sc.hardcoded = (random_test_valid
-		                <= static_cast<uint>(random_test_ran * cheat_rate));
+		sc.cheat = (sc.random_test_ran == 0
+		            or sc.random_test_ran != sc.random_test_valid);
+		sc.hardcoded = (sc.random_test_valid
+		                <= static_cast<uint>(sc.random_test_ran * cheat_rate));
+
+		log_info("Random test results: ", sc.random_test_valid, " passed out of ",
+		         sc.random_test_ran, " total");
 	}
 	return sc;
 }

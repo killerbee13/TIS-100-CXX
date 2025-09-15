@@ -1,6 +1,6 @@
 /* *****************************************************************************
  * TIS-100-CXX
- * Copyright (c) 2024 killerbee, Andrea Stacchiotti
+ * Copyright (c) 2025 killerbee, Andrea Stacchiotti
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,10 +18,10 @@
 #ifndef SIM_HPP
 #define SIM_HPP
 
+#include "game.hpp"
 #include "levels.hpp"
 #include "logger.hpp"
-#include "score.hpp"
-#include "game.hpp"
+#include "tis100.h"
 #include "utils.hpp"
 
 #include <atomic>
@@ -43,13 +43,12 @@ class tis_sim {
  private:
 	// config
 	std::vector<range_t> seed_ranges;
-	std::unique_ptr<level> global_level;
+	std::unique_ptr<level> target_level;
 	size_t cycles_limit = defaults::cycles_limit;
 	size_t total_cycles_limit = defaults::total_cycles_limit;
-	uint total_random_tests{};
-	uint num_threads = defaults::num_threads;
 	double cheat_rate = defaults::cheat_rate;
 	double limit_multiplier = defaults::limit_multiplier;
+	uint num_threads = defaults::num_threads;
 	uint T21_size = defaults::T21_size;
 	uint T30_size = defaults::T30_size;
 	bool run_fixed = defaults::run_fixed;
@@ -57,32 +56,32 @@ class tis_sim {
 
  public:
 	// runtime
+	score sc;
+	std::string error_message;
 	size_t total_cycles{};
 	size_t random_cycles_limit{};
-	uint random_test_ran{};
-	uint random_test_valid{};
-	uint failed_test{};
+	uint total_random_tests{};
 
  public:
-	void set_seed_ranges(std::vector<range_t> seed_ranges_) {
-		seed_ranges = std::move(seed_ranges_);
-		auto debug = log_debug();
-		debug << "Seed ranges parsed: {\n";
-		for (auto r : seed_ranges) {
-			debug << r.begin << ".." << r.end - 1 << " [" << r.end - r.begin
-			      << "]; ";
-			total_random_tests += r.end - r.begin;
-		}
-		debug << "\n} sum: " << total_random_tests << " tests";
+	/// Adds a seed range [begin, end)
+	void add_seed_range(uint32_t begin, uint32_t end) {
+		seed_ranges.push_back({begin, end});
+		total_random_tests += end - begin;
+		log_debug("seeds: ", begin, "..", end - 1, " [", end - begin, "]");
 	}
 
-	void set_builtin_level_name(const std::string& builtin_level_name) {
-		global_level
+	void set_builtin_level_name(std::string_view builtin_level_name) {
+		target_level
 		    = std::make_unique<builtin_level>(find_level_id(builtin_level_name));
 	}
 #if TIS_ENABLE_LUA
 	void set_custom_spec_path(const std::string& custom_spec_path) {
-		global_level = std::make_unique<custom_level>(custom_spec_path);
+		target_level = std::make_unique<custom_level>(custom_spec_path);
+	}
+	void set_custom_spec_code(const std::string_view custom_spec_code,
+	                          std::uint32_t base_seed) {
+		target_level
+		    = std::make_unique<custom_level>(custom_spec_code, base_seed);
 	}
 #endif
 
@@ -103,7 +102,8 @@ class tis_sim {
 	void set_run_fixed(bool v) { run_fixed = v; }
 	void set_compute_stats(bool v) { compute_stats = v; }
 
-	score simulate(const std::string& solution);
+	const score& simulate_code(std::string_view code);
+	const score& simulate_file(const std::string& solution);
 
  private:
 	score run_seed_ranges(level& l, field f);

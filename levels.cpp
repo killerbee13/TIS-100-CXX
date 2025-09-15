@@ -106,7 +106,18 @@ custom_level::custom_level(const std::string& spec_path) {
 	} else {
 		base_seed = 0;
 	}
+	lua.script_file(spec_path);
+	init();
+}
 
+custom_level::custom_level(const std::string_view spec_code,
+                           std::uint32_t base_seed_) {
+	base_seed = base_seed_;
+	lua.script(spec_code);
+	init();
+}
+
+void custom_level::init() {
 	// the game uses MoonSharp's hard sandbox, we open a subset
 	// see https://www.moonsharp.org/sandbox.html
 	lua.open_libraries(sol::lib::base, sol::lib::string, sol::lib::math,
@@ -119,7 +130,6 @@ custom_level::custom_level(const std::string& spec_path) {
 	lua["STREAM_INPUT"] = node::in;
 	lua["STREAM_OUTPUT"] = node::out;
 	lua["STREAM_IMAGE"] = node::image;
-	lua.script_file(spec_path);
 
 	std::size_t width = 4;
 	if (auto l = lua.get<sol::optional<sol::function>>("get_layout_ext")) {
