@@ -225,7 +225,7 @@ int main(int argc, char** argv) try {
 
 	TCLAP::ValueArg<human_readable_integer<size_t>> cycles_limit_arg(
 	    "", "limit",
-	    "Number of cycles to run test for before timeout. (Default 100500)",
+	    "Number of cycles to run test for before timeout. (Default 150000)",
 	    false, defaults::cycles_limit, "integer", cmd);
 	TCLAP::ValueArg<human_readable_integer<std::size_t>> total_cycles_limit_arg(
 	    "", "total-limit",

@@ -100,7 +100,7 @@ The most useful options are:
 - `-L` and `--custom-spec`: in alternative to `-l`, give the path of
   a Lua custom spec in the format used by the game, the sim will evaluate it
   the same way the game would.
-- `--limit N`: set the timeout limit for the simulation. Default `100500`
+- `--limit N`: set the timeout limit for the simulation. Default `150000`
   (enough for BUSY_LOOP with a little slack).
 - `--seeds L..H`: a comma-separated list of integer ranges, such as `0..99`.
   Ranges are inclusive on both sides. Can also specify an individual integer,

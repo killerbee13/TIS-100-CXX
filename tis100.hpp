@@ -30,7 +30,7 @@ constexpr inline uint DIMENSIONS = 2;
 namespace defaults {
 constexpr inline uint T21_size = 15;
 constexpr inline uint T30_size = 15;
-constexpr inline size_t cycles_limit = 100'500;
+constexpr inline size_t cycles_limit = 150'000;
 constexpr inline size_t total_cycles_limit = kblib::max;
 constexpr inline bool run_fixed = true;
 constexpr inline uint num_threads = 1;
