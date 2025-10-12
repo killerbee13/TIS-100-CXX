@@ -270,6 +270,8 @@ int main(int argc, char** argv) try {
 #if TIS_ENABLE_LUA
 	TCLAP::ValueArg<std::string> custom_spec_arg(
 	    "L", "custom-spec", "Custom Lua Spec file", false, "", "path");
+	// need to do this the long way to avoid having -l in an "either of" by
+	// itself
 	TCLAP::EitherOf level_args(cmd);
 	level_args.add(id_arg).add(custom_spec_arg);
 #else
@@ -278,8 +280,8 @@ int main(int argc, char** argv) try {
 
 	TCLAP::ValueArg<human_readable_integer<size_t>> cycles_limit_arg(
 	    "", "limit",
-	    "Number of cycles to run test for before timeout. (Default 150000)",
-	    false, defaults::cycles_limit, "integer", cmd);
+	    "Number of cycles to run test for before timeout. (Default 150k)", false,
+	    defaults::cycles_limit, "integer", cmd);
 	TCLAP::ValueArg<human_readable_integer<std::size_t>> total_cycles_limit_arg(
 	    "", "total-limit",
 	    "Max number of cycles to run between all tests before determining "
@@ -339,25 +341,25 @@ int main(int argc, char** argv) try {
 	    "debug",
 #endif
 	};
+	TCLAP::EitherOf log_arg(cmd);
 	TCLAP::ValuesConstraint<std::string> loglevels(loglevels_allowed);
 	TCLAP::ValueArg<std::string> loglevel(
 	    "", "loglevel", "Set the logging level. (Default 'notice')", false,
-	    "notice", &loglevels);
+	    "notice", &loglevels, log_arg);
+	TCLAP::SwitchArg info_loglevel("", "info",
+	                               "Equivalent to --loglevel info, logs some "
+	                               "notable information about the run overall.",
+	                               log_arg);
+	TCLAP::SwitchArg trace_loglevel("", "trace",
+	                                "Equivalent to --loglevel trace, logs the "
+	                                "execution of each simulation step",
+	                                log_arg);
 #if TIS_ENABLE_DEBUG
 	TCLAP::SwitchArg debug_loglevel("", "debug",
-	                                "Equivalent to --loglevel debug");
+	                                "Equivalent to --loglevel debug, logs even "
+	                                "more detail per simulation step",
+	                                log_arg);
 #endif
-	TCLAP::SwitchArg trace_loglevel("", "trace",
-	                                "Equivalent to --loglevel trace");
-	TCLAP::SwitchArg info_loglevel("", "info", "Equivalent to --loglevel info");
-	TCLAP::EitherOf log_arg(cmd);
-	log_arg
-	    .add(loglevel)
-#if TIS_ENABLE_DEBUG
-	    .add(debug_loglevel)
-#endif
-	    .add(trace_loglevel)
-	    .add(info_loglevel);
 
 	TCLAP::MultiSwitchArg quiet("q", "quiet",
 	                            "Suppress printing anything but score and "
