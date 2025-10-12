@@ -389,8 +389,9 @@ int main(int argc, char** argv) try {
 		signal(SIGTERM, sigterm_handler);
 		signal(SIGINT, sigterm_handler);
 #ifndef _WIN32
-		signal(SIGUSR1, sigterm_handler);
-		signal(SIGUSR2, sigterm_handler);
+		signal(SIGUSR1, siginfo_handler);
+		signal(SIGUSR2, siginfo_handler);
+		signal(SIGTSTP, siginfo_handler);
 #endif
 
 		set_log_level([&] {

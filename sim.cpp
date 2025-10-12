@@ -214,6 +214,16 @@ score tis_sim::run_seed_ranges(level& l, field f) {
 					log_debug(message);
 				}
 			}
+			if (auto sig = info_requested.exchange(0)) {
+				log_info("Random test progress: ", worst.random_test_valid,
+				         " passed out of ", worst.random_test_ran, " total [sig ",
+				         sig, "]");
+#ifndef _WIN32
+				if (sig == SIGTSTP) {
+					raise(SIGSTOP);
+				}
+#endif
+			}
 			if (not sim.compute_stats) {
 				// at least K passes and at least one fail
 				if (worst.random_test_valid
@@ -306,7 +316,7 @@ const score& tis_sim::simulate_code(std::string_view code) {
 	error_message.clear();
 	total_cycles = 0;
 	random_cycles_limit = cycles_limit;
-	
+
 	if (not target_level) {
 		throw std::logic_error("No target level set");
 	}

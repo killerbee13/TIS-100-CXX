@@ -29,8 +29,10 @@
 #include <thread>
 
 inline std::atomic<std::sig_atomic_t> stop_requested;
+inline std::atomic<std::sig_atomic_t> info_requested;
 
 extern "C" inline void sigterm_handler(int signal) { stop_requested = signal; }
+extern "C" inline void siginfo_handler(int signal) { info_requested = signal; }
 
 /// numbers in [begin, end)
 struct range_t {
