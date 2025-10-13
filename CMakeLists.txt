@@ -109,4 +109,9 @@ if(TIS_ENABLE_DEBUG)
 	add_compile_definitions(PUBLIC TIS_ENABLE_DEBUG)
 endif()
 
+add_custom_target(config
+	SOURCES
+	README.md LICENSE .clang-format .gitignore
+	test_saves_lb.sh test_saves_single.sh libTIS100_exports.map)
+
 install(TARGETS libTIS100 TIS-100-CXX)
