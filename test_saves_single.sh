@@ -24,7 +24,7 @@ end
 set -l wrong_file $_flag_w
 
 if set -q _flag_n
-	set _flag_n --fixed 0
+	set _flag_n --no-fixed
 end
 if not set -q _flag_a
 	set all_file /dev/null

@@ -21,6 +21,7 @@
 #include "sim.hpp"
 #include "utils.hpp"
 
+#include <filesystem>
 #include <kblib/hash.h>
 #include <kblib/stringops.h>
 
@@ -292,19 +293,27 @@ int main(int argc, char** argv) try {
 	                              "automatic. Log level must be info or "
 	                              "lower.",
 	                              false, defaults::num_threads, "integer", cmd);
-	TCLAP::ValueArg<bool> fixed("", "fixed", "Run fixed tests. (Default 1)",
-	                            false, defaults::run_fixed, "[0,1]", cmd);
+	TCLAP::SwitchArg nofixed("", "no-fixed", "Do not run fixed tests", cmd);
 	TCLAP::SwitchArg stats(
-	    "S", "stats", "Run all random tests requested and calculate pass rate",
+	    "S", "stats",
+	    "Run all random tests requested and calculate exact pass rate; disables "
+	    "early stopping when score can be reliably determined.",
 	    cmd);
+	TCLAP::MultiArg<std::string> seed_exprs(
+	    "", "seeds",
+	    "A set of seed values to use, using .. interval notation separated by "
+	    "commas. Incompatible "
+	    "with -r,--seed.",
+	    false, "[range-expr...]", cmd);
 	TCLAP::ValueArg<human_readable_integer<std::uint32_t>> random_arg(
-	    "r", "random", "Random tests to run (upper bound)", false, 0, "integer",
-	    cmd);
+	    "r", "random",
+	    "Random tests to run (upper bound), incompatible with --seeds.", false,
+	    0, "integer", cmd);
 	TCLAP::ValueArg<human_readable_integer<std::uint32_t>> seed_arg(
-	    "", "seed", "Seed to use for random tests", false, 0, "uint32_t", cmd);
-	TCLAP::MultiArg<std::string> seed_exprs("", "seeds",
-	                                        "A range of seed values to use",
-	                                        false, "[range-expr...]", cmd);
+	    "", "seed",
+	    "Seed to use for random tests, incompatible with --seeds. (Default "
+	    "random)",
+	    false, 0, "uint32_t", cmd);
 	range_constraint percentage(0.0, 1.0);
 	TCLAP::ValueArg<double> cheat_rate(
 	    "", "cheat-rate",
@@ -384,9 +393,9 @@ int main(int argc, char** argv) try {
 		// Flush logs automatically for humans
 		set_log_flush(isatty(STDERR_FILENO));
 		// Color output on interactive shells or when explicitely requested
-		color_stdout = color.isSet() or isatty(STDOUT_FILENO);
+		color_stdout = color.getValue() or isatty(STDOUT_FILENO);
 		// Color logs on interactive shells or when explicitely requested
-		color_logs = log_color.isSet() or isatty(STDERR_FILENO);
+		color_logs = log_color.getValue() or isatty(STDERR_FILENO);
 
 		signal(SIGTERM, sigterm_handler);
 		signal(SIGINT, sigterm_handler);
@@ -398,13 +407,13 @@ int main(int argc, char** argv) try {
 
 		set_log_level([&] {
 #if TIS_ENABLE_DEBUG
-			if (debug_loglevel.isSet()) {
+			if (debug_loglevel.getValue()) {
 				return log_level::debug;
 			} else
 #endif
-			    if (trace_loglevel.isSet()) {
+			    if (trace_loglevel.getValue()) {
 				return log_level::trace;
-			} else if (info_loglevel.isSet()) {
+			} else if (info_loglevel.getValue()) {
 				return log_level::info;
 			}
 			switch (kblib::FNV32a(loglevel.getValue())) {
@@ -452,6 +461,8 @@ int main(int argc, char** argv) try {
 			}
 			auto random_count = random_arg.getValue().val;
 			sim.add_seed_range(seed, seed + random_count);
+		} else if (seed_arg.isSet()) {
+			log_info("No random tests, --seed value unused");
 		}
 		log_debug("total random tests: ", sim.total_random_tests);
 
@@ -475,11 +486,18 @@ int main(int argc, char** argv) try {
 		sim.set_limit_multiplier(limit_multiplier.getValue());
 		sim.set_T21_size(T21_size.getValue());
 		sim.set_T30_size(T30_size.getValue());
-		sim.set_run_fixed(fixed.getValue());
+		sim.set_run_fixed(not nofixed.getValue());
 		sim.set_compute_stats(stats.getValue());
 	}
 
-	if (dry_run.isSet()) {
+	if (dry_run.getValue()) {
+		for (auto& solution : solutions.getValue()) {
+			if (solution == "-" or std::filesystem::is_regular_file(solution)) {
+			} else {
+				throw std::invalid_argument{
+				    concat("invalid file: ", kblib::quoted(solution))};
+			}
+		}
 		return exit_code::SUCCESS;
 	}
 

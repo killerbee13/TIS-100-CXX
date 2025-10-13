@@ -6,7 +6,8 @@ This is a validator for saves for the game
 [community-run leaderboard](https://www.reddit.com/r/tis100/wiki/index). Unlike
 other simulators, TIS-100-CXX includes definitions for the base game's levels
 and can generate suitable random tests for them. This simulator aims for exact
-parity with the game in both execution and test generation.
+parity with the game in both execution and test generation and can run custom
+Lua puzzles.
 
 ## Building on Linux:
 
@@ -20,11 +21,8 @@ Ensure you have a C++23 compliant compiler (clang 19+, gcc 14+), `cmake`, and
 5. run `cmake --build "path/to/some/build/dir"`
 
 If `TIS_ENABLE_LUA` is selected, one needs the lua dev library installed in the
-system,
-for Debian derivatives use:
-```sh
-apt install libluajit-5.1-dev
-```
+system. For example, for Debian derivatives use `apt install libluajit-5.1-dev`
+to install the packaged LuaJIT runtime. Your distro may vary.
 
 Otherwise TIS-100-CXX has only header-only dependencies managed in submodules,
 so no further management is needed beyond the above steps.
@@ -57,8 +55,9 @@ so no further management is needed beyond the above steps.
   However, when configuring CMake you'll need to set the location of LuaJIT:
   * `LUAJIT_INCLUDE_DIR` - Set this to the `src` directory of the LuaJIT repo,
     e.g. `C:/Users/username/source/repos/luajit/src`
-  * `LUAJIT_LIB` - Set this to the path of `libluajit-5.1.dll.a` built in the previous
-    section, e.g. `C:/Users/username/source/repos/luajit/src/libluajit-5.1.dll.a`
+  * `LUAJIT_LIB` - Set this to the path of `libluajit-5.1.dll.a` built in the
+    previous section, e.g.
+	`C:/Users/username/source/repos/luajit/src/libluajit-5.1.dll.a`
 * Before running `TIS-100-CXX.exe`, copy `lua51.dll` into the directory
   containing the built `TIS-100-CXX.exe`
 
@@ -70,8 +69,8 @@ The special value `-` can be used to read a solution from STDIN.
 The level is autodeduced from the filename prefix, if this is not possible
 use an option to give it explicitely.
 
-By default, it will run the simulation and if it passes, it will print
-"validation successful" and a score, in the format 
+By default, it will run the simulation and if it passes all fixed tests, it will
+print "validation successful" and a score, in the format 
 `cycles/nodes/instructions/flags`, where flags may be `a` for achievement,
 `c` for cheat, i.e. a solution which does not pass all random tests,
 and `h` for a solution that passes < 5% of the random tests
@@ -83,8 +82,8 @@ If it does not pass, it will instead print the inputs and outputs
 (expected and received) for the failed test, then
 "validation failed" with some more information, and finally a score in which
 the cycles count is replaced by `-` to denote a failure. The return value is `0`
-on a validation, including a cheated solution, `1` on a validation failure,
-and `2` on an exception.
+on a validation, including a cheated solution, `1` on a validation failure
+(fixed test failure), and `2` on an exception.
 
 For options `--limit`, `--total-limit`, `--random`, `--seed`, `--seeds`,
 and `--T30-size`, integer arguments can be specified with a scale suffix,
@@ -92,16 +91,8 @@ either K, M, or B (case-insensitive) for thousand, million, or billion
 respectively.
 
 The most useful options are:
-- `-l segment` is the name of a segment as it appears in game, either the
-  numeric ID or the human-readable name (case-sensitive). For example, `"00150"`
-  and `"SELF-TEST DIAGNOSTIC"` are equivalent. There is a complete list of these
-  in the `--help` output, but you will most likely find it easier to get them
-  from the game or from the solution's filename.
-- `-L` and `--custom-spec`: in alternative to `-l`, give the path of
-  a Lua custom spec in the format used by the game, the sim will evaluate it
-  the same way the game would.
-- `--limit N`: set the timeout limit for the simulation. Default `150000`
-  (enough for BUSY_LOOP with a little slack).
+- `-L` and `--custom-spec`: Give the path of a Lua custom spec in the same
+  format used by the game, the sim will evaluate it the same way the game would.
 - `--seeds L..H`: a comma-separated list of integer ranges, such as `0..99`.
   Ranges are inclusive on both sides. Can also specify an individual integer,
   meaning a range of just that integer. Can be specified multiple times, which
@@ -110,20 +101,40 @@ The most useful options are:
   combined with `--seeds`. If `-r` is specified by itself, a starting seed will
   be selected at random. In any case, a contiguous range of N seeds starting at
   S will be used for random tests, except for EXPOSURE MASK VIEWER which may
-  skip some seeds.
-- `--loglevel LEVEL`, `--debug`, `--trace`, `--info`: set the amount of
+  skip some seeds (skipped seeds are not compensated for by expanding the
+  range).
+- `--limit N`: set the timeout limit for the simulation. Default `150000`
+  (enough for BUSY_LOOP and almost everything to have been submitted to the
+  leaderboard).
+- `--total-limit N`: set the maximum number of cycles to evaluate cumulatively
+  across all random tests before stopping the simulation and returning a score.
+- `--loglevel LEVEL`, `--info`, `--trace`, `--debug`: set the amount of
   information logged to stderr. The default log level is "notice", which
   corresponds to only important information. "info" includes information that
-  may be useful but is not always important, and notably the amount of
-  information logged at level "info" is bounded. "trace" includes a printout
-  of the board state at each cycle. "debug" includes a full trace of the
-  execution in the log and will often produce multiple MB of data.
+  may be useful but is not always important, including the first random seed to
+  fail, and notably the amount of information logged at level "info" is bounded.
+  "trace" includes a printout of the board state at each cycle, and may produce
+  megabytes of data for moderately long simulations. "debug" includes a full
+  trace of the execution in the log, and outputs approximately twice as much as
+  "trace". "debug" logging may be disabled at build time for performance.
 - `-j N`: run random tests with N worker threads. With `-j 0`, the number of
-  hardware threads is detected and used.
+  hardware threads is detected and used. Note that using multiple threads is not
+  allowed with log levels higher than "info" to avoid interleaved output.
 - `-q`, `--quiet`: reduce the amount of human-readable text printed around the
-  information. May be specified twice to remove almost all supplemental text.
+  information (does not affect logging). May be specified twice to remove almost
+  all supplemental text, printing just the filename (if multiple solves), its
+  score, and detailed stats (when requested).
   
 Other options:
+- `-l segment` is the name of a segment/level as it appears in game, either the
+  numeric ID or the human-readable name (case-sensitive). For example, `"00150"`
+  and `"SELF-TEST DIAGNOSTIC"` are equivalent. Usually, the sim can determine it
+  automatically from the filename prefix, but this argument is sometimes useful,
+  such as when the solution comes from stdin. There is a complete list of these
+  in the `--help` output, but you will most likely find it easier to get them
+  from the game or from the solution's filename. When this is not used, each
+  filename in the arguments is checked individually for its prefix, so they can
+  be for different levels.
 - `--T21-size N` and `--T30-size M`: override the default size limits on
   instructions in any particular T21 node and values in any particular T30 node
   respectively.
@@ -133,37 +144,41 @@ Other options:
   for random tests (will not exceed --limit). Higher values are more lenient
   toward slow random tests. The default value is 5, meaning that if a solution
   takes 100 cycles to pass the slowest fixed test, it will time out after 500
-  cycles on random tests (even when that is less than --limit).  
-- `-c`, `--color`: force color for important info even when redirecting output
-- `-C`, `--log-color`: force color for logs even when redirecting stderr
+  cycles on random tests (even when that is less than --limit). This is on by
+  default to minimize certain kinds of leaderboard cheese.
+- `-c`, `--color`: force color for important info even when redirecting output.
+- `-C`, `--log-color`: force color for logs even when redirecting stderr.
 - `-S`, `--stats`: run all requested random tests and report the pass rate at
-  the end. Without this flag, the sim will quit as soon as it can label a
-  solution /c (that is, at least 5% of requested tests passed and at least one
-  failed).
-- `--fixed 0`: disable fixed tests, run only random tests. This affects scoring,
-  as normally random tests do not contribute to scoring except for /c and /h
-  flags, but with this flag, the reported score will be the worst observed
-  score.
+  the end on the score line. Without this flag, the sim will quit as soon as it
+  can label a solution /c (that is, at least 5% (cf. --cheat-rate) of requested
+  tests passed and at least one failed).
+- `--no-fixed`: disable fixed tests, run only random tests. This affects
+  scoring, as normally random tests do not contribute to scoring except for /c
+  and /h flags, but with this flag, the reported score will be the worst
+  observed score.
 - `--dry-run`: Mainly useful for debugging the command-line parser and initial
-  setup. Checks the command line as normal and quits before running any tests.
+  setup. Checks the command line as normal, and that all referenced files exist,
+  and quits without running any tests.
 
-## Additional features:
+## Additional features/intentional discrepancies:
 
 Contrary to its documentation, TIS-100 clamps input values in test cases to the
 range [-99, 999]. The simulator allows the full documented range [-999, 999].
 
+The parser accepts some things the game does not, namely:
+- When the `--T21-size` argument is specified, nodes may have more than 15
+  instructions.
+- multiple labels on one line (the game allows multiple labels on one
+  instruction, but they must have newlines between them).
+- Directional port names (LEFT, RIGHT, UP, DOWN) may be abbreviated to their
+  first letters.
+- Lines have no length limit.
+
 TIS-100-CXX supports custom levels with any rectangular size, using the new Lua
 function `get_layout_ext()`, which is expected to return an array of arrays of
 `TILE_*` values of any rectangular size (i.e. every row must have the same
-number of columns).
-
-The parser accepts some things the game does not, namely:
-- When the `--T21-size` argument is specified, nodes may have more than 15
-  instructions
-- multiple labels on one line
-- Directional port names (LEFT, RIGHT, UP, DOWN) may be abbreviated to their
-  first letters
-- Lines have no length limit
+number of columns. If you want empty spaces, fill them with TILE_DAMAGED as
+normal).
 
 Otherwise, the simulator is intended to exactly simulate the game, including any
 restrictions it has.
@@ -177,6 +192,9 @@ can be used to consume an entire folder of solutions, such as the saves folder
 used by the official game, and simulate each of them. `test_saves_lb.sh` can be
 used to consume the hierarchical folder structure used by the leaderboard.
 
+Note that TIS-100-CXX can simulate multiple solutions passed on the command line
+in a single invocation, reducing some of the need for these scripts.
+
 In addition to all options accepted by the sim itself, these scripts both
 accept options:
 - `-d`, which identifies the top-level folder to consume (required);
@@ -186,7 +204,7 @@ accept options:
 - `-a`, which identifies a file to receive a report of each score
   (like -s and -f pointing to the same file, but fully independent of those
   flags);
-- `-n`, which is an abbreviation of `--fixed 0`;
+- `-n`, which is an abbreviation of `--no-fixed`;
 - `-i`, which prompts for input after each test.
 
 Note that fish's argparse does not always accept spaces between flags
