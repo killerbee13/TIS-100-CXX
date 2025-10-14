@@ -68,7 +68,7 @@ add_library(common OBJECT
 set_target_properties(common PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Build shared library libTIS100.so
-add_library(libTIS100 SHARED tis100.cpp $<TARGET_OBJECTS:common>)
+add_library(libTIS100 SHARED tis100.cpp libTIS100_exports.map $<TARGET_OBJECTS:common>)
 set_target_properties(libTIS100 PROPERTIES
 	LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libTIS100_exports.map"
 	PREFIX ""
@@ -112,6 +112,6 @@ endif()
 add_custom_target(config
 	SOURCES
 	README.md LICENSE .clang-format .gitignore
-	test_saves_lb.sh test_saves_single.sh libTIS100_exports.map)
+	test_saves_lb.sh test_saves_single.sh)
 
 install(TARGETS libTIS100 TIS-100-CXX)
