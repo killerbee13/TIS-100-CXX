@@ -43,7 +43,7 @@ void tis_sim_set_custom_spec_path(tis_sim* sim, const char* custom_spec_path) {
 }
 void tis_sim_set_custom_spec_code(tis_sim* sim, const char* custom_spec_code,
                                   uint32_t base_seed) {
-	sim->set_custom_spec_code(std::string_view(custom_spec_code), base_seed);
+	sim->set_custom_spec_code(std::string(custom_spec_code), base_seed);
 }
 #endif
 

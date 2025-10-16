@@ -26,12 +26,17 @@
 #include "node.hpp"
 #include "tis_random.hpp"
 
+#include <kblib/io.h>
+
 #include <algorithm>
 #include <filesystem>
 #include <vector>
 
 field builtin_level::new_field(uint T30_size) const {
 	return field(builtin_layouts[level_id].layout, T30_size);
+}
+std::unique_ptr<level> builtin_level::clone() const {
+	return std::make_unique<builtin_level>(level_id);
 }
 
 bool builtin_level::has_achievement(const field& solve, const score& sc) const {
@@ -95,7 +100,8 @@ inline std::vector<T> table_to_vector(const sol::table& table) {
 	return ret;
 }
 
-custom_level::custom_level(const std::string& spec_path) {
+custom_level::custom_level(const std::string& spec_path)
+    : script(kblib::try_get_file_contents(spec_path)) {
 	auto spec_filename = std::filesystem::path(spec_path)
 	                         .filename()
 	                         .replace_extension()
@@ -106,18 +112,29 @@ custom_level::custom_level(const std::string& spec_path) {
 	} else {
 		base_seed = 0;
 	}
-	lua.script_file(spec_path);
-	init();
+	init_script();
+	spec = layout_from_script(lua);
 }
 
-custom_level::custom_level(const std::string_view spec_code,
-                           std::uint32_t base_seed_) {
-	base_seed = base_seed_;
-	lua.script(spec_code);
-	init();
+custom_level::custom_level(std::string spec_code, std::uint32_t base_seed_)
+    : level(base_seed_)
+    , script(std::move(spec_code)) {
+	init_script();
+	spec = layout_from_script(lua);
+}
+// avoid having to run get_layout() and get_streams() again in the new context
+custom_level::custom_level(std::string spec_code, dynamic_layout_spec spec_,
+                           std::uint32_t base_seed_)
+    : level(base_seed_)
+    , spec(std::move(spec_))
+    , script(std::move(spec_code)) {
+	init_script();
+}
+std::unique_ptr<level> custom_level::clone() const {
+	return std::make_unique<custom_level>(script, spec, base_seed);
 }
 
-void custom_level::init() {
+void custom_level::init_script() {
 	// the game uses MoonSharp's hard sandbox, we open a subset
 	// see https://www.moonsharp.org/sandbox.html
 	lua.open_libraries(sol::lib::base, sol::lib::string, sol::lib::math,
@@ -131,6 +148,16 @@ void custom_level::init() {
 	lua["STREAM_OUTPUT"] = node::out;
 	lua["STREAM_IMAGE"] = node::image;
 
+	// stop custom level authors from messing with the game
+	lua["math"]["randomseed"].set_function([](uint32_t) {
+		throw std::runtime_error("randomseed() is not allowed in custom levels");
+	});
+
+	lua.script(script);
+}
+
+dynamic_layout_spec custom_level::layout_from_script(sol::state& lua) {
+	dynamic_layout_spec spec;
 	std::size_t width = 4;
 	if (auto l = lua.get<sol::optional<sol::function>>("get_layout_ext")) {
 		log_info("Extended layout spec detected");
@@ -196,11 +223,7 @@ void custom_level::init() {
 			spec.outputs[id] = type;
 		}
 	}
-
-	// stop custom level authors from messing with the game
-	lua["math"]["randomseed"].set_function([](uint32_t) {
-		throw std::runtime_error("randomseed() is not allowed in custom levels");
-	});
+	return spec;
 }
 
 field custom_level::new_field(uint T30_size) const {
@@ -214,7 +237,6 @@ std::optional<single_test> custom_level::random_test(std::uint32_t seed) {
 	ret.i_outputs.resize(spec.outputs.size());
 	{
 		lua_random engine(to_signed(seed));
-		std::unique_lock lock(lua_mutex);
 
 		lua["math"]["random"].set_function(sol::overload(
 		    [&engine] { return engine.next_double(); },

@@ -80,7 +80,7 @@ class tis_sim {
 	void set_custom_spec_path(const std::string& custom_spec_path) {
 		target_level = std::make_unique<custom_level>(custom_spec_path);
 	}
-	void set_custom_spec_code(const std::string_view custom_spec_code,
+	void set_custom_spec_code(const std::string& custom_spec_code,
 	                          std::uint32_t base_seed) {
 		target_level
 		    = std::make_unique<custom_level>(custom_spec_code, base_seed);
@@ -108,7 +108,7 @@ class tis_sim {
 	const score& simulate_file(const std::string& solution);
 
  private:
-	score run_seed_ranges(level& l, field f);
+	score run_seed_ranges(field f);
 };
 
 #endif // SIM_HPP

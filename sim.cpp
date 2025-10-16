@@ -157,7 +157,7 @@ static_assert(
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic ignored "-Wshadow=compatible-local"
-score tis_sim::run_seed_ranges(level& l, field f) {
+score tis_sim::run_seed_ranges(field f) {
 	assert(not seed_ranges.empty());
 	score worst{};
 	seed_range_iterator seed_it(seed_ranges);
@@ -241,13 +241,18 @@ score tis_sim::run_seed_ranges(level& l, field f) {
 		log_info("Secondary random tests skipped for invariant level");
 		range_t r{0, 1};
 		seed_range_iterator it2(std::span(&r, 1));
-		task(it_m, sc_m, it2, l, std::move(f), *this, worst, failure_printed,
-		     counters[0]);
+		task(it_m, sc_m, it2, *target_level, std::move(f), *this, worst,
+		     failure_printed, counters[0]);
 	} else if (num_threads > 1) {
 		std::vector<std::thread> threads;
+		// Using a separate vector avoids having the threads take ownership of the
+		// levels, because that introduces an unnecessary clone() call in the
+		// single-threaded cases
+		std::vector<std::unique_ptr<level>> levels;
 		for (auto i : range(num_threads)) {
+			auto& l = levels.emplace_back(target_level->clone());
 			threads.emplace_back(task, std::ref(it_m), std::ref(sc_m),
-			                     std::ref(seed_it), std::ref(l), f.clone(),
+			                     std::ref(seed_it), std::ref(*l), f.clone(),
 			                     std::ref(*this), std::ref(worst),
 			                     std::ref(failure_printed), std::ref(counters[i]));
 		}
@@ -263,8 +268,8 @@ score tis_sim::run_seed_ranges(level& l, field f) {
 			log_info("Thread ", i, " ran ", x, " tests");
 		}
 	} else {
-		task(it_m, sc_m, seed_it, l, std::move(f), *this, worst, failure_printed,
-		     counters[0]);
+		task(it_m, sc_m, seed_it, *target_level, std::move(f), *this, worst,
+		     failure_printed, counters[0]);
 	}
 
 	if (stop_requested) {
@@ -369,7 +374,7 @@ const score& tis_sim::simulate_code(std::string_view code) {
 			random_cycles_limit = std::min(cycles_limit, effective_limit);
 			log_info("Setting random test timeout to ", random_cycles_limit);
 		}
-		auto worst = run_seed_ranges(*target_level, std::move(f));
+		auto worst = run_seed_ranges(std::move(f));
 
 		if (not run_fixed) {
 			sc = std::move(worst);

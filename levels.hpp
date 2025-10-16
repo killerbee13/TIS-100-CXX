@@ -24,7 +24,6 @@
 #include "utils.hpp"
 
 #include <cassert>
-#include <mutex>
 #include <string>
 
 #if TIS_ENABLE_LUA
@@ -35,7 +34,6 @@ class field;
 
 struct level {
 	std::uint32_t base_seed;
-
 	virtual field new_field(uint T30_size) const = 0;
 
 	virtual std::optional<single_test> random_test(std::uint32_t seed) = 0;
@@ -48,10 +46,15 @@ struct level {
 
 	virtual bool has_achievement(const field& f, const score& sc) const = 0;
 
+	// constructs a level equivalent to this immediately after construction
+	virtual std::unique_ptr<level> clone() const = 0;
+
 	virtual ~level() = default;
 
  protected: // prevents most slicing
 	level() = default;
+	level(std::uint32_t base_seed_)
+	    : base_seed(base_seed_) {}
 	level(const level&) = default;
 	level(level&&) = default;
 	level& operator=(const level&) = default;
@@ -65,6 +68,7 @@ struct builtin_level final : level {
 		level_id = builtin_level_id;
 		base_seed = builtin_seeds[level_id];
 	}
+	std::unique_ptr<level> clone() const override;
 
 	field new_field(uint T30_size) const override;
 
@@ -77,12 +81,12 @@ struct builtin_level final : level {
 
 struct custom_level final : level {
 	dynamic_layout_spec spec;
-	sol::state lua;
-	/// sol::state is not thread-safe
-	std::mutex lua_mutex;
 
 	custom_level(const std::string& spec_path);
-	custom_level(const std::string_view spec_code, std::uint32_t base_seed_);
+	custom_level(std::string spec_code, std::uint32_t base_seed_);
+	custom_level(std::string spec_code, dynamic_layout_spec spec_,
+	             std::uint32_t base_seed_);
+	std::unique_ptr<level> clone() const override;
 
 	field new_field(uint T30_size) const override;
 
@@ -93,7 +97,11 @@ struct custom_level final : level {
 	}
 
  private:
-	void init();
+	std::string script;
+	sol::state lua;
+
+	static dynamic_layout_spec layout_from_script(sol::state& lua);
+	void init_script();
 };
 
 #endif
