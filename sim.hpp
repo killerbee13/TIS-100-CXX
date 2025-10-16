@@ -26,6 +26,8 @@
 
 #include <atomic>
 #include <csignal>
+#include <memory>
+#include <string_view>
 #include <thread>
 
 inline std::atomic<std::sig_atomic_t> stop_requested;
@@ -45,7 +47,12 @@ class tis_sim {
  private:
 	// config
 	std::vector<range_t> seed_ranges;
+#if TIS_ENABLE_LUA
 	std::unique_ptr<level> target_level;
+	std::string custom_specs_folder;
+#else
+	std::unique_ptr<builtin_level> target_level;
+#endif
 	size_t cycles_limit = defaults::cycles_limit;
 	size_t total_cycles_limit = defaults::total_cycles_limit;
 	double cheat_rate = defaults::cheat_rate;
@@ -73,8 +80,7 @@ class tis_sim {
 	}
 
 	void set_builtin_level_name(std::string_view builtin_level_name) {
-		target_level
-		    = std::make_unique<builtin_level>(find_level_id(builtin_level_name));
+		target_level = builtin_level::from_name(builtin_level_name);
 	}
 #if TIS_ENABLE_LUA
 	void set_custom_spec_path(const std::string& custom_spec_path) {

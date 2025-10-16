@@ -18,17 +18,33 @@
 #ifndef LEVELS_HPP
 #define LEVELS_HPP
 
-#include "builtin_specs.hpp"
+#include "game.hpp"
 #include "tests.hpp"
 #include "tis100.h"
 #include "utils.hpp"
 
+#include <array>
 #include <cassert>
-#include <string>
+#include <memory>
+#include <optional>
+#include <string_view>
+#include <vector>
 
 #if TIS_ENABLE_LUA
+#	include <filesystem>
 #	include <sol/sol.hpp>
 #endif
+
+struct standard_layout_spec {
+	std::array<std::array<node_type_t, 4>, 3> nodes;
+	std::array<node_type_t, 4> inputs;
+	std::array<node_type_t, 4> outputs;
+};
+struct dynamic_layout_spec {
+	std::vector<std::vector<node_type_t>> nodes;
+	std::vector<node_type_t> inputs;
+	std::vector<node_type_t> outputs;
+};
 
 class field;
 
@@ -53,7 +69,7 @@ struct level {
 
  protected: // prevents most slicing
 	level() = default;
-	level(std::uint32_t base_seed_)
+	constexpr level(std::uint32_t base_seed_)
 	    : base_seed(base_seed_) {}
 	level(const level&) = default;
 	level(level&&) = default;
@@ -62,27 +78,44 @@ struct level {
 };
 
 struct builtin_level final : level {
-	uint level_id;
+	standard_layout_spec layout;
+	std::string_view segment;
+	std::string_view name;
 
-	builtin_level(uint builtin_level_id) {
-		level_id = builtin_level_id;
-		base_seed = builtin_seeds[level_id];
-	}
+	using test_producer_t = std::optional<single_test>(std::uint32_t);
+	test_producer_t* test_producer;
+
+	constexpr builtin_level(std::string_view segment_, std::string_view name_,
+	                        std::uint32_t base_seed_,
+	                        standard_layout_spec layout_,
+	                        test_producer_t* test_producer_)
+	    : level(base_seed_)
+	    , layout(layout_)
+	    , segment(segment_)
+	    , name(name_)
+	    , test_producer(test_producer_) {}
+
+	static std::unique_ptr<builtin_level> from_name(std::string_view s);
+
 	std::unique_ptr<level> clone() const override;
 
 	field new_field(uint T30_size) const override;
 
-	std::optional<single_test> random_test(std::uint32_t seed) override;
-
+	std::optional<single_test> random_test(std::uint32_t seed) override {
+		return (*test_producer)(seed);
+	}
 	bool has_achievement(const field& solve, const score& sc) const override;
 };
+
+inline constexpr size_t builtin_levels_num = 51;
+extern const std::array<builtin_level, builtin_levels_num> builtin_levels;
 
 #if TIS_ENABLE_LUA
 
 struct custom_level final : level {
 	dynamic_layout_spec spec;
 
-	custom_level(const std::string& spec_path);
+	custom_level(std::filesystem::path spec_path);
 	custom_level(std::string spec_code, std::uint32_t base_seed_);
 	custom_level(std::string spec_code, dynamic_layout_spec spec_,
 	             std::uint32_t base_seed_);

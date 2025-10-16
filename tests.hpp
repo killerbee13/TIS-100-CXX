@@ -18,12 +18,8 @@
 #ifndef TESTS_HPP
 #define TESTS_HPP
 
-#include "builtin_specs.hpp"
 #include "image.hpp"
 #include "utils.hpp"
-
-#include <stdexcept>
-#include <string_view>
 
 constexpr inline word_t image_width = 30;
 constexpr inline word_t image_height = 18;
@@ -58,28 +54,6 @@ inline void clamp_test_values(single_test& t) {
 		debug << "Clamping out: ";
 		clamp_vec(v);
 	}
-}
-
-constexpr uint find_level_id(std::string_view s) {
-	for (auto i : range(builtin_layouts.size())) {
-		if (s == builtin_layouts[i].segment or s == builtin_layouts[i].name) {
-			return static_cast<uint>(i);
-		}
-	}
-	throw std::invalid_argument{concat("invalid level ID ", kblib::quoted(s))};
-}
-
-consteval uint operator""_lvl(const char* s, std::size_t size) {
-	return find_level_id(std::string_view(s, size));
-}
-
-constexpr std::optional<uint> guess_level_id(std::string_view filename) {
-	for (auto i : range(builtin_layouts.size())) {
-		if (filename.starts_with(builtin_layouts[i].segment)) {
-			return i;
-		}
-	}
-	return std::nullopt;
 }
 
 #endif // TESTS_HPP

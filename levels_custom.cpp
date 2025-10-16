@@ -16,78 +16,23 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  * ****************************************************************************/
 
-#include "levels.hpp"
+#if TIS_ENABLE_LUA
 
-#include "T21.hpp"
-#include "T30.hpp"
-#include "field.hpp"
-#include "image.hpp"
-#include "logger.hpp"
-#include "node.hpp"
-#include "tis_random.hpp"
+#	include "levels.hpp"
 
-#include <kblib/io.h>
+#	include "field.hpp"
+#	include "image.hpp"
+#	include "logger.hpp"
+#	include "node.hpp"
+#	include "tests.hpp"
+#	include "tis_random.hpp"
 
-#include <algorithm>
-#include <filesystem>
-#include <vector>
+#	include <kblib/io.h>
+#	include <sol/sol.hpp>
 
-field builtin_level::new_field(uint T30_size) const {
-	return field(builtin_layouts[level_id].layout, T30_size);
-}
-std::unique_ptr<level> builtin_level::clone() const {
-	return std::make_unique<builtin_level>(level_id);
-}
-
-bool builtin_level::has_achievement(const field& solve, const score& sc) const {
-	auto log = log_debug();
-	log << "check_achievement " << builtin_layouts[level_id].name << ": ";
-	// SELF-TEST DIAGNOSTIC
-	if (level_id == "00150"_lvl) {
-		// BUSY_LOOP
-		log << "BUSY_LOOP: " << sc.cycles << ((sc.cycles > 100000) ? ">" : "<=")
-		    << 100000;
-		return sc.cycles > 100000;
-		// SIGNAL COMPARATOR
-	} else if (level_id == "21340"_lvl) {
-		// UNCONDITIONAL
-		log << "UNCONDITIONAL:\n";
-		for (auto& n : solve.regulars()) {
-			if (n->type == node::T21) {
-				auto p = static_cast<const T21*>(n.get());
-				log << "T20 (" << p->x << ',' << p->y << "): ";
-				if (p->code.empty()) {
-					log << "empty";
-				} else if (p->has_instr(instr::jez, instr::jnz, instr::jgz,
-				                        instr::jlz)) {
-					log << " conditional found";
-					return false;
-				}
-				log << '\n';
-			}
-		}
-		log << " no conditionals found";
-		return true;
-		// SEQUENCE REVERSER
-	} else if (level_id == "42656"_lvl) {
-		// NO_MEMORY
-		log << "NO_MEMORY: ";
-		for (auto& n : solve.regulars()) {
-			if (n->type == node::T30) {
-				auto p = static_cast<const T30*>(n.get());
-				log << "T30 (" << p->x << ',' << p->y << "): " << p->used << '\n';
-				if (p->used) {
-					return false;
-				}
-			}
-		}
-		log << "no stacks used";
-		return true;
-	} else {
-		log << "no achievement";
-		return false;
-	}
-}
+#	include <algorithm>
+#	include <filesystem>
+#	include <vector>
 
 // this is the fastest way to pull integers from lua if you want them to
 // truncate, the magic `.as<vector<...>>` rounds floats
@@ -100,12 +45,9 @@ inline std::vector<T> table_to_vector(const sol::table& table) {
 	return ret;
 }
 
-custom_level::custom_level(const std::string& spec_path)
+custom_level::custom_level(std::filesystem::path spec_path)
     : script(kblib::try_get_file_contents(spec_path)) {
-	auto spec_filename = std::filesystem::path(spec_path)
-	                         .filename()
-	                         .replace_extension()
-	                         .string();
+	auto spec_filename = spec_path.filename().replace_extension().string();
 	if (std::ranges::all_of(spec_filename,
 	                        [](char c) { return "0123456789"sv.contains(c); })) {
 		base_seed = kblib::parse_integer<uint32_t>(spec_filename);
@@ -235,40 +177,39 @@ std::optional<single_test> custom_level::random_test(std::uint32_t seed) {
 	ret.inputs.resize(spec.inputs.size());
 	ret.n_outputs.resize(spec.outputs.size());
 	ret.i_outputs.resize(spec.outputs.size());
-	{
-		lua_random engine(to_signed(seed));
 
-		lua["math"]["random"].set_function(sol::overload(
-		    [&engine] { return engine.next_double(); },
-		    [&engine](i32 max) { return engine.lua_next(max); },
-		    [&engine](i32 a, i32 b) { return engine.lua_next(a, b); }));
-		sol::table streams = lua["get_streams"]();
+	lua_random engine(to_signed(seed));
 
-		for (const auto& [_, stream] : streams) {
-			sol::table io = stream.as<sol::table>();
-			node::type_t type = io[1];
-			uint id = io[3];
-			if (id >= spec.nodes[0].size()) {
-				throw std::invalid_argument(concat(
-				    "get_streams(): io node (type=", to_string(type), ") position ",
-				    id, " out of range (width=", spec.nodes[0].size(), ")"));
-			}
-			sol::table values = io[4];
-			switch (type) {
-			case node::in: {
-				ret.inputs[id] = table_to_vector<word_t>(values);
-			} break;
-			case node::out: {
-				ret.n_outputs[id] = table_to_vector<word_t>(values);
-			} break;
-			case node::image: {
-				ret.i_outputs[id] = image_t(image_width, image_height,
-				                            table_to_vector<tis_pixel>(values));
-			} break;
-			default:
-				throw std::invalid_argument{
-				    concat("Illegal IO node type ", to_string(type), " in test")};
-			}
+	lua["math"]["random"].set_function(sol::overload(
+	    [&engine] { return engine.next_double(); },
+	    [&engine](i32 max) { return engine.lua_next(max); },
+	    [&engine](i32 a, i32 b) { return engine.lua_next(a, b); }));
+	sol::table streams = lua["get_streams"]();
+
+	for (const auto& [_, stream] : streams) {
+		sol::table io = stream.as<sol::table>();
+		node::type_t type = io[1];
+		uint id = io[3];
+		if (id >= spec.nodes[0].size()) {
+			throw std::invalid_argument(concat(
+			    "get_streams(): io node (type=", to_string(type), ") position ",
+			    id, " out of range (width=", spec.nodes[0].size(), ")"));
+		}
+		sol::table values = io[4];
+		switch (type) {
+		case node::in: {
+			ret.inputs[id] = table_to_vector<word_t>(values);
+		} break;
+		case node::out: {
+			ret.n_outputs[id] = table_to_vector<word_t>(values);
+		} break;
+		case node::image: {
+			ret.i_outputs[id] = image_t(image_width, image_height,
+			                            table_to_vector<tis_pixel>(values));
+		} break;
+		default:
+			throw std::invalid_argument{
+			    concat("Illegal IO node type ", to_string(type), " in test")};
 		}
 	}
 
@@ -288,3 +229,5 @@ std::optional<single_test> custom_level::random_test(std::uint32_t seed) {
 	clamp_test_values(ret);
 	return ret;
 }
+
+#endif // TIS_ENABLE_LUA

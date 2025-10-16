@@ -280,21 +280,27 @@ score tis_sim::run_seed_ranges(field f) {
 }
 #pragma GCC diagnostic pop
 
+/// @param solution can be a file path or "-" for stdin
 const score& tis_sim::simulate_file(const std::string& solution) {
 	bool deduced;
 	if (target_level) {
 		deduced = false;
-	} else if (auto filename
-	           = std::filesystem::path(solution).filename().string();
-	           auto maybe_id = guess_level_id(filename)) {
-		target_level = std::make_unique<builtin_level>(*maybe_id);
-		deduced = true;
-		log_debug("Deduced level ", builtin_layouts[*maybe_id].segment,
-		          " from filename ", kblib::quoted(filename));
 	} else {
-		throw std::invalid_argument{
-		    concat("Impossible to determine the level ID for ",
-		           kblib::quoted(filename))};
+		auto filename = std::filesystem::path(solution).filename().string();
+		for (auto& l : builtin_levels) {
+			if (filename.starts_with(l.segment)) {
+				log_debug("Deduced level ", l.segment, " from filename ",
+				          kblib::quoted(filename));
+				target_level = std::make_unique<builtin_level>(l);
+				break;
+			}
+		}
+		if (not target_level) {
+			throw std::invalid_argument{
+			    concat("Impossible to determine the level for ",
+			           kblib::quoted(filename))};
+		}
+		deduced = true;
 	}
 
 	std::string code;

@@ -17,6 +17,7 @@
  * ****************************************************************************/
 
 #include "game.hpp"
+#include "levels.hpp"
 #include "logger.hpp"
 #include "sim.hpp"
 #include "utils.hpp"
@@ -256,7 +257,7 @@ int main(int argc, char** argv) try {
 	    "for thousand, million, or billion respectively.");
 
 	std::vector<std::string> ids_v;
-	for (auto& l : builtin_layouts) {
+	for (auto& l : builtin_levels) {
 		ids_v.emplace_back(l.segment);
 		ids_v.emplace_back(l.name);
 	}

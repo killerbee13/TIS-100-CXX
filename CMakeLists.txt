@@ -60,10 +60,10 @@ set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON)
 
 # common stuff
 add_library(common OBJECT
-	builtin_specs.hpp field.cpp field.hpp game.hpp
-	image.hpp instr.hpp io.hpp levels_builtin_tests.cpp levels.cpp levels.hpp
-	logger.cpp logger.hpp node.hpp parser.cpp parser.hpp sim.cpp sim.hpp
-	T21.hpp T30.hpp tests.hpp tis100.h tis_random.hpp utils.hpp
+	field.cpp field.hpp game.hpp image.hpp instr.hpp io.hpp
+	levels_builtin.cpp levels_custom.cpp levels.hpp logger.cpp logger.hpp
+	node.hpp parser.cpp parser.hpp sim.cpp sim.hpp T21.hpp T30.hpp tests.hpp
+	tis100.h tis_random.hpp utils.hpp
 )
 set_target_properties(common PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
