@@ -272,10 +272,12 @@ int main(int argc, char** argv) try {
 #if TIS_ENABLE_LUA
 	TCLAP::ValueArg<std::string> custom_spec_arg(
 	    "L", "custom-spec", "Custom Lua Spec file", false, "", "path");
+	TCLAP::ValueArg<std::string> custom_spec_folder_arg(
+	    "F", "custom-spec-folder", "Custom Lua Spec folder", false, "", "path");
 	// need to do this the long way to avoid having -l in an "either of" by
 	// itself
 	TCLAP::EitherOf level_args(cmd);
-	level_args.add(id_arg).add(custom_spec_arg);
+	level_args.add(id_arg).add(custom_spec_arg).add(custom_spec_folder_arg);
 #else
 	cmd.add(id_arg);
 #endif
@@ -473,6 +475,9 @@ int main(int argc, char** argv) try {
 #if TIS_ENABLE_LUA
 		if (custom_spec_arg.isSet()) {
 			sim.set_custom_spec_path(custom_spec_arg.getValue());
+		}
+		if (custom_spec_folder_arg.isSet()) {
+			sim.set_custom_spec_folder_path(custom_spec_folder_arg.getValue());
 		}
 #endif
 		sim.set_cycles_limit(cycles_limit_arg.getValue());

@@ -91,6 +91,10 @@ class tis_sim {
 		target_level
 		    = std::make_unique<custom_level>(custom_spec_code, base_seed);
 	}
+	void set_custom_spec_folder_path(
+	    const std::string& custom_spec_folder_path) {
+		custom_specs_folder = custom_spec_folder_path;
+	}
 #endif
 
 	void set_num_threads(uint num_threads_) {

@@ -287,12 +287,28 @@ const score& tis_sim::simulate_file(const std::string& solution) {
 		deduced = false;
 	} else {
 		auto filename = std::filesystem::path(solution).filename().string();
-		for (auto& l : builtin_levels) {
-			if (filename.starts_with(l.segment)) {
-				log_debug("Deduced level ", l.segment, " from filename ",
+#if TIS_ENABLE_LUA
+		if (filename.starts_with("SPEC")) {
+			if (not custom_specs_folder.empty()) {
+				auto dot_pos = filename.find_first_of('.');
+				std::string spec_filename
+				    = filename.substr(4, dot_pos - 4) + ".lua";
+				auto spec_path = std::filesystem::path(custom_specs_folder)
+				                     .append(spec_filename);
+				log_debug("Deduced custom level ", spec_filename, " from filename ",
 				          kblib::quoted(filename));
-				target_level = std::make_unique<builtin_level>(l);
-				break;
+				target_level = std::make_unique<custom_level>(spec_path);
+			}
+		} else
+#endif
+		{
+			for (auto& l : builtin_levels) {
+				if (filename.starts_with(l.segment)) {
+					log_debug("Deduced level ", l.segment, " from filename ",
+					          kblib::quoted(filename));
+					target_level = std::make_unique<builtin_level>(l);
+					break;
+				}
 			}
 		}
 		if (not target_level) {

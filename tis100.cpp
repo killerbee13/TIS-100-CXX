@@ -45,6 +45,10 @@ void tis_sim_set_custom_spec_code(tis_sim* sim, const char* custom_spec_code,
                                   uint32_t base_seed) {
 	sim->set_custom_spec_code(std::string(custom_spec_code), base_seed);
 }
+void tis_sim_set_custom_spec_folder_path(tis_sim* sim,
+                                         const char* custom_spec_folder_path) {
+	sim->set_custom_spec_folder_path(std::string(custom_spec_folder_path));
+}
 #endif
 
 void tis_sim_set_num_threads(tis_sim* sim, uint32_t num_threads) {

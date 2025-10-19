@@ -62,6 +62,8 @@ void tis_sim_set_custom_spec_path(struct tis_sim* sim,
 void tis_sim_set_custom_spec_code(struct tis_sim* sim,
                                   const char* custom_spec_code,
                                   uint32_t base_seed);
+void tis_sim_set_custom_spec_folder_path(struct tis_sim* sim,
+                                         const char* custom_spec_folder_path);
 #endif
 void tis_sim_set_num_threads(struct tis_sim* sim, uint32_t num_threads);
 void tis_sim_set_cycles_limit(struct tis_sim* sim, size_t cycles_limit);

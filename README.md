@@ -93,6 +93,10 @@ respectively.
 The most useful options are:
 - `-L` and `--custom-spec`: Give the path of a Lua custom spec in the same
   format used by the game, the sim will evaluate it the same way the game would.
+- `-F` and `--custom-spec-folder`: Give the path of a folder containing Lua
+  custom specs. If the sim is asked to sim a file called `SPEC<value>.*`,
+  it will search for a Lua spec file called `<value>.lua` in the given folder
+  and use it as custom spec if found.
 - `--seeds L..H`: a comma-separated list of integer ranges, such as `0..99`.
   Ranges are inclusive on both sides. Can also specify an individual integer,
   meaning a range of just that integer. Can be specified multiple times, which
@@ -141,17 +145,17 @@ Other options:
 - `--cheat-rate C`: change the threshold between /c and /h to any proportion in
   the range 0-1. The default value is .05, or 5%.
 - `-k N`, `--limit-multiplier N`: change the scale factor for dynamic timeouts
-  for random tests (will not exceed --limit). Higher values are more lenient
-  toward slow random tests. The default value is 5, meaning that if a solution
+  for random tests (will not exceed `--limit`). Higher values are more lenient
+  toward slow random tests. The default value is `5`, meaning that if a solution
   takes 100 cycles to pass the slowest fixed test, it will time out after 500
-  cycles on random tests (even when that is less than --limit). This is on by
+  cycles on random tests (even when that is less than `--limit`). This is on by
   default to minimize certain kinds of leaderboard cheese.
 - `-c`, `--color`: force color for important info even when redirecting output.
 - `-C`, `--log-color`: force color for logs even when redirecting stderr.
 - `-S`, `--stats`: run all requested random tests and report the pass rate at
   the end on the score line. Without this flag, the sim will quit as soon as it
-  can label a solution /c (that is, at least 5% (cf. --cheat-rate) of requested
-  tests passed and at least one failed).
+  can label a solution /c (that is, at least 5% (cf. `--cheat-rate`) of
+  requested tests passed and at least one failed).
 - `--no-fixed`: disable fixed tests, run only random tests. This affects
   scoring, as normally random tests do not contribute to scoring except for /c
   and /h flags, but with this flag, the reported score will be the worst
@@ -177,7 +181,7 @@ The parser accepts some things the game does not, namely:
 TIS-100-CXX supports custom levels with any rectangular size, using the new Lua
 function `get_layout_ext()`, which is expected to return an array of arrays of
 `TILE_*` values of any rectangular size (i.e. every row must have the same
-number of columns. If you want empty spaces, fill them with TILE_DAMAGED as
+number of columns. If you want empty spaces, fill them with `TILE_DAMAGED` as
 normal).
 
 Otherwise, the simulator is intended to exactly simulate the game, including any
@@ -202,7 +206,7 @@ accept options:
   (score and flags correct), wrong scores, and failed validations (including
   wrong scores if `-w` is not separately specified), respectively;
 - `-a`, which identifies a file to receive a report of each score
-  (like -s and -f pointing to the same file, but fully independent of those
+  (like `-s` and `-f` pointing to the same file, but fully independent of those
   flags);
 - `-n`, which is an abbreviation of `--no-fixed`;
 - `-i`, which prompts for input after each test.
