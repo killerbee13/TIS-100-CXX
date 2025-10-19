@@ -22,6 +22,8 @@
 
 /// Support a 3D expansion in node connections
 constexpr inline uint DIMENSIONS = 2;
+constexpr inline size_t field_width = 4;
+constexpr inline size_t field_height = 3;
 
 namespace defaults {
 constexpr inline uint T21_size = 15;

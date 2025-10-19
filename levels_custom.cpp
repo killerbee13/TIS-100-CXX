@@ -100,11 +100,12 @@ void custom_level::init_script() {
 
 dynamic_layout_spec custom_level::layout_from_script(sol::state& lua) {
 	dynamic_layout_spec spec;
-	std::size_t width = 4;
+	std::size_t width = field_width;
+	std::size_t height = field_height;
 	if (auto l = lua.get<sol::optional<sol::function>>("get_layout_ext")) {
 		log_info("Extended layout spec detected");
 		sol::table layout = (*l)();
-		auto height = layout.size();
+		height = layout.size();
 		log_info("Extended layout height: ", height);
 		if (height == 0) {
 			throw std::invalid_argument(
@@ -134,15 +135,15 @@ dynamic_layout_spec custom_level::layout_from_script(sol::state& lua) {
 	} else {
 		// unstructured vector, we can only support the default game 4x3 layout
 		sol::table layout = lua["get_layout"]();
-		if (layout.size() != 12) {
+		if (layout.size() != width * height) {
 			throw std::invalid_argument{concat(
 			    "get_layout(): Given ", layout.size(), " nodes instead of 12")};
 		}
-		spec.nodes.resize(3, std::vector<node::type_t>(4));
-		spec.inputs.resize(4, node::null);
-		spec.outputs.resize(4, node::null);
-		for (size_t i = 0; i < 12; i++) {
-			spec.nodes[i / 4][i % 4] = layout[i + 1];
+		spec.nodes.resize(height, std::vector<node::type_t>(width));
+		spec.inputs.resize(width, node::null);
+		spec.outputs.resize(width, node::null);
+		for (size_t i = 0; i < height * width; i++) {
+			spec.nodes[i / width][i % width] = layout[i + 1];
 		}
 	}
 	// {{STREAM_$TYPE, "$NAME1", <number in [0-3]>, $list1},

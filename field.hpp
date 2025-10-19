@@ -311,7 +311,7 @@ class field {
 
 	std::size_t width{};
 	std::size_t height() const {
-		if (nodes_regular.size() == 0) {
+		if (width == 0) {
 			return 0;
 		}
 		return nodes_regular.size() / width;

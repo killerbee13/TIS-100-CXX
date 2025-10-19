@@ -36,9 +36,9 @@
 #endif
 
 struct standard_layout_spec {
-	std::array<std::array<node_type_t, 4>, 3> nodes;
-	std::array<node_type_t, 4> inputs;
-	std::array<node_type_t, 4> outputs;
+	std::array<std::array<node_type_t, field_width>, field_height> nodes;
+	std::array<node_type_t, field_width> inputs;
+	std::array<node_type_t, field_width> outputs;
 };
 struct dynamic_layout_spec {
 	std::vector<std::vector<node_type_t>> nodes;
