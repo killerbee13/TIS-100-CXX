@@ -3,7 +3,7 @@
 	url = https://github.com/killerbee13/kblib.git
 [submodule "tclap"]
 	path = tclap
-	url = https://git.code.sf.net/p/tclap/code
+	url = https://github.com/killerbee13/tclap.git
 [submodule "sol2"]
 	path = sol2
 	url = https://github.com/ThePhD/sol2.git
