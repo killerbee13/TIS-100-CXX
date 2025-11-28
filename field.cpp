@@ -384,7 +384,8 @@ static std::string_view pop(std::string_view& str, std::size_t n) {
 	return r;
 }
 
-void field::parse_code(std::string_view source, std::size_t T21_size) {
+void field::parse_code(std::string_view source, std::size_t T21_size,
+                       bool permissive) {
 	source.remove_prefix(std::min(source.find_first_of('@'), source.size()));
 	std::set<int> nodes_seen;
 	while (not source.empty()) {
@@ -407,7 +408,7 @@ void field::parse_code(std::string_view source, std::size_t T21_size) {
 		if (not p) {
 			throw std::invalid_argument{concat("node label ", i, " out of range")};
 		}
-		p->set_code(assemble(section, i, T21_size));
+		p->set_code(assemble(section, i, T21_size, permissive));
 	}
 	finalize_nodes();
 }

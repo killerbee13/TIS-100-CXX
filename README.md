@@ -142,6 +142,7 @@ Other options:
 - `--T21-size N` and `--T30-size M`: override the default size limits on
   instructions in any particular T21 node and values in any particular T30 node
   respectively.
+  - `--permissive`: allow parser extensions (see below).
 - `--cheat-rate C`: change the threshold between /c and /h to any proportion in
   the range 0-1. The default value is .05, or 5%.
 - `-k N`, `--limit-multiplier N`: change the scale factor for dynamic timeouts
@@ -168,10 +169,14 @@ Other options:
 
 Contrary to its documentation, TIS-100 clamps input values in test cases to the
 range [-99, 999]. The simulator allows the full documented range [-999, 999].
+When the `--T21-size` argument is specified, nodes may have more than 15
+instructions. When `--T30-size` is specified, the capacity of T30 (stack memory)
+nodes can be altered.
 
-The parser accepts some things the game does not, namely:
-- When the `--T21-size` argument is specified, nodes may have more than 15
-  instructions.
+When `--permissive` is specified on the command line, the simulator allows
+the following extensions to the assembly language that do not increase the power of
+the language, mostly for convenience when editing files outside of the game.
+- Blank/comment-only lines don't count toward the line count limit.
 - multiple labels on one line (the game allows multiple labels on one
   instruction, but they must have newlines between them).
 - Directional port names (LEFT, RIGHT, UP, DOWN) may be abbreviated to their
