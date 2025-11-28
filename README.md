@@ -142,7 +142,7 @@ Other options:
 - `--T21-size N` and `--T30-size M`: override the default size limits on
   instructions in any particular T21 node and values in any particular T30 node
   respectively.
-  - `--permissive`: allow parser extensions (see below).
+- `--permissive`: allow parser extensions (see below).
 - `--cheat-rate C`: change the threshold between /c and /h to any proportion in
   the range 0-1. The default value is .05, or 5%.
 - `-k N`, `--limit-multiplier N`: change the scale factor for dynamic timeouts
@@ -179,8 +179,9 @@ the language, mostly for convenience when editing files outside of the game.
 - Blank/comment-only lines don't count toward the line count limit.
 - multiple labels on one line (the game allows multiple labels on one
   instruction, but they must have newlines between them).
-- Directional port names (LEFT, RIGHT, UP, DOWN) may be abbreviated to their
-  first letters.
+- Port names (LEFT, RIGHT, UP, DOWN, ACC, NIL, ANY, LAST) may be abbreviated to
+  prefixes of the full names. Note that "L" is interpreted as "LEFT", not
+  "LAST", and "A" as "ACC", not "ANY".
 - Lines have no length limit.
 
 TIS-100-CXX supports custom levels with any rectangular size, using the new Lua

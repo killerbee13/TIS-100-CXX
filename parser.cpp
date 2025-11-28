@@ -89,21 +89,23 @@ instr::op parse_op(std::string_view str) {
 // permissive=true allows for any prefix of a valid port to be recognized (i.e.
 // L for LEFT, RI for RIGHT, AN for ANY). In case of ambiguity, LEFT and ACC
 // have priority
-port parse_port(std::string_view str, bool permissive) {
+port parse_port(std::string_view tok, bool permissive) {
 	std::pair<std::string_view, port> ports[]{
 	    {"LEFT", left}, {"RIGHT", right}, {"UP", up},   {"DOWN", down},
 	    {"NIL", nil},   {"ACC", acc},     {"ANY", any}, {"LAST", last},
 	};
-	for (auto [tok, val] : ports) {
-		if (tok.starts_with(str)) {
-			if (not permissive and str != tok) {
+	for (auto [name, val] : ports) {
+		// this may look a little odd, but this is the correct spelling of "tok is
+		// a prefix of name"
+		if (name.starts_with(tok)) {
+			if (not permissive and tok != name) {
 				throw std::invalid_argument{concat(
-				    "Port abbreviation ", kblib::quoted(str), " is not allowed")};
+				    "Port abbreviation ", kblib::quoted(tok), " is not allowed")};
 			}
 			return val;
 		}
 	}
-	throw std::invalid_argument{kblib::quoted(str)
+	throw std::invalid_argument{kblib::quoted(tok)
 	                            + " is not a valid port or register name"};
 }
 
@@ -178,13 +180,16 @@ std::vector<instr> assemble(std::string_view source, int node,
 		}
 	}
 
-	// Blank lines and lines consisting only of comments don't count with
-	// --permissive
-	if ((permissive ? (lines.size() - noncode_lines) : lines.size())
-	    > T21_size) {
-		throw std::invalid_argument{concat("Too many lines of asm for node ",
-		                                   node, "; ", lines.size(),
-		                                   " exceeds limit ", T21_size)};
+	{
+		// Blank lines and lines consisting only of comments don't count with
+		// --permissive
+		auto effective_lines
+		    = (permissive ? (lines.size() - noncode_lines) : lines.size());
+		if (effective_lines > T21_size) {
+			throw std::invalid_argument{concat("Too many lines of asm for node ",
+			                                   node, "; ", effective_lines,
+			                                   " exceeds limit ", T21_size)};
+		}
 	}
 	l = 0;
 	for (const auto& line : lines) {
