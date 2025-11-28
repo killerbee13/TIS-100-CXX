@@ -180,16 +180,14 @@ std::vector<instr> assemble(std::string_view source, int node,
 		}
 	}
 
-	{
-		// Blank lines and lines consisting only of comments don't count with
-		// --permissive
-		auto effective_lines
-		    = (permissive ? (lines.size() - noncode_lines) : lines.size());
-		if (effective_lines > T21_size) {
-			throw std::invalid_argument{concat("Too many lines of asm for node ",
-			                                   node, "; ", effective_lines,
-			                                   " exceeds limit ", T21_size)};
-		}
+	// Blank lines and lines consisting only of comments don't count with
+	// --permissive
+	if (auto effective_lines
+	    = (permissive ? (lines.size() - noncode_lines) : lines.size());
+	    effective_lines > T21_size) {
+		throw std::invalid_argument{concat("Too many lines of asm for node ",
+		                                   node, "; ", effective_lines,
+		                                   " exceeds limit ", T21_size)};
 	}
 	l = 0;
 	for (const auto& line : lines) {
