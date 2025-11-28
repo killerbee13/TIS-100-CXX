@@ -1,0 +1,4 @@
+/home/runner/work/TIS-100-CXX/TIS-100-CXX/build/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/foo.dir
+/home/runner/work/TIS-100-CXX/TIS-100-CXX/build/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/boo.dir
+/home/runner/work/TIS-100-CXX/TIS-100-CXX/build/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/edit_cache.dir
+/home/runner/work/TIS-100-CXX/TIS-100-CXX/build/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,10 @@
+/home/runner/work/TIS-100-CXX/TIS-100-CXX/build/CMakeFiles/common.dir
+/home/runner/work/TIS-100-CXX/TIS-100-CXX/build/CMakeFiles/libTIS100.dir
+/home/runner/work/TIS-100-CXX/TIS-100-CXX/build/CMakeFiles/TIS-100-CXX.dir
+/home/runner/work/TIS-100-CXX/TIS-100-CXX/build/CMakeFiles/config.dir
+/home/runner/work/TIS-100-CXX/TIS-100-CXX/build/CMakeFiles/edit_cache.dir
+/home/runner/work/TIS-100-CXX/TIS-100-CXX/build/CMakeFiles/rebuild_cache.dir
+/home/runner/work/TIS-100-CXX/TIS-100-CXX/build/CMakeFiles/list_install_components.dir
+/home/runner/work/TIS-100-CXX/TIS-100-CXX/build/CMakeFiles/install.dir
+/home/runner/work/TIS-100-CXX/TIS-100-CXX/build/CMakeFiles/install/local.dir
+/home/runner/work/TIS-100-CXX/TIS-100-CXX/build/CMakeFiles/install/strip.dir

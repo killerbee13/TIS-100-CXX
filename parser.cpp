@@ -239,7 +239,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 				i.src = port::immediate;
 				i.val = to_word(immediate);
 			} else {
-				i.src = parse_port(token, not permissive);
+				i.src = parse_port(token, permissive);
 			}
 		};
 		if (not tokens.empty()) {
@@ -265,7 +265,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 				i.op_ = mov;
 				assert_last_operand(2);
 				load_port_or_immediate(i, tokens[1]);
-				i.dst = parse_port(tokens[2], not permissive);
+				i.dst = parse_port(tokens[2], permissive);
 			} else if (opcode == "ADD") {
 				i.op_ = add;
 				assert_last_operand(1);
