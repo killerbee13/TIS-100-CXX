@@ -166,6 +166,13 @@ Other options:
 
 ## Additional features/intentional discrepancies:
 
+The simulator is intended to exactly simulate the game, including any
+restrictions it has.
+
+Some syntax rules can be relaxed a bit while leaving an abstract machine that
+is still as powerful as the games's, those are controlled by the `TIS_PEDANTIC`
+cmake flag, by default they are allowed.
+
 Contrary to its documentation, TIS-100 clamps input values in test cases to the
 range [-99, 999]. The simulator allows the full documented range [-999, 999].
 
@@ -184,8 +191,10 @@ function `get_layout_ext()`, which is expected to return an array of arrays of
 number of columns. If you want empty spaces, fill them with `TILE_DAMAGED` as
 normal).
 
-Otherwise, the simulator is intended to exactly simulate the game, including any
-restrictions it has.
+The game accepts int32 immediates and clamps them to [-999, 999],
+the sim enforces the limit in the source directly
+
+
 
 ## Support scripts:
 

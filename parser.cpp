@@ -86,16 +86,23 @@ instr::op parse_op(std::string_view str) {
 	}
 }
 
+#define TIS_PEDANTIC 1
+#if TIS_PEDANTIC
+#	define SIM_EXTENSION(x)
+#else
+#	define SIM_EXTENSION(x) x
+#endif
+
 // This is a bit more lax than the game, in accepting L, R, U, and D
 // abbreviations
 port parse_port(std::string_view str) {
-	if (str == "LEFT" or str == "L") {
+	if (str == "LEFT" SIM_EXTENSION(or str == "L")) {
 		return left;
-	} else if (str == "RIGHT" or str == "R") {
+	} else if (str == "RIGHT" SIM_EXTENSION(or str == "R")) {
 		return right;
-	} else if (str == "UP" or str == "U") {
+	} else if (str == "UP" SIM_EXTENSION(or str == "U")) {
 		return up;
-	} else if (str == "DOWN" or str == "D") {
+	} else if (str == "DOWN" SIM_EXTENSION(or str == "D")) {
 		return down;
 	} else if (str == "NIL") {
 		return nil;
@@ -141,14 +148,24 @@ std::vector<instr> assemble(std::string_view source, int node,
 		auto tokens
 		    = kblib::split_tokens(line.substr(0, line.find_first_of('#')),
 		                          [](char c) { return " \t,"sv.contains(c); });
-		// the game allows only a single label per line, but multiple labels can
-		// still be attached to the same instruction if put in different lines, we
-		// simply allow multiple labels per line
+// the game allows only a single label per line, but multiple labels can
+// still be attached to the same instruction if put in different lines, as an
+// extension we allow multiple labels per line
+#if TIS_PEDANTIC
+		bool label_seen{false};
+#endif
 		for (const auto& tok : tokens) {
 			assert(not tok.empty());
 			std::string tmp;
 			for (auto c : tok) {
 				if (c == ':') {
+#if TIS_PEDANTIC
+					if (label_seen) {
+						throw std::invalid_argument{
+						    concat('@', node, ':', l, ": Multiple labels on a line")};
+					}
+					label_seen = true;
+#endif
 					if (tmp.empty()) {
 						throw std::invalid_argument{
 						    concat('@', node, ':', l, ": Invalid label \"\"")};
