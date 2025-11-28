@@ -95,3 +95,6 @@ nppBackup/*
 # Fortran module files
 *.mod
 *.smod
+
+# Build directories
+build/
