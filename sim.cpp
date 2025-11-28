@@ -348,7 +348,7 @@ const score& tis_sim::simulate_code(std::string_view code) {
 		throw std::logic_error("No target level set");
 	}
 	field f = target_level->new_field(T30_size);
-	f.parse_code(code, T21_size);
+	f.parse_code(code, T21_size, permissive);
 	log_debug_r([&] { return "Layout:\n" + f.layout(); });
 
 	if (run_fixed) {

@@ -62,6 +62,7 @@ class tis_sim {
 	uint T30_size = defaults::T30_size;
 	bool run_fixed = defaults::run_fixed;
 	bool compute_stats = false;
+	bool permissive = false;
 
  public:
 	// runtime
@@ -113,6 +114,7 @@ class tis_sim {
 	void set_T30_size(uint size_) { T30_size = size_; }
 	void set_run_fixed(bool v) { run_fixed = v; }
 	void set_compute_stats(bool v) { compute_stats = v; }
+	void set_permissive(bool v) { permissive = v; }
 
 	const score& simulate_code(std::string_view code);
 	const score& simulate_file(const std::string& solution);

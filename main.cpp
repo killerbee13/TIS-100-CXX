@@ -346,6 +346,8 @@ int main(int argc, char** argv) try {
 	    concat("Memory capacity of T30 nodes. (Default ", defaults::T30_size,
 	           ")"),
 	    false, defaults::T30_size, "integer", cmd);
+	TCLAP::SwitchArg permissive("", "permissive", "Enable parser extensions",
+	                            cmd);
 
 	std::vector<std::string> loglevels_allowed{
 	    "none",  "err", "error", "warn", "notice", "info", "trace",
@@ -494,6 +496,7 @@ int main(int argc, char** argv) try {
 		sim.set_T30_size(T30_size.getValue());
 		sim.set_run_fixed(not nofixed.getValue());
 		sim.set_compute_stats(stats.getValue());
+		sim.set_permissive(permissive.getValue());
 	}
 
 	if (dry_run.getValue()) {

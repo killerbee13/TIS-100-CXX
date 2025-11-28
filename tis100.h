@@ -75,6 +75,7 @@ void tis_sim_set_T21_size(struct tis_sim* sim, uint32_t T21_size);
 void tis_sim_set_T30_size(struct tis_sim* sim, uint32_t T30_size);
 void tis_sim_set_run_fixed(struct tis_sim* sim, bool run_fixed);
 void tis_sim_set_compute_stats(struct tis_sim* sim, bool compute_stats);
+void tis_sim_set_permissive(struct tis_sim* sim, bool permissive);
 
 // get simulation results
 const char* tis_sim_get_error_message(const struct tis_sim* sim);

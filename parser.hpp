@@ -24,6 +24,6 @@
 
 /// Assemble a single node's code
 std::vector<instr> assemble(std::string_view source, int node,
-                            std::size_t T21_size);
+                            std::size_t T21_size, bool permissive);
 
 #endif // PARSER_HPP

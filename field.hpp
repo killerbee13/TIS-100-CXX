@@ -259,7 +259,8 @@ class field {
 
 	/// Read a TIS-100-compatible save file
 	/// @throws std::invalid_argument for any lexing problem
-	void parse_code(std::string_view source, std::size_t T21_size);
+	void parse_code(std::string_view source, std::size_t T21_size,
+	                bool permissive);
 
 	/// returns field with all nodes cloned and resetted
 	field clone() const;
