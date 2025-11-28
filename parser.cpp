@@ -86,8 +86,9 @@ instr::op parse_op(std::string_view str) {
 	}
 }
 
-// This is a bit more lax than the game, in accepting L, R, U, and D
-// abbreviations
+// permissive=true allows for any prefix of a valid port to be recognized (i.e.
+// L for LEFT, RI for RIGHT, AN for ANY). In case of ambiguity, LEFT and ACC
+// have priority
 port parse_port(std::string_view str, bool permissive) {
 	std::pair<std::string_view, port> ports[]{
 	    {"LEFT", left}, {"RIGHT", right}, {"UP", up},   {"DOWN", down},
