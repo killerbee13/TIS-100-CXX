@@ -115,7 +115,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 	int l{};
 	int noncode_lines{};
 	for (auto& line : lines) {
-		if (not permissive and line.length() > 18) {
+		if (not permissive and line.length() > max_line_length) {
 			throw std::invalid_argument{concat('@', node, ':', l, ": Line ",
 			                                   kblib::quoted(line), " too long (",
 			                                   line.length(), " chars)")};
@@ -137,12 +137,12 @@ std::vector<instr> assemble(std::string_view source, int node,
 		auto tokens
 		    = kblib::split_tokens(line.substr(0, line.find_first_of('#')),
 		                          [](char c) { return " \t,"sv.contains(c); });
-		// the game allows only a single label per line, but multiple labels can
-		// still be attached to the same instruction if put in different lines.
-		// The --permissive flag allows multiple instructions on a single line.
 		if (tokens.empty()) {
 			++noncode_lines;
 		}
+		// the game allows only a single label per line, but multiple labels can
+		// still be attached to the same instruction if put in different lines.
+		// The --permissive flag allows multiple labels on a single line.
 		int label_count{};
 		for (const auto& tok : tokens) {
 			assert(not tok.empty());
@@ -239,7 +239,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 				i.src = port::immediate;
 				i.val = to_word(immediate);
 			} else {
-				i.src = parse_port(token, not permissive);
+				i.src = parse_port(token, permissive);
 			}
 		};
 		if (not tokens.empty()) {
@@ -265,7 +265,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 				i.op_ = mov;
 				assert_last_operand(2);
 				load_port_or_immediate(i, tokens[1]);
-				i.dst = parse_port(tokens[2], not permissive);
+				i.dst = parse_port(tokens[2], permissive);
 			} else if (opcode == "ADD") {
 				i.op_ = add;
 				assert_last_operand(1);
