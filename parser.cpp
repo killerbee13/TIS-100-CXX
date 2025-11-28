@@ -86,45 +86,44 @@ instr::op parse_op(std::string_view str) {
 	}
 }
 
-// This is a bit more lax than the game, in accepting L, R, U, and D
-// abbreviations
-port parse_port(std::string_view str) {
-	if (str == "LEFT" or str == "L") {
-		return left;
-	} else if (str == "RIGHT" or str == "R") {
-		return right;
-	} else if (str == "UP" or str == "U") {
-		return up;
-	} else if (str == "DOWN" or str == "D") {
-		return down;
-	} else if (str == "NIL") {
-		return nil;
-	} else if (str == "ACC") {
-		return acc;
-	} else if (str == "ANY") {
-		return any;
-	} else if (str == "LAST") {
-		return last;
-	} else {
-		throw std::invalid_argument{kblib::quoted(str)
-		                            + " is not a valid port or register name"};
+// permissive=true allows for any prefix of a valid port to be recognized (i.e.
+// L for LEFT, RI for RIGHT, AN for ANY). In case of ambiguity, LEFT and ACC
+// have priority
+port parse_port(std::string_view tok, bool permissive) {
+	std::pair<std::string_view, port> ports[]{
+	    {"LEFT", left}, {"RIGHT", right}, {"UP", up},   {"DOWN", down},
+	    {"NIL", nil},   {"ACC", acc},     {"ANY", any}, {"LAST", last},
+	};
+	for (auto [name, val] : ports) {
+		// this may look a little odd, but this is the correct spelling of "tok is
+		// a prefix of name"
+		if (name.starts_with(tok)) {
+			if (not permissive and tok != name) {
+				throw std::invalid_argument{concat(
+				    "Port abbreviation ", kblib::quoted(tok), " is not allowed")};
+			}
+			return val;
+		}
 	}
+	throw std::invalid_argument{kblib::quoted(tok)
+	                            + " is not a valid port or register name"};
 }
 
 std::vector<instr> assemble(std::string_view source, int node,
-                            std::size_t T21_size) {
+                            std::size_t T21_size, bool permissive) {
 	auto lines = kblib::split_dsv(source, '\n');
-	if (lines.size() > T21_size) {
-		throw std::invalid_argument{concat("too many lines of asm for node ",
-		                                   node, "; ", lines.size(),
-		                                   " exceeds limit ", T21_size)};
-	}
 	std::vector<instr> ret;
 	std::map<std::string, word_t, std::less<>> labels;
 
 	int l{};
+	int noncode_lines{};
 	for (auto& line : lines) {
-		// Apparently the game allows ! anywhere as long as there's only one
+		if (not permissive and line.length() > max_line_length) {
+			throw std::invalid_argument{concat('@', node, ':', l, ": Line ",
+			                                   kblib::quoted(line), " too long (",
+			                                   line.length(), " chars)")};
+		}
+		// The game allows ! anywhere as long as there's only one per line
 		if (auto bang = line.find_first_of('!'); bang != std::string::npos) {
 			line[bang] = ' ';
 		}
@@ -141,9 +140,13 @@ std::vector<instr> assemble(std::string_view source, int node,
 		auto tokens
 		    = kblib::split_tokens(line.substr(0, line.find_first_of('#')),
 		                          [](char c) { return " \t,"sv.contains(c); });
+		if (tokens.empty()) {
+			++noncode_lines;
+		}
 		// the game allows only a single label per line, but multiple labels can
-		// still be attached to the same instruction if put in different lines, we
-		// simply allow multiple labels per line
+		// still be attached to the same instruction if put in different lines.
+		// The --permissive flag allows multiple labels on a single line.
+		int label_count{};
 		for (const auto& tok : tokens) {
 			assert(not tok.empty());
 			std::string tmp;
@@ -160,6 +163,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 					}
 					log_debug("L: ", tmp, " (", l, ")");
 					labels[std::exchange(tmp, "")] = to_word(l);
+					++label_count;
 				} else {
 					tmp.push_back(c);
 				}
@@ -169,8 +173,22 @@ std::vector<instr> assemble(std::string_view source, int node,
 				break;
 			}
 		}
+		if (not permissive and label_count > 1) {
+			throw std::invalid_argument{concat('@', node, ':', l, ": Line ",
+			                                   kblib::quoted(line),
+			                                   " has too many labels")};
+		}
 	}
 
+	// Blank lines and lines consisting only of comments don't count with
+	// --permissive
+	if (auto effective_lines
+	    = (permissive ? (lines.size() - noncode_lines) : lines.size());
+	    effective_lines > T21_size) {
+		throw std::invalid_argument{concat("Too many lines of asm for node ",
+		                                   node, "; ", effective_lines,
+		                                   " exceeds limit ", T21_size)};
+	}
 	l = 0;
 	for (const auto& line : lines) {
 		bool seen_op{false};
@@ -225,7 +243,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 				i.src = port::immediate;
 				i.val = to_word(immediate);
 			} else {
-				i.src = parse_port(token);
+				i.src = parse_port(token, permissive);
 			}
 		};
 		if (not tokens.empty()) {
@@ -251,7 +269,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 				i.op_ = mov;
 				assert_last_operand(2);
 				load_port_or_immediate(i, tokens[1]);
-				i.dst = parse_port(tokens[2]);
+				i.dst = parse_port(tokens[2], permissive);
 			} else if (opcode == "ADD") {
 				i.op_ = add;
 				assert_last_operand(1);

@@ -87,6 +87,10 @@ void tis_sim_set_compute_stats(tis_sim* sim, bool compute_stats) {
 	sim->set_compute_stats(compute_stats);
 }
 
+void tis_sim_set_permissive(tis_sim* sim, bool permissive) {
+	sim->set_permissive(permissive);
+}
+
 const struct score* tis_sim_simulate(tis_sim* sim, const char* code) {
 	try {
 		return &sim->simulate_code(std::string_view(code));
