@@ -52,6 +52,9 @@ struct input_node final : node {
 			if (write_word == word_empty and idx != inputs.size()) {
 				debug << "reloading";
 				write_word = inputs[idx++];
+			} else if (write_word == word_empty and idx == inputs.size()) {
+				debug << "halting";
+				s = activity::halted;
 			} else {
 				debug << "waiting";
 			}
@@ -72,7 +75,6 @@ struct input_node final : node {
 
  private:
 	std::size_t idx{};
-	activity s{activity::idle};
 };
 
 struct output_node : node {
@@ -108,8 +110,12 @@ struct num_output final : output_node {
 				debug << "incorrect value written\n";
 // speed up simulator by failing early when an incorrect output is written
 #if RELEASE
+				s = activity::halted;
 				return false;
 #endif
+			}
+			if (complete) {
+				s = activity::halted;
 			}
 		}
 		return not complete;

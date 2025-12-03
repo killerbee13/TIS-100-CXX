@@ -280,6 +280,7 @@ void field::finalize_nodes() {
 			log_info("Image out node at (", o->x, ", ", o->y, ") dropped");
 		}
 	}
+	reset_nodes();
 }
 
 std::size_t field::instructions() const {

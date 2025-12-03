@@ -34,6 +34,7 @@
 
 /// Configure the field with a test case, takes ownership of the test content
 static void set_expected(field& f, single_test&& expected) {
+	f.reset_nodes();
 	for (auto& i : f.regulars()) {
 		auto p = i.get();
 		p->reset();

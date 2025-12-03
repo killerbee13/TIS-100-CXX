@@ -42,6 +42,11 @@ struct instr {
 		jgz,
 		jlz, // 5
 		jro, // 1
+		hlt, // jmp self
+		hez,
+		hnz,
+		hgz,
+		hlz,
 	};
 	op op_;
 	port src{immediate};

@@ -163,6 +163,45 @@ struct T21 final : regular_node {
 			pc = sat_add(pc, r, word_t{}, to_word(code.size() - 1));
 			debug << pc << ")";
 		} break;
+		case instr::hlt: {
+			s = activity::halted;
+		} break;
+		case instr::hez: {
+			debug << " (" << (acc == 0 ? "taken" : "not taken") << ") "
+			      << instr.target();
+			if (acc == 0) {
+				s = activity::halted;
+			} else {
+				next();
+			}
+		} break;
+		case instr::hnz: {
+			debug << " (" << (acc == 0 ? "taken" : "not taken") << ") "
+			      << instr.target();
+			if (acc != 0) {
+				s = activity::halted;
+			} else {
+				next();
+			}
+		} break;
+		case instr::hgz: {
+			debug << " (" << (acc == 0 ? "taken" : "not taken") << ") "
+			      << instr.target();
+			if (acc > 0) {
+				s = activity::halted;
+			} else {
+				next();
+			}
+		} break;
+		case instr::hlz: {
+			debug << " (" << (acc == 0 ? "taken" : "not taken") << ") "
+			      << instr.target();
+			if (acc < 0) {
+				s = activity::halted;
+			} else {
+				next();
+			}
+		} break;
 		default:
 			std::unreachable();
 		}
@@ -250,7 +289,6 @@ struct T21 final : regular_node {
 	word_t acc{}, bak{};
 	word_t pc{};
 	port last{port::nil};
-	activity s{activity::idle};
 
 	/// Increment the program counter, wrapping to beginning.
 	inline void next() { pc = to_word((pc + 1) % code.size()); }

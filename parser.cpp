@@ -282,26 +282,46 @@ std::vector<instr> assemble(std::string_view source, int node,
 				i.op_ = jmp;
 				assert_last_operand(1);
 				i.val = parse_label(tokens[1]);
+				if (i.val == l) {
+					i.op_ = hlt;
+				}
 			} else if (opcode == "JEZ") {
 				i.op_ = jez;
 				assert_last_operand(1);
 				i.val = parse_label(tokens[1]);
+				if (i.val == l) {
+					i.op_ = hez;
+				}
 			} else if (opcode == "JNZ") {
 				i.op_ = jnz;
 				assert_last_operand(1);
 				i.val = parse_label(tokens[1]);
+				if (i.val == l) {
+					i.op_ = hnz;
+				}
 			} else if (opcode == "JGZ") {
 				i.op_ = jgz;
 				assert_last_operand(1);
 				i.val = parse_label(tokens[1]);
+				if (i.val == l) {
+					i.op_ = hgz;
+				}
 			} else if (opcode == "JLZ") {
 				i.op_ = jlz;
 				assert_last_operand(1);
 				i.val = parse_label(tokens[1]);
+				if (i.val == l) {
+					i.op_ = hlz;
+				}
 			} else if (opcode == "JRO") {
 				i.op_ = jro;
 				assert_last_operand(1);
 				load_port_or_immediate(i, tokens[1]);
+				if (i.src == port::immediate) {
+					if (i.val == 0) {
+						i.op_ = hlt;
+					}
+				}
 			} else {
 				throw std::invalid_argument{
 				    concat('@', node, ':', l, ": ", kblib::quoted(opcode),
@@ -314,7 +334,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 	}
 
 	// normalize labels at the end of the code
-	for (auto& i : ret) {
+	for (auto i : ret) {
 		if (i.op_ >= instr::jmp and i.op_ <= instr::jlz) {
 			if (std::cmp_greater_equal(i.val, ret.size())) {
 				log_debug("Normalized label ", i.val, "/", ret.size(), "->0");

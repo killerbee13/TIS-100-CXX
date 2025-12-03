@@ -23,7 +23,7 @@
 
 #include <array>
 
-enum class activity : std::int8_t { idle, run, read, write };
+enum class activity : std::int8_t { idle, run, read, write, halted };
 
 constexpr static std::string_view state_name(activity s) {
 	switch (s) {
@@ -35,6 +35,8 @@ constexpr static std::string_view state_name(activity s) {
 		return "READ";
 	case activity::write:
 		return "WRTE";
+	case activity::halted:
+		return "HALT";
 	default:
 		throw std::invalid_argument{concat("Invalid activity (", etoi(s), ")")};
 	}
@@ -58,6 +60,7 @@ struct node {
 	port write_port = port::nil;
 	/// the type of this node, never actually null
 	type_t type = type_t::null;
+	activity s{activity::idle};
 
 	/// Attempt to answer a read from this node, coming from direction p
 	[[gnu::always_inline]] inline optional_word emit(port p) {

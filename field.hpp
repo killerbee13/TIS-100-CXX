@@ -142,6 +142,7 @@ class field {
 	}
 
 	/// Advance the field one full cycle (step and finalize)
+	/// Returns true if any outputs are still writeable
 	[[gnu::always_inline]] inline bool step() {
 		if (allT21) {
 			return do_step<true>();
@@ -155,7 +156,7 @@ class field {
 		auto debug = log_debug();
 		debug << "Field step\n";
 		// evaluate code
-		for (auto& p : regulars_to_sim) {
+		for (auto& p : regulars_to_sim_cur) {
 			if constexpr (allT21) {
 				static_cast<T21*>(p)->step(debug);
 			} else {
@@ -170,12 +171,12 @@ class field {
 		debug << '\n';
 
 		// run input nodes, they are only read from, so effectively do a finalize
-		for (auto& p : inputs_to_sim) {
+		for (auto& p : inputs_to_sim_cur) {
 			p->finalize(debug);
 		}
 		// output nodes may read from regular nodes, so it's done before finalize
 		bool active = false;
-		for (auto& p : numerics_to_sim) {
+		for (auto& p : numerics_to_sim_cur) {
 			active |= p->step(debug);
 		}
 		for (auto& p : images_to_sim) {
@@ -185,7 +186,7 @@ class field {
 
 		// execute writes
 		// this is a separate step to ensure a consistent propagation delay
-		for (auto& p : regulars_to_sim) {
+		for (auto& p : regulars_to_sim_cur) {
 			if constexpr (allT21) {
 				static_cast<T21*>(p)->finalize(debug);
 			} else {
@@ -196,6 +197,11 @@ class field {
 				}
 			}
 		}
+
+		auto is_halted = [](const node* n) { return n->s == activity::halted; };
+		std::erase_if(regulars_to_sim_cur, is_halted);
+		std::erase_if(inputs_to_sim_cur, is_halted);
+		std::erase_if(numerics_to_sim_cur, is_halted);
 		return active;
 	}
 
@@ -298,6 +304,23 @@ class field {
 			f(n.get());
 		}
 	}
+	void reset_nodes() {
+		regulars_to_sim_cur = regulars_to_sim;
+		inputs_to_sim_cur = inputs_to_sim;
+		numerics_to_sim_cur = numerics_to_sim;
+		for (auto n : regulars_to_sim) {
+			n->s = activity::idle;
+		}
+		for (auto n : inputs_to_sim) {
+			n->s = activity::idle;
+		}
+		for (auto n : numerics_to_sim) {
+			n->s = activity::idle;
+		}
+		for (auto n : images_to_sim) {
+			n->s = activity::idle;
+		}
+	}
 
  private:
 	std::vector<std::unique_ptr<input_node>> nodes_input;
@@ -309,6 +332,10 @@ class field {
 	std::vector<regular_node*> regulars_to_sim;
 	std::vector<num_output*> numerics_to_sim;
 	std::vector<image_output*> images_to_sim;
+
+	std::vector<input_node*> inputs_to_sim_cur;
+	std::vector<regular_node*> regulars_to_sim_cur;
+	std::vector<num_output*> numerics_to_sim_cur;
 
 	std::size_t width{};
 	std::size_t height() const {
