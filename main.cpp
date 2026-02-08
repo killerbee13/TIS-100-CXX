@@ -57,10 +57,108 @@ std::optional<std::string> demangle(const char* name) {
 	return ret;
 }
 
+struct ratio {
+	double val{};
+};
+
+template <>
+struct std::formatter<ratio> {
+	using parse_ctx = std::basic_format_parse_context<char>;
+	template <typename It>
+	using fmt_ctx = std::basic_format_context<It, char>;
+
+	parse_ctx::iterator parse(parse_ctx& ctx) {
+		auto it = ctx.begin();
+		if (it != ctx.end()) {
+			if (*it == '%'
+			    and not ((ctx.end() - it) >= 2
+			             and kblib::contains("<>^", it[1]))) {
+				as_percent = true;
+				ctx.advance_to(it + 1);
+			}
+		}
+		return base.parse(ctx);
+	}
+	template <typename It>
+	fmt_ctx<It>::iterator format(::ratio p, fmt_ctx<It>& ctx) const {
+		if (as_percent) {
+			auto it = base.format(p.val * 100, ctx);
+			*it++ = '%';
+			return it;
+		} else {
+			return base.format(p.val, ctx);
+		}
+	}
+
+	std::formatter<double> base;
+	bool as_percent = false;
+};
+
+struct opt {
+	bool valid{};
+	int val{};
+};
+
+template <>
+struct std::formatter<opt> {
+	using parse_ctx = std::basic_format_parse_context<char>;
+	template <typename It>
+	using fmt_ctx = std::basic_format_context<It, char>;
+
+	parse_ctx::iterator parse(parse_ctx& ctx) { return base.parse(ctx); }
+	template <typename It>
+	fmt_ctx<It>::iterator format(opt c, fmt_ctx<It>& ctx) const {
+		if (c.valid) {
+			return base.format(c.val, ctx);
+		} else {
+			auto it = ctx.begin();
+			*it++ = '-';
+			return it;
+		}
+	}
+
+	std::formatter<std::size_t> base;
+};
+
+struct metric_desc {
+	std::string_view key;
+	std::string_view name;
+	std::string_view type;
+	int index;
+};
+
+constexpr metric_desc metrics[]{
+    {"C", "Cycles", "int?", 0},
+    {"N", "Nodes", "int", 1},
+    {"I", "Instructions", "int", 2},
+    {"F", "Flags (,/a,/c,/h,/ac,/ah)", "string", 3},
+    {"R", "Random test pass rate", "ratio", 4},
+    {"v", "Random tests passed", "int", 5},
+    {"t", "Random tests run", "int", 6},
+    {"P", "Process nodes", "int", 7},
+    {"vc", "valid?:ec(red)", "format", 8},
+    {"cb", "cheat?:ec(bright_blue,bold)", "format", 9},
+    {"cc", "cheat?ec(yellow):hardcoded?ec(red):", "format", 10},
+    {"c", "ec(none)", "format", 11},
+};
+
+/*
+ * if color:
+ * {C}/{N}/{I}{F} PR: {R:%} ({v}/{t})
+ *		-> prefix: "{vc}"
+ * 	-> {a} = "" or "{b}a{c}" if achievement
+ *		-> {c} =	"" or "{cc}" + ("c" or "h" if hardcoded) if cheat
+ *		-> F: "" or "/{a}{c}" if validated and flags not empty
+ *		-> suffix: {c}
+ *		-> R: "{cb}{cc}{%:%}{c}"
+ *		-> v: random_test_valid
+ *		-> t: random_test_ran
+ * -> {vc}{C}/{N}/{I}{F}{c} PR: {cb}{cc}{R:%}{c} ({v}/{t})
+ */
 std::string to_string(score sc, bool print_stats = false,
                       bool colored = color_stdout) {
 	std::string ret;
-	if (sc.validated) {
+	if (sc.validated) { // {vc}{C}
 		append(ret, sc.cycles);
 	} else {
 		if (colored) {
@@ -68,8 +166,8 @@ std::string to_string(score sc, bool print_stats = false,
 		}
 		ret += "-";
 	}
-	append(ret, '/', sc.nodes, '/', sc.instructions);
-	if (sc.validated) {
+	append(ret, '/', sc.nodes, '/', sc.instructions); // /{N}/{I}
+	if (sc.validated) {                               // {F}
 		if (sc.achievement or sc.cheat) {
 			ret += '/';
 		}
@@ -94,21 +192,22 @@ std::string to_string(score sc, bool print_stats = false,
 			ret += 'c';
 		}
 	}
-	if (colored) {
+	if (colored) { // {c}
 		ret += escape_code(none);
 	}
 	if (sc.random_test_ran > 0 and print_stats) {
 		ret += " PR: ";
-		if (not sc.cheat) {
+		if (not sc.cheat) { // {cb}
 			ret += print_escape(bright_blue, bold);
-		} else if (not sc.hardcoded) {
+		} else if (not sc.hardcoded) { // {cc}
 			ret += print_escape(yellow);
 		} else {
 			ret += print_escape(red);
 		}
 		auto rate = 100. * sc.random_test_valid / sc.random_test_ran;
-		append(ret, rate, '%', print_escape(none), //
-		       " (", sc.random_test_valid, '/', sc.random_test_ran, ")");
+		append(ret, rate, '%', print_escape(none), // {R:%}
+		       " (", sc.random_test_valid, '/', sc.random_test_ran,
+		       ")"); // ({v}/{t})
 	}
 	return ret;
 }
@@ -300,8 +399,23 @@ int main(int argc, char** argv) try {
 	TCLAP::SwitchArg stats(
 	    "S", "stats",
 	    "Run all random tests requested and calculate exact pass rate; disables "
-	    "early stopping when score can be reliably determined.",
+	    "early stopping when score can be reliably determined. By default "
+	    "appends \" PR: {R}% ({p}/{r})\" to score format.",
 	    cmd);
+	std::string score_desc = "Custom format for printing the score values. "
+	                         "Default {C}/{N}/{I}{F}, which corresponds to "
+	                         "the leaderboard's format. Available metrics:";
+	{
+		std::string_view initial_space = " '";
+		for (auto [key, name, type] : metrics) {
+			append(score_desc, initial_space, key, "': ", name, " [", type, "]");
+			initial_space = ", '";
+		}
+		append(score_desc, '.');
+	}
+	TCLAP::ValueArg<std::string> score_fmt("", "score-format", score_desc, false,
+	                                       "{C}/{N}/{I}{s}{F}", "fmt-string",
+	                                       cmd);
 	TCLAP::MultiArg<std::string> seed_exprs(
 	    "", "seeds",
 	    "A set of seed values to use, using .. interval notation separated by "

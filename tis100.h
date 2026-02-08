@@ -40,6 +40,7 @@ struct score {
 	bool achievement;
 	bool cheat;
 	bool hardcoded;
+	unsigned int process_nodes;
 };
 
 /// Opaque tis_sim struct
