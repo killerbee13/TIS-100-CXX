@@ -133,8 +133,8 @@ constexpr metric_desc metrics[]{
     {"I", "Instructions", "int", 2},
     {"F", "Flags (,/a,/c,/h,/ac,/ah)", "string", 3},
     {"R", "Random test pass rate", "ratio", 4},
-    {"v", "Random tests passed", "int", 5},
-    {"t", "Random tests run", "int", 6},
+    {"V", "Random tests passed", "int", 5},
+    {"T", "Random tests run", "int", 6},
     {"P", "Process nodes", "int", 7},
     {"vc", "valid?:ec(red)", "format", 8},
     {"cb", "cheat?:ec(bright_blue,bold)", "format", 9},
@@ -144,16 +144,18 @@ constexpr metric_desc metrics[]{
 
 /*
  * if color:
- * {C}/{N}/{I}{F} PR: {R:%} ({v}/{t})
+ * {C}/{N}/{I}{F} PR: {R:%} ({V}/{T})
  *		-> prefix: "{vc}"
- * 	-> {a} = "" or "{b}a{c}" if achievement
- *		-> {c} =	"" or "{cc}" + ("c" or "h" if hardcoded) if cheat
- *		-> F: "" or "/{a}{c}" if validated and flags not empty
+ * 	-> {fa} = "" or "{b}a{c}" if achievement
+ *		-> {fc} =	"" or "{cc}" + ("c" or "h" if hardcoded) if cheat
+ *		-> F: "" or "/{fa}{fc}" if validated and flags not empty
  *		-> suffix: {c}
- *		-> R: "{cb}{cc}{%:%}{c}"
+ *		-> R: "{cb}{cc}{R:%}{c}"
  *		-> v: random_test_valid
  *		-> t: random_test_ran
- * -> {vc}{C}/{N}/{I}{F}{c} PR: {cb}{cc}{R:%}{c} ({v}/{t})
+ * -> {vc}{C}/{N}/{I}{F}{c} PR: {cb}{cc}{R:%}{c} ({V}/{T})
+ *
+ * might treat {vc} as fully implicit, since it affects the whole line
  */
 std::string to_string(score sc, bool print_stats = false,
                       bool colored = color_stdout) {
@@ -207,7 +209,7 @@ std::string to_string(score sc, bool print_stats = false,
 		auto rate = 100. * sc.random_test_valid / sc.random_test_ran;
 		append(ret, rate, '%', print_escape(none), // {R:%}
 		       " (", sc.random_test_valid, '/', sc.random_test_ran,
-		       ")"); // ({v}/{t})
+		       ")"); // ({V}/{T})
 	}
 	return ret;
 }
