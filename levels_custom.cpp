@@ -46,7 +46,7 @@ inline std::vector<T> table_to_vector(const sol::table& table) {
 }
 
 custom_level::custom_level(std::filesystem::path spec_path)
-    : script(kblib::try_get_file_contents(spec_path)) {
+    : script(kblib::try_get_file_contents(spec_path, std::ios::in)) {
 	auto spec_filename = spec_path.filename().replace_extension().string();
 	if (std::ranges::all_of(spec_filename,
 	                        [](char c) { return "0123456789"sv.contains(c); })) {
