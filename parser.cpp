@@ -118,6 +118,9 @@ std::vector<instr> assemble(std::string_view source, int node,
 	int l{};
 	int noncode_lines{};
 	for (auto& line : lines) {
+		if (line.ends_with('\r')) {
+			line.pop_back();
+		}
 		if (not permissive and line.length() > max_line_length) {
 			throw std::invalid_argument{concat('@', node, ':', l, ": Line ",
 			                                   kblib::quoted(line), " too long (",

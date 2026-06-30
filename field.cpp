@@ -390,19 +390,28 @@ void field::parse_code(std::string_view source, std::size_t T21_size,
 	std::set<int> nodes_seen;
 	while (not source.empty()) {
 		auto header = pop(source, source.find_first_of('\n'));
-		pop(source, source.find_first_not_of(" \t\r\n"));
-		header.remove_prefix(1);
+		if (header.ends_with('\r')) {
+			header.remove_suffix(1);
+		}
+		if (header.starts_with('@')) {
+			header.remove_prefix(1);
+		} else {
+			throw std::invalid_argument{concat("invalid node label ", header)};
+		}
 		auto i = kblib::parse_integer<int>(header);
-		auto section = pop(source, source.find_first_of('@'));
 		if (not nodes_seen.insert(i).second) {
 			throw std::invalid_argument{concat("duplicate node label ", i)};
 		}
+
+		pop(source, source.find_first_not_of(" \t\r\n"));
+		auto section = pop(source, source.find_first_of('@'));
 		if (section.empty()) {
 			continue;
 		}
 		section.remove_suffix(
 		    section.size()
-		    - std::min(section.find_last_not_of(" \t\r\n"), section.size()) - 1);
+		    - std::min(section.find_last_not_of(" \t\r\n") + 1, section.size()));
+
 		log_debug("assembling @", i);
 		auto p = node_by_index(static_cast<std::size_t>(i));
 		if (not p) {
