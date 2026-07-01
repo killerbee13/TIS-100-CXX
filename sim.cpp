@@ -282,10 +282,8 @@ score tis_sim::run_seed_ranges(field f) {
 
 /// @param solution can be a file path or "-" for stdin
 const score& tis_sim::simulate_file(const std::string& solution) {
-	bool deduced;
-	if (target_level) {
-		deduced = false;
-	} else {
+	if (not preset_level) {
+		target_level = nullptr;
 		auto filename = std::filesystem::path(solution).filename().string();
 #if TIS_ENABLE_LUA
 		if (filename.starts_with("SPEC")) {
@@ -316,7 +314,6 @@ const score& tis_sim::simulate_file(const std::string& solution) {
 			    concat("Impossible to determine the level for ",
 			           kblib::quoted(filename))};
 		}
-		deduced = true;
 	}
 
 	std::string code;
@@ -332,9 +329,6 @@ const score& tis_sim::simulate_file(const std::string& solution) {
 	}
 
 	simulate_code(code);
-	if (deduced) {
-		target_level.reset();
-	}
 	return sc;
 }
 

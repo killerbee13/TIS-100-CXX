@@ -63,6 +63,7 @@ class tis_sim {
 	bool run_fixed = defaults::run_fixed;
 	bool compute_stats = false;
 	bool permissive = false;
+	bool preset_level = false;
 
  public:
 	// runtime
@@ -82,15 +83,18 @@ class tis_sim {
 
 	void set_builtin_level_name(std::string_view builtin_level_name) {
 		target_level = builtin_level::from_name(builtin_level_name);
+		preset_level = true;
 	}
 #if TIS_ENABLE_LUA
 	void set_custom_spec_path(const std::string& custom_spec_path) {
 		target_level = std::make_unique<custom_level>(custom_spec_path);
+		preset_level = true;
 	}
 	void set_custom_spec_code(const std::string& custom_spec_code,
 	                          std::uint32_t base_seed) {
 		target_level
 		    = std::make_unique<custom_level>(custom_spec_code, base_seed);
+		preset_level = true;
 	}
 	void set_custom_spec_folder_path(
 	    const std::string& custom_spec_folder_path) {
