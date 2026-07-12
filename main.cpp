@@ -251,7 +251,8 @@ int main(int argc, char** argv) try {
 	std::ios_base::sync_with_stdio(false);
 
 	TCLAP::CmdLine cmd(
-	    "TIS-100 simulator and validator. For options --limit, --total-limit, "
+	    "TIS-100 simulator and validator.\n"
+	    "For options --limit, --total-limit, "
 	    "--random, --seed, --seeds, and --T30_size, integer arguments can be "
 	    "specified with a scale suffix, either K, M, or B (case-insensitive) "
 	    "for thousand, million, or billion respectively.");
@@ -272,12 +273,14 @@ int main(int argc, char** argv) try {
 #if TIS_ENABLE_LUA
 	TCLAP::ValueArg<std::string> custom_spec_arg(
 	    "L", "custom-spec", "Custom Lua Spec file", false, "", "path");
+	// allow the folder to be set regardless
 	TCLAP::ValueArg<std::string> custom_spec_folder_arg(
-	    "F", "custom-spec-folder", "Custom Lua Spec folder", false, "", "path");
+	    "F", "custom-spec-folder", "Custom Lua Spec folder", false, "", "path",
+	    cmd);
 	// need to do this the long way to avoid having -l in an "either of" by
 	// itself
 	TCLAP::EitherOf level_args(cmd);
-	level_args.add(id_arg).add(custom_spec_arg).add(custom_spec_folder_arg);
+	level_args.add(id_arg).add(custom_spec_arg);
 #else
 	cmd.add(id_arg);
 #endif
