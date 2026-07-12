@@ -23,7 +23,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <type_traits>
 #include <vector>
 
 #if NDEBUG
@@ -55,20 +54,14 @@ static_assert(word_empty < word_min + word_min);
 using word_vec = std::vector<word_t>;
 constexpr word_t to_word(auto x) { return static_cast<word_t>(x); }
 
-template <typename T, typename U>
-constexpr U sat_add(T a, T b, U l, U h) {
-	using I = std::common_type_t<T, U>;
-	return static_cast<U>(
-	    std::clamp(static_cast<I>(a + b), static_cast<I>(l), static_cast<I>(h)));
+template <typename T>
+constexpr T sat_add(T a, T b, T l = word_min, T h = word_max) {
+	return std::clamp<T>(a + b, l, h);
 }
 
-template <auto l = word_min, auto h = word_max, typename T>
-constexpr auto sat_add(T a, T b) {
-	return sat_add<T, std::common_type_t<decltype(l), decltype(h)>>(a, b, l, h);
-}
-template <auto l = word_min, auto h = word_max, typename T>
-constexpr auto sat_sub(T a, T b) {
-	return sat_add<T, std::common_type_t<decltype(l), decltype(h)>>(a, -b, l, h);
+template <typename T>
+constexpr T sat_sub(T a, T b, T l = word_min, T h = word_max) {
+	return std::clamp<T>(a - b, l, h);
 }
 
 static_assert(sat_add(word_max, word_max) == word_max);

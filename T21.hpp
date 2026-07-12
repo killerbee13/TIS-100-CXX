@@ -69,7 +69,7 @@ struct T21 final : regular_node {
 		} break;
 		case instr::neg: {
 			debug << " (" << acc << ')';
-			acc = -acc;
+			acc = to_word(-acc);
 			next();
 		} break;
 		[[likely]] case instr::mov: {
@@ -231,7 +231,7 @@ struct T21 final : regular_node {
 			code = {small_.begin(),
 			        std::ranges::copy(new_code, small_.begin()).out};
 		} else {
-			large_.reset(new instr[new_code.size()]);
+			large_ = std::make_unique_for_overwrite<instr[]>(new_code.size());
 			code = {large_.get(), std::ranges::copy(new_code, large_.get()).out};
 		}
 	}
