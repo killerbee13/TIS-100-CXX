@@ -19,6 +19,7 @@
 #include "parser.hpp"
 #include "instr.hpp"
 #include "logger.hpp"
+#include "utils.hpp"
 
 #include <kblib/convert.h>
 #include <kblib/stringops.h>
@@ -113,11 +114,10 @@ std::vector<instr> assemble(std::string_view source, int node,
                             std::size_t T21_size, bool permissive) {
 	auto lines = kblib::split_dsv(source, '\n');
 	std::vector<instr> ret;
-	std::map<std::string, word_t, std::less<>> labels;
+	std::map<std::string, word_t> labels;
 
-	int l{};
-	int noncode_lines{};
-	for (auto& line : lines) {
+	int code_lines{};
+	for (int l = 0; auto& line : lines) {
 		if (line.ends_with('\r')) {
 			line.pop_back();
 		}
@@ -126,10 +126,8 @@ std::vector<instr> assemble(std::string_view source, int node,
 			                                   kblib::quoted(line), " too long (",
 			                                   line.length(), " chars)")};
 		}
-		// The game allows ! anywhere as long as there's only one per line
-		if (auto bang = line.find_first_of('!'); bang != std::string::npos) {
-			line[bang] = ' ';
-		}
+		// remove comments, we don't care if they use weird chars
+		line = line.substr(0, line.find_first_of('#'));
 		for (auto c : line) {
 			// the game won't let you type '`' or '\t' but (sort of) handles
 			// them in saves. Same with '@' not followed by a digit but that
@@ -140,77 +138,69 @@ std::vector<instr> assemble(std::string_view source, int node,
 				    ", character ", kblib::escapify(c), " not allowed in source")};
 			}
 		}
-		auto tokens
-		    = kblib::split_tokens(line.substr(0, line.find_first_of('#')),
-		                          [](char c) { return " \t,"sv.contains(c); });
-		if (tokens.empty()) {
-			++noncode_lines;
+		// The game allows ! anywhere as long as there's only one per line
+		if (auto bang = line.find_first_of('!'); bang != std::string::npos) {
+			line[bang] = ' ';
 		}
+		auto tokens = kblib::split_tokens(
+		    line, [](char c) { return " \t,"sv.contains(c); });
 		// the game allows only a single label per line, but multiple labels can
 		// still be attached to the same instruction if put in different lines.
 		// The --permissive flag allows multiple labels on a single line.
 		int label_count{};
+		bool seen_op{false};
 		for (const auto& tok : tokens) {
 			assert(not tok.empty());
-			std::string tmp;
-			for (auto c : tok) {
-				if (c == ':') {
-					if (tmp.empty()) {
+			auto begin = tok.begin();
+			for (auto it = tok.begin(); it != tok.end(); ++it) {
+				if (*it == ':') {
+					std::string label(begin, it);
+					if (label.empty()) {
 						throw std::invalid_argument{
 						    concat('@', node, ':', l, ": Invalid label \"\"")};
 					}
-					if (labels.contains(tmp)) {
+					if (labels.contains(label)) {
 						throw std::invalid_argument{
-						    concat('@', node, ':', l, ": Label ", kblib::quoted(tmp),
-						           " defined multiple times")};
+						    concat('@', node, ':', l, ": Label ",
+						           kblib::quoted(label), " defined multiple times")};
 					}
-					log_debug("L: ", tmp, " (", l, ")");
-					labels[std::exchange(tmp, "")] = to_word(l);
+					if (seen_op) {
+						throw std::invalid_argument{concat(
+						    '@', node, ':', l, ": Labels must be first on a line")};
+					}
+					log_debug("L: ", label, " (", code_lines, ")");
+					labels[label] = to_word(code_lines);
 					++label_count;
-				} else {
-					tmp.push_back(c);
+					begin = it + 1;
 				}
 			}
-			if (not tmp.empty()) {
-				++l;
-				break;
+			if (begin != tok.end()) {
+				seen_op = true;
 			}
+		}
+		if (seen_op) {
+			++code_lines;
 		}
 		if (not permissive and label_count > 1) {
 			throw std::invalid_argument{concat('@', node, ':', l, ": Line ",
 			                                   kblib::quoted(line),
 			                                   " has too many labels")};
 		}
+		++l;
 	}
-
-	// Blank lines and lines consisting only of comments don't count with
-	// --permissive
-	if (auto effective_lines
-	    = (permissive ? (lines.size() - noncode_lines) : lines.size());
+	// Lines without an opcode don't count with --permissive, as it's always
+	// possible to pack the node so that there are no such lines
+	if (auto effective_lines = permissive ? code_lines : lines.size();
 	    effective_lines > T21_size) {
 		throw std::invalid_argument{concat("Too many lines of asm for node ",
 		                                   node, "; ", effective_lines,
 		                                   " exceeds limit ", T21_size)};
 	}
-	l = 0;
-	for (const auto& line : lines) {
-		bool seen_op{false};
+	for (int l = 0; const auto& line : lines) {
+		// remove labels, we already checked their validity
 		auto tokens
-		    = kblib::split_tokens(line.substr(0, line.find_first_of('#')),
+		    = kblib::split_tokens(line.substr(line.find_last_of(':') + 1),
 		                          [](char c) { return " \t,"sv.contains(c); });
-		// remove labels
-		for (auto& tok : tokens) {
-			if (tok.contains(':')) {
-				if (seen_op) {
-					throw std::invalid_argument{concat(
-					    '@', node, ':', l, ": Labels must be first on a line")};
-				}
-				tok = tok.substr(tok.find_last_of(':') + 1);
-			}
-			if (not tok.empty()) {
-				seen_op = true;
-			}
-		}
 		std::erase(tokens, "");
 
 		auto assert_last_operand = [&](std::size_t j) {
@@ -224,7 +214,7 @@ std::vector<instr> assemble(std::string_view source, int node,
 				                                   kblib::quoted(tokens[j + 1]))};
 			}
 		};
-		auto parse_label = [&](std::string_view label) -> word_t {
+		auto parse_label = [&](const std::string& label) -> word_t {
 			auto it = labels.find(label);
 			if (it != labels.end()) {
 				return it->second;
@@ -239,9 +229,14 @@ std::vector<instr> assemble(std::string_view source, int node,
 				// the sim enforces the limit in the source directly
 				auto immediate = kblib::parse_integer<int32_t>(token, 10);
 				if (immediate < word_min or immediate > word_max) {
-					throw std::invalid_argument{
-					    concat('@', node, ':', l, ": Immediate value ", immediate,
-					           " out of range -999:999")};
+					if (permissive) {
+						immediate
+						    = std::clamp<int32_t>(immediate, word_min, word_max);
+					} else {
+						throw std::invalid_argument{
+						    concat('@', node, ':', l, ": Immediate value ", immediate,
+						           " out of range ", word_min, ':', word_max)};
+					}
 				}
 				i.src = port::immediate;
 				i.val = to_word(immediate);
