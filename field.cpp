@@ -304,6 +304,27 @@ std::size_t field::nodes_used() const {
 	return ret;
 }
 
+static bool is_trivial_mov(instr i) {
+	return i.op_ == instr::mov and is_plain_direction(i.src)
+	       and is_plain_direction(i.dst) and i.src != i.dst;
+}
+
+std::size_t field::process_nodes_used() const {
+	std::size_t ret{};
+	for (auto& i : nodes_regular) {
+		auto p = i.get();
+		if (p->type == node::T21) {
+			auto& c = static_cast<const T21*>(p)->code;
+			if (c.size() > 1) {
+				++ret;
+			} else if (c.size() == 1) {
+				ret += not is_trivial_mov(c.front());
+			}
+		}
+	}
+	return ret;
+}
+
 std::string field::layout() const {
 	std::string ret;
 	for (auto& in : nodes_input) {

@@ -132,7 +132,7 @@ struct regular_node : node {
 	using node::node;
 	/// Attempt to read a value from p, coming from this node
 	[[gnu::always_inline]] inline optional_word do_read(port p) const {
-		assert(p >= port::dir_first and p <= port::dir_last);
+		assert(is_plain_direction(p));
 		node* n = neighbors[to_unsigned(etoi(p))];
 		if (not n) {
 			return word_empty;

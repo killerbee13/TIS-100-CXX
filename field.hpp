@@ -251,8 +251,9 @@ class field {
 	}
 
 	// Scoring functions
-	std::size_t instructions() const;
-	std::size_t nodes_used() const;
+	size_t instructions() const;
+	size_t nodes_used() const;
+	size_t process_nodes_used() const;
 
 	/// Serialize human-readable layout
 	std::string layout() const;

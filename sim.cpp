@@ -69,6 +69,7 @@ static score run(field& f, size_t cycles_limit,
 	score sc{};
 	sc.instructions = f.instructions();
 	sc.nodes = f.nodes_used();
+	sc.process_nodes = f.process_nodes_used();
 	try {
 		bool active;
 		do {
@@ -195,8 +196,7 @@ score tis_sim::run_seed_ranges(field f) {
 			// so it's simplest to just hold a lock the whole time
 			std::unique_lock lock(sc_m);
 			worst.random_test_ran++;
-			worst.instructions = last.instructions;
-			worst.nodes = last.nodes;
+			set_static_scores(worst, last);
 			sim.total_cycles += last.cycles;
 			if (last.validated) {
 				// for random tests, only one validation is needed
@@ -350,8 +350,7 @@ const score& tis_sim::simulate_code(std::string_view code) {
 		for (uint id = 0; id < 3; ++id) {
 			set_expected(f, target_level->static_test(id));
 			score last = run(f, cycles_limit, &error_message);
-			sc.instructions = last.instructions;
-			sc.nodes = last.nodes;
+			set_static_scores(sc, last);
 			total_cycles += last.cycles;
 			log_info("fixed test ", id + 1, ' ',
 			         last.validated ? "validated"sv : "failed"sv, " in ",

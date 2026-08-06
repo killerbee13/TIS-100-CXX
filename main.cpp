@@ -57,7 +57,7 @@ std::optional<std::string> demangle(const char* name) {
 	return ret;
 }
 
-std::string to_string(score sc, bool print_stats = false,
+std::string to_string(score sc, bool community, bool print_stats = false,
                       bool colored = color_stdout) {
 	std::string ret;
 	if (sc.validated) {
@@ -68,7 +68,11 @@ std::string to_string(score sc, bool print_stats = false,
 		}
 		ret += "-";
 	}
-	append(ret, '/', sc.nodes, '/', sc.instructions);
+	append(ret, '/', sc.nodes);
+	if (community) {
+		append(ret, 'P', sc.process_nodes);
+	}
+	append(ret, '/', sc.instructions);
 	if (sc.validated) {
 		if (sc.achievement or sc.cheat) {
 			ret += '/';
@@ -305,6 +309,8 @@ int main(int argc, char** argv) try {
 	    "Run all random tests requested and calculate exact pass rate; disables "
 	    "early stopping when score can be reliably determined.",
 	    cmd);
+	TCLAP::SwitchArg community("P", "community",
+	                           "Print community-defined score metrics", cmd);
 	TCLAP::MultiArg<std::string> seed_exprs(
 	    "", "seeds",
 	    "A set of seed values to use, using .. interval notation separated by "
@@ -545,7 +551,8 @@ int main(int argc, char** argv) try {
 			if (not quiet.getValue()) {
 				std::cout << "score: ";
 			}
-			std::cout << to_string(sc, stats.getValue()) << std::endl;
+			std::cout << to_string(sc, community.getValue(), stats.getValue())
+			          << std::endl;
 		} catch (const std::exception& e) {
 			log_err(e.what());
 			return_code = exit_code::EXCEPTION;

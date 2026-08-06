@@ -56,8 +56,12 @@ enum port : std::int8_t {
 	immediate = -1
 };
 
+constexpr bool is_plain_direction(port p) {
+	return p >= port::dir_first and p <= port::dir_last;
+}
+
 constexpr port& operator++(port& p) {
-	assert(p >= port::dir_first and p <= port::dir_last);
+	assert(is_plain_direction(p));
 	p = static_cast<port>(std::to_underlying(p) + 1);
 	return p;
 }
@@ -68,7 +72,7 @@ constexpr port operator++(port& p, int) {
 }
 
 constexpr port invert(port p) {
-	assert(p >= port::dir_first and p <= port::dir_last);
+	assert(is_plain_direction(p));
 	return static_cast<port>(std::to_underlying(p) ^ 1);
 }
 

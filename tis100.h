@@ -33,6 +33,7 @@ extern "C" {
 struct score {
 	size_t cycles;
 	size_t nodes;
+	size_t process_nodes;
 	size_t instructions;
 	unsigned int random_test_ran;
 	unsigned int random_test_valid;
