@@ -73,30 +73,48 @@ std::string to_string(score sc, bool community, bool print_stats = false,
 		append(ret, 'P', sc.process_nodes);
 	}
 	append(ret, '/', sc.instructions);
+	std::string flags;
 	if (sc.validated) {
-		if (sc.achievement or sc.cheat) {
-			ret += '/';
-		}
-		if (sc.achievement) {
+		if (sc.achievement & tracked_achievement) {
 			if (colored) {
-				ret += escape_code(bright_blue, bold);
+				flags += escape_code(bright_blue, bold);
 			}
-			ret += 'a';
+			flags += 'a';
 			if (colored) {
-				ret += escape_code(none);
+				flags += escape_code(none);
 			}
 		}
 		if (sc.hardcoded) {
 			if (colored) {
-				ret += escape_code(red);
+				flags += escape_code(red);
 			}
-			ret += 'h';
+			flags += 'h';
+			if (colored) {
+				flags += escape_code(none);
+			}
 		} else if (sc.cheat) {
 			if (colored) {
-				ret += escape_code(yellow);
+				flags += escape_code(yellow);
 			}
-			ret += 'c';
+			flags += 'c';
+			if (colored) {
+				flags += escape_code(none);
+			}
 		}
+		if (community) {
+			if (sc.achievement & UNCONDITIONAL) {
+				flags += 'u';
+			}
+			if (sc.achievement & NO_BACKUP) {
+				flags += 'b';
+			}
+			if (sc.achievement & NO_MEMORY) {
+				flags += 'm';
+			}
+		}
+	}
+	if (not flags.empty()) {
+		append(ret, '/', flags);
 	}
 	if (colored) {
 		ret += escape_code(none);

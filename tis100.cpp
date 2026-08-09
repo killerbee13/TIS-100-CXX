@@ -104,4 +104,8 @@ const char* tis_sim_get_error_message(const tis_sim* sim) {
 	return sim->error_message.c_str();
 }
 
+bool tis_sim_extract_achievement(const struct score* sc) {
+	return sc->achievement & tracked_achievement;
+}
+
 } // extern "C"

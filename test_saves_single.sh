@@ -51,7 +51,7 @@ function filter_expected
 end
 
 function filter_result
-	tail -n 1 $tmp_result | sed -Ee 's,^score: ,,' -e 's, PR:.*,,' | sed "s,\x1B\[[0-9;]*[a-zA-Z],,g" | tr z c
+	tail -n 1 $tmp_result | sed -Ee 's,^score: ,,' -e 's,P[0-9]+,,' -e 's, PR:.*,,' | sed "s,\x1B\[[0-9;]*[a-zA-Z],,g" | tr z c
 end
 
 function filter_pr
@@ -59,7 +59,7 @@ function filter_pr
 end
 
 function filter_flag
-	echo $argv | sed -Ee "s@/[ach]+@@"
+	echo $argv | sed -Ee "s@/[achubm]+@@"
 end
 
 echo $save_dir

@@ -60,7 +60,12 @@ struct level {
 		return *random_test(base_seed * 100 + id);
 	}
 
-	virtual bool has_achievement(const field& f, const score& sc) const = 0;
+	achievements score_achievements(const field& solve, const score& sc) const;
+	virtual achievements tracked_achievements() const = 0;
+	achievements a_busy_loop(const score& sc) const;
+	achievements a_no_backup(const field& solve) const;
+	achievements a_no_memory(const field& solve) const;
+	achievements a_unconditional(const field& solve) const;
 
 	// constructs a level equivalent to this immediately after construction
 	virtual std::unique_ptr<level> clone() const = 0;
@@ -104,7 +109,7 @@ struct builtin_level final : level {
 	std::optional<single_test> random_test(std::uint32_t seed) override {
 		return (*test_producer)(seed);
 	}
-	bool has_achievement(const field& solve, const score& sc) const override;
+	achievements tracked_achievements() const override;
 };
 
 inline constexpr size_t builtin_levels_num = 51;
@@ -125,9 +130,7 @@ struct custom_level final : level {
 
 	std::optional<single_test> random_test(std::uint32_t seed) override;
 
-	bool has_achievement(const field&, const score&) const override {
-		return false;
-	}
+	achievements tracked_achievements() const override { return no_achievement; }
 
  private:
 	std::string script;

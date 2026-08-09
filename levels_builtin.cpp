@@ -33,10 +33,10 @@
 
 #include <algorithm>
 #include <iterator>
+#include <memory>
 #include <optional>
 #include <span>
 #include <vector>
-#include <memory>
 
 field builtin_level::new_field(uint T30_size) const {
 	return field(layout, T30_size);
@@ -45,52 +45,96 @@ std::unique_ptr<level> builtin_level::clone() const {
 	return std::make_unique<builtin_level>(*this);
 }
 
-bool builtin_level::has_achievement(const field& solve, const score& sc) const {
+achievements level::a_busy_loop(const score& sc) const {
+	constexpr size_t BUSY_LOOP_thresh = 100'000;
 	auto debug = log_debug();
-	debug << "check_achievement " << name << ": ";
+	debug << "BUSY_LOOP: " << sc.cycles
+	      << ((sc.cycles > BUSY_LOOP_thresh) ? ">" : "<=") << BUSY_LOOP_thresh;
+	return sc.cycles > BUSY_LOOP_thresh ? BUSY_LOOP : no_achievement;
+}
+
+achievements level::a_unconditional(const field& solve) const {
+	auto debug = log_debug();
+	debug << "UNCONDITIONAL:\n";
+	for (auto& n : solve.regulars()) {
+		if (n->type == node::T21) {
+			auto p = static_cast<const T21*>(n.get());
+			debug << "T20 (" << p->x << ',' << p->y << "): ";
+			if (p->code.empty()) {
+				debug << "empty";
+			} else if (p->has_instr(instr::jez, instr::jnz, instr::jgz,
+			                        instr::jlz)) {
+				debug << " conditional found";
+				return no_achievement;
+			}
+			debug << '\n';
+		}
+	}
+	debug << " no conditionals found";
+	return UNCONDITIONAL;
+}
+achievements level::a_no_backup(const field& solve) const {
+	// from SEQUENCE COUNTER (not tracked)
+	auto debug = log_debug();
+	debug << "NO_BACKUP:\n";
+	for (auto& n : solve.regulars()) {
+		if (n->type == node::T21) {
+			auto p = static_cast<const T21*>(n.get());
+			debug << "T20 (" << p->x << ',' << p->y << "): ";
+			if (p->code.empty()) {
+				debug << "empty";
+			} else if (p->has_instr(instr::swp)) {
+				debug << " SWP found";
+				return no_achievement;
+			}
+			debug << '\n';
+		}
+	}
+	debug << " no conditionals found";
+	return NO_BACKUP;
+}
+achievements level::a_no_memory(const field& solve) const {
+	auto debug = log_debug();
+	debug << "NO_MEMORY: ";
+	bool has_stacks{};
+	for (auto& n : solve.regulars()) {
+		if (n->type == node::T30) {
+			has_stacks = true;
+			auto p = static_cast<const T30*>(n.get());
+			debug << "T30 (" << p->x << ',' << p->y << "): " << p->used << '\n';
+			if (p->used) {
+				return no_achievement;
+			}
+		}
+	}
+	debug << "no stacks used";
+	return has_stacks ? NO_MEMORY : no_achievement;
+}
+
+achievements level::score_achievements(const field& solve,
+                                       const score& sc) const {
+	auto debug = log_debug();
+	auto ret = a_busy_loop(sc) | a_unconditional(solve) | a_no_backup(solve)
+	           | a_no_memory(solve);
+	ret |= (ret & tracked_achievements()) ? tracked_achievement : no_achievement;
+	return static_cast<achievements>(ret);
+}
+
+achievements builtin_level::tracked_achievements() const {
 	switch (kblib::FNV32a(segment)) {
 	case "00150"_fnv32: { // SELF-TEST DIAGNOSTIC
-		debug << "BUSY_LOOP: " << sc.cycles << ((sc.cycles > 100000) ? ">" : "<=")
-		      << 100000;
-		return sc.cycles > 100000;
-	}
+		return BUSY_LOOP;
+	} break;
 	case "21340"_fnv32: { // SIGNAL COMPARATOR
-		debug << "UNCONDITIONAL:\n";
-		for (auto& n : solve.regulars()) {
-			if (n->type == node::T21) {
-				auto p = static_cast<const T21*>(n.get());
-				debug << "T20 (" << p->x << ',' << p->y << "): ";
-				if (p->code.empty()) {
-					debug << "empty";
-				} else if (p->has_instr(instr::jez, instr::jnz, instr::jgz,
-				                        instr::jlz)) {
-					debug << " conditional found";
-					return false;
-				}
-				debug << '\n';
-			}
-		}
-		debug << " no conditionals found";
-		return true;
-	}
+		return UNCONDITIONAL;
+	} break;
+		// 31904: SEQUENCE COUNTER: no_backup too trivial to track
 	case "42656"_fnv32: { // SEQUENCE REVERSER
-		debug << "NO_MEMORY: ";
-		for (auto& n : solve.regulars()) {
-			if (n->type == node::T30) {
-				auto p = static_cast<const T30*>(n.get());
-				debug << "T30 (" << p->x << ',' << p->y << "): " << p->used << '\n';
-				if (p->used) {
-					return false;
-				}
-			}
-		}
-		debug << "no stacks used";
-		return true;
-	}
+		return NO_MEMORY;
+	} break;
 	default: {
-		debug << "no achievement";
-		return false;
-	}
+		return no_achievement;
+	} break;
 	}
 }
 

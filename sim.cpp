@@ -64,6 +64,12 @@ static void set_expected(field& f, single_test&& expected) {
 	}
 }
 
+static void set_static_scores(score& a, const score& b) {
+	a.instructions = b.instructions;
+	a.nodes = b.nodes;
+	a.process_nodes = b.process_nodes;
+}
+
 static score run(field& f, size_t cycles_limit,
                  std::string* error_message = nullptr) {
 	score sc{};
@@ -378,7 +384,9 @@ const score& tis_sim::simulate_code(std::string_view code) {
 				break;
 			}
 		}
-		sc.achievement = sc.validated and target_level->has_achievement(f, sc);
+		if (sc.validated) {
+			sc.achievement = target_level->score_achievements(f, sc);
+		}
 	}
 
 	if ((sc.validated or not run_fixed or compute_stats) and not stop_requested

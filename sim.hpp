@@ -127,10 +127,4 @@ class tis_sim {
 	score run_seed_ranges(field f);
 };
 
-constexpr void set_static_scores(score& a, const score& b) {
-	a.instructions = b.instructions;
-	a.nodes = b.nodes;
-	a.process_nodes = b.process_nodes;
-}
-
 #endif // SIM_HPP

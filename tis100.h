@@ -29,6 +29,15 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
+enum achievements {
+	no_achievement = 0,
+	tracked_achievement = 1,
+	BUSY_LOOP = 2,
+	UNCONDITIONAL = 4,
+	NO_BACKUP = 8,
+	NO_MEMORY = 16,
+};
+
 /// Result of a full sim run
 struct score {
 	size_t cycles;
@@ -37,8 +46,8 @@ struct score {
 	size_t instructions;
 	unsigned int random_test_ran;
 	unsigned int random_test_valid;
+	enum achievements achievement;
 	bool validated;
-	bool achievement;
 	bool cheat;
 	bool hardcoded;
 };
@@ -83,6 +92,8 @@ const char* tis_sim_get_error_message(const struct tis_sim* sim);
 
 /// Run the simulation
 const struct score* tis_sim_simulate(struct tis_sim* sim, const char* code);
+
+bool tis_sim_extract_achievement(const struct score* sc);
 
 #ifdef __cplusplus
 }
