@@ -306,7 +306,7 @@ std::size_t field::nodes_used() const {
 
 static bool is_trivial_mov(instr i) {
 	return i.op_ == instr::mov and is_plain_direction(i.src)
-	       and is_plain_direction(i.dst) and i.src != i.dst;
+	       and is_plain_direction(i.dst);
 }
 
 std::size_t field::process_nodes_used() const {
