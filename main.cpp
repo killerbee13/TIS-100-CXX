@@ -483,7 +483,7 @@ int main(int argc, char** argv) try {
 				    "Cannot set --seeds in combination with -r or --seed"};
 			}
 			parse_ranges(sim, seed_exprs.getValue());
-		} else if (random_arg.isSet()) {
+		} else if (random_arg.isSet() and random_arg.getValue().val != 0) {
 			std::uint32_t seed;
 			if (seed_arg.isSet()) {
 				seed = seed_arg.getValue().val;
